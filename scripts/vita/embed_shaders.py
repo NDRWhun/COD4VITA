@@ -15,7 +15,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SHADER_DIR = os.path.join(HERE, "..", "..", "src", "vita", "test", "shaders")
 OUT_HEADER = os.path.join(SHADER_DIR, "smoke_shaders.h")
 
-SHADERS = {"smoke_v": "sce_vp_psp2", "smoke_f": "sce_fp_psp2"}
+SHADERS = {
+    "smoke_v": "sce_vp_psp2", "smoke_f": "sce_fp_psp2",
+    "clear_v": "sce_vp_psp2", "clear_f": "sce_fp_psp2",
+}
 CGC_FLAGS = ["-O3", "-fastmath"]
 
 

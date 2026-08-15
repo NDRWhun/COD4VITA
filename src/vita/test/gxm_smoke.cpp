@@ -39,7 +39,13 @@ static const SmokeVertex s_quad[4] =
     { -0.6f,  0.6f, 0.0f, 0.0f, 0.0f, 0xFFFFFF80 },
 };
 
-static const uint16_t s_indices[6] = { 0, 1, 2, 0, 2, 3 };
+// the same quad wound both ways: with cull-back set, whichever one survives says
+// which winding GXM treats as front facing
+static const uint16_t s_indices[12] =
+{
+    0, 1, 2, 0, 2, 3,       // counter-clockwise
+    0, 2, 1, 0, 3, 2,       // clockwise
+};
 
 static GxmBuffer s_vertexBuffer;
 static GxmBuffer s_indexBuffer;
@@ -49,6 +55,15 @@ static SceGxmVertexProgram *s_vertexProgram;
 static SceGxmFragmentProgram *s_fragmentProgram;
 static int s_vertexShader = -1;
 static int s_fragmentShader = -1;
+
+// the clear pass: a full-screen triangle, since GXM has no clear entry point
+static GxmBuffer s_clearVertices;
+static GxmBuffer s_clearIndices;
+static SceGxmVertexProgram *s_clearVertexProgram;
+static SceGxmFragmentProgram *s_clearFragmentProgram;
+static int s_clearVertexShader = -1;
+static int s_clearFragmentShader = -1;
+
 static bool s_quit;
 
 static void SmokeLog(const char *format, ...)
@@ -83,6 +98,8 @@ static void SmokeFillTexture(void)
         }
     }
 }
+
+static bool SmokeInitClear(void);
 
 static bool SmokeInitResources(void)
 {
@@ -144,13 +161,103 @@ static bool SmokeInitResources(void)
         return false;
     SmokeFillTexture();
     GxmTexture_SetFilter(&s_texture, true, true);
+
+    return SmokeInitClear();
+}
+
+static bool SmokeInitClear(void)
+{
+    s_clearVertexShader = GxmProgram_Register(clear_v_gxp, sizeof(clear_v_gxp));
+    s_clearFragmentShader = GxmProgram_Register(clear_f_gxp, sizeof(clear_f_gxp));
+    if (s_clearVertexShader < 0 || s_clearFragmentShader < 0)
+        return false;
+
+    static const GxmStreamSource sources[1] = { { 0, 0, 1 } };      // position, FLOAT2
+    static const GxmStreamRouting routing[1] = { { 0, 0 } };        // position -> position
+    const uint16_t strides[GXM_MAX_VERTEX_STREAMS] = { sizeof(float) * 2, 0 };
+
+    GxmVertexLayout layout;
+    if (!GxmVertex_BuildLayout(GxmProgram_Get(s_clearVertexShader), sources, 1,
+                               routing, 1, strides, &layout))
+        return false;
+
+    s_clearVertexProgram = GxmProgram_Vertex(s_clearVertexShader, layout.attributes,
+                                             layout.attributeCount, layout.streams,
+                                             layout.streamCount);
+    if (!s_clearVertexProgram)
+        return false;
+
+    GxmProgramState opaque;
+    memset(&opaque, 0, sizeof(opaque));
+    opaque.blendEnabled = false;
+    opaque.blend.colorMask = SCE_GXM_COLOR_MASK_R | SCE_GXM_COLOR_MASK_G
+                           | SCE_GXM_COLOR_MASK_B | SCE_GXM_COLOR_MASK_A;
+
+    s_clearFragmentProgram = GxmProgram_Fragment(s_clearFragmentShader, &opaque,
+                                                 s_clearVertexShader);
+    if (!s_clearFragmentProgram)
+        return false;
+
+    // one triangle large enough to cover the screen
+    static const float triangle[6] = { -1.0f, -1.0f, 3.0f, -1.0f, -1.0f, 3.0f };
+    static const uint16_t indices[3] = { 0, 1, 2 };
+
+    if (!GxmBuffer_Create(&s_clearVertices, sizeof(triangle), false))
+        return false;
+    memcpy(s_clearVertices.memory.base, triangle, sizeof(triangle));
+
+    if (!GxmBuffer_Create(&s_clearIndices, sizeof(indices), false))
+        return false;
+    memcpy(s_clearIndices.memory.base, indices, sizeof(indices));
     return true;
 }
 
-static void SmokeDraw(float spin)
+// depth func always plus depth write, so the clear resets colour and depth together
+static void SmokeClear(void)
 {
     GxmRenderState render;
     GxmProgramState program;
+    GxmState_Decode(0x4000 | 0x18000000,        // cull none, colour write, no blending
+                    0x1,                        // depth write, depth test always
+                    &render, &program);
+    GxmState_Apply(GxmDevice_Context(), &render);
+
+    GxmDraw_SetVertexProgram(s_clearVertexShader, s_clearVertexProgram);
+    GxmDraw_SetFragmentProgram(s_clearFragmentShader, s_clearFragmentProgram);
+
+    static const float clearColour[4] = { 0.05f, 0.10f, 0.20f, 1.0f };
+    GxmDraw_SetFragmentConstants(0, clearColour, 1);
+
+    GxmDraw_SetStream(0, s_clearVertices.memory.base);
+    GxmDraw_Indexed(SCE_GXM_PRIMITIVE_TRIANGLES,
+                    (const uint16_t *)s_clearIndices.memory.base, 3);
+}
+
+// draws the quad at an x offset, using one of the two windings
+static bool SmokeDrawQuad(float spin, float offsetX, uint32_t indexOffset)
+{
+    const float c = __builtin_cosf(spin), s = __builtin_sinf(spin);
+    const float mvp[16] =
+    {
+        c * 0.28f, s * 0.5f, 0.0f, 0.0f,
+        -s * 0.28f, c * 0.5f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        offsetX, 0.0f, 0.0f, 1.0f,
+    };
+    GxmDraw_SetVertexConstants(0, mvp, 4);
+
+    GxmDraw_SetTexture(0, &s_texture.texture);
+    GxmDraw_SetStream(0, s_vertexBuffer.memory.base);
+
+    const uint16_t *indices = (const uint16_t *)s_indexBuffer.memory.base + indexOffset;
+    return GxmDraw_Indexed(SCE_GXM_PRIMITIVE_TRIANGLES, indices, 6);
+}
+
+static bool SmokeDraw(float spin)
+{
+    GxmRenderState render;
+    GxmProgramState program;
+    // cull back, so exactly one of the two windings should survive
     GxmState_Decode(0x8000 | 0x100 | 0x60 | 0x18000000,     // cull back, blend, colour write
                     0x1 | 0xC,                              // depth write, depth test lessequal
                     &render, &program);
@@ -159,20 +266,9 @@ static void SmokeDraw(float spin)
     GxmDraw_SetVertexProgram(s_vertexShader, s_vertexProgram);
     GxmDraw_SetFragmentProgram(s_fragmentShader, s_fragmentProgram);
 
-    // a spin around Z, so a still frame still proves the transform is being applied
-    const float c = __builtin_cosf(spin), s = __builtin_sinf(spin);
-    const float mvp[16] =
-    {
-        c * 0.56f, s, 0.0f, 0.0f,
-        -s * 0.56f, c, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f,
-    };
-    GxmDraw_SetVertexConstants(0, mvp, 4);
-
-    GxmDraw_SetTexture(0, &s_texture.texture);
-    GxmDraw_SetStream(0, s_vertexBuffer.memory.base);
-    GxmDraw_Indexed(SCE_GXM_PRIMITIVE_TRIANGLES, (const uint16_t *)s_indexBuffer.memory.base, 6);
+    const bool left = SmokeDrawQuad(spin, -0.45f, 0);       // counter-clockwise
+    const bool right = SmokeDrawQuad(spin, 0.45f, 6);       // clockwise
+    return left && right;
 }
 
 int main(void)
@@ -190,9 +286,16 @@ int main(void)
     VitaInput_Init(SmokeKey, NULL);
 
     if (GxmShaderArchive_Load(SHADER_ARCHIVE_PATH))
-        SmokeLog("shader archive: %u entries\n", GxmShaderArchive_Count());
+    {
+        // registering every blob proves the patcher accepts the translated corpus
+        const uint32_t count = GxmShaderArchive_Count();
+        const uint32_t registered = GxmShaderArchive_RegisterAll();
+        SmokeLog("shader archive: %u/%u blobs registered\n", registered, count);
+    }
     else
+    {
         SmokeLog("shader archive absent, drawing with the built-in shaders only\n");
+    }
 
     if (!SmokeInitResources())
     {
@@ -205,14 +308,28 @@ int main(void)
              GxmTexture_BytesResident(), GxmMem_BytesUsed(GXM_MEM_CDRAM));
 
     float spin = 0.0f;
+    bool firstDrawLogged = false;
+
     while (!s_quit)
     {
         VitaInput_Frame();
         GxmRing_BeginFrame();
 
         GxmDevice_BeginFrame();
-        SmokeDraw(spin);
+        SmokeClear();
+        const bool drew = SmokeDraw(spin);
         GxmDevice_EndFrame();
+
+        // report early and then rarely, so a force-quit still leaves evidence
+        if (!firstDrawLogged)
+        {
+            SmokeLog("first frame: draw %s\n", drew ? "submitted" : "REJECTED");
+            firstDrawLogged = true;
+        }
+        else if ((GxmDevice_FrameIndex() % 600) == 0)
+        {
+            SmokeLog("frame %u, %u draws\n", GxmDevice_FrameIndex(), GxmDraw_DrawCount());
+        }
 
         spin += 0.02f;
     }

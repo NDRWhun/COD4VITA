@@ -27,3 +27,7 @@ int GxmShaderArchive_Lookup(uint32_t hash, GxmShaderStage stage, uint32_t alphaT
 
 uint32_t GxmShaderArchive_Count(void);
 uint32_t GxmShaderArchive_MissCount(void);
+
+// registers every blob and reports how many the shader patcher accepted; a
+// diagnostic, since the normal path registers lazily on first lookup
+uint32_t GxmShaderArchive_RegisterAll(void);

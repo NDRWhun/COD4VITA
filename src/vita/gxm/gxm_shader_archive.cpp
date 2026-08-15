@@ -190,6 +190,24 @@ int GxmShaderArchive_Lookup(uint32_t hash, GxmShaderStage stage, uint32_t alphaT
     return -1;
 }
 
+uint32_t GxmShaderArchive_RegisterAll(void)
+{
+    uint32_t registered = 0;
+    for (uint32_t i = 0; i < s_entryCount; ++i)
+    {
+        if (s_handles[i] < 0)
+        {
+            const GxmArchiveEntry *entry = &s_entries[i];
+            if ((uint64_t)entry->offset + entry->size > s_archiveSize)
+                continue;
+            s_handles[i] = GxmProgram_Register(s_archive + entry->offset, entry->size);
+        }
+        if (s_handles[i] >= 0)
+            ++registered;
+    }
+    return registered;
+}
+
 uint32_t GxmShaderArchive_Count(void)
 {
     return s_entryCount;

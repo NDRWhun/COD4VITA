@@ -1,0 +1,6 @@
+// the clear colour arrives in c[0], matching the constant path everything else uses
+
+float4 main(uniform float4 c[1]) : COLOR
+{
+	return c[0];
+}

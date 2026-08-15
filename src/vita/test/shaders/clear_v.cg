@@ -1,0 +1,9 @@
+// GXM has no clear entry point, so a full-screen triangle does it
+// z of 1 puts the clear at the far plane, which resets depth as well as colour
+
+void main(
+	float2 position : POSITION,
+	out float4 outPosition : POSITION)
+{
+	outPosition = float4(position, 1.0f, 1.0f);
+}

@@ -1,15 +1,22 @@
 // smoke test: transform a quad and pass through uv and colour
+//
+// the matrix arrives in the same c[] array the translated game shaders use, so this
+// exercises the engine's constant path rather than a special case
 
 void main(
 	float3 position : POSITION,
 	float2 uv : TEXCOORD0,
 	float4 colour : COLOR0,
-	uniform float4x4 mvp,
+	uniform float4 c[4],
 	out float4 outPosition : POSITION,
 	out float2 outUv : TEXCOORD0,
 	out float4 outColour : COLOR0)
 {
-	outPosition = mul(float4(position, 1.0f), mvp);
+	float4 p = float4(position, 1.0f);
+	outPosition.x = dot(p, c[0]);
+	outPosition.y = dot(p, c[1]);
+	outPosition.z = dot(p, c[2]);
+	outPosition.w = dot(p, c[3]);
 	outUv = uv;
 	outColour = colour;
 }
