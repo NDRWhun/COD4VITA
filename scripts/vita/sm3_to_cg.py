@@ -46,6 +46,21 @@ VOLUME_HELPER = """float4 sampleVolume(sampler2D tex, float3 uvw, float2 layout)
 """
 
 
+# GXM has no fixed-function alpha test, so each mode becomes a discard baked into a
+# variant. The engine compares 8-bit alpha against D3DRS_ALPHAREF: 0 for GT_0 and
+# 128 for the others (R_SetAlphaTestFunction).
+ALPHA_TEST_NONE, ALPHA_TEST_GT_0, ALPHA_TEST_LT_128, ALPHA_TEST_GE_128 = range(4)
+
+ALPHA_TEST_DISCARD = {
+    ALPHA_TEST_GT_0: "\tif (oC0.w <= 0.0) discard;",
+    ALPHA_TEST_LT_128: "\tif (oC0.w >= 0.50196078) discard;",
+    ALPHA_TEST_GE_128: "\tif (oC0.w < 0.50196078) discard;",
+}
+
+ALPHA_TEST_SUFFIX = {ALPHA_TEST_NONE: "", ALPHA_TEST_GT_0: ".a1",
+                     ALPHA_TEST_LT_128: ".a2", ALPHA_TEST_GE_128: ".a3"}
+
+
 class Unsupported(Exception):
     pass
 
@@ -368,7 +383,7 @@ def semantic(usage, index):
     return "%s%d" % (name, index)
 
 
-def translate(data):
+def translate(data, alpha_test=ALPHA_TEST_NONE):
     sh = Shader(data)
     em = Emitter(sh)
 
@@ -406,8 +421,12 @@ def translate(data):
     body.extend(em.lines)
 
     if sh.is_vs:
+        if alpha_test != ALPHA_TEST_NONE:
+            raise Unsupported("alpha test on a vertex shader")
         signature = "void main(\n\t%s)" % ",\n\t".join(params)
     else:
+        if alpha_test != ALPHA_TEST_NONE:
+            body.append(ALPHA_TEST_DISCARD[alpha_test])
         body.append("\treturn oC0;")
         signature = "float4 main(\n\t%s) : COLOR" % ",\n\t".join(params)
 
