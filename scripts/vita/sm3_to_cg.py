@@ -299,8 +299,9 @@ class Emitter(object):
             self.assign(dst, "ddx(%s)" % s[0])
         elif op == 92:
             self.assign(dst, "ddy(%s)" % s[0])
-        elif op == 66:                                  # texld
-            self.assign(dst, self.sample(srcs[1], srcs[0]))
+        elif op == 66:                                  # texld, or its projective/biased forms
+            kind = ins.control & 0x3
+            self.assign(dst, self.sample(srcs[1], srcs[0], proj=(kind == 1), bias=(kind == 2)))
         elif op == 95:                                  # texldl, lod in src0.w
             self.assign(dst, self.sample(srcs[1], srcs[0], lod=True))
         elif op == 93:                                  # texldd
@@ -308,7 +309,7 @@ class Emitter(object):
         elif op == 65:                                  # texkill reads its operand from the dst slot
             self.emit("if (any(%s.xyz < 0.0)) discard;" % self.reg(dst.type, dst.num))
         elif op == 41:                                  # ifc
-            cmp = {1: ">", 2: "==", 3: ">=", 4: "!=", 5: "<", 6: "<="}[ins.control]
+            cmp = {1: ">", 2: "==", 3: ">=", 4: "<", 5: "!=", 6: "<="}[ins.control]
             self.emit("if (%s %s %s) {" % (self.src(srcs[0], 1), cmp, self.src(srcs[1], 1)))
             self.indent += 1
         elif op == 40:                                  # if
@@ -332,7 +333,7 @@ class Emitter(object):
         else:
             raise Unsupported("opcode %d" % op)
 
-    def sample(self, sampler, coord, lod=False, grad=None):
+    def sample(self, sampler, coord, lod=False, grad=None, proj=False, bias=False):
         stype = self.sh.samplers.get(sampler.num)
         if stype not in SAMPLER_TYPES:
             raise Unsupported("sampler type %s" % stype)
@@ -342,6 +343,12 @@ class Emitter(object):
         if stype == VOLUME:
             return "sampleVolume(%s, %s, volumeLayout_s%d.xy)" % (
                 name, self.src(coord, 3), sampler.num)
+        if proj:                                        # divides by .w in hardware
+            return "%sproj(%s, %s)" % (fn, name, self.src(coord, 4))
+        if bias:                                        # bias arrives in .w
+            biased = "float4(%s, 0.0, %s.w)" % (self.src(coord, 2),
+                                                self.reg(coord.type, coord.num))
+            return "%sbias(%s, %s)" % (fn, name, biased)
         if lod:
             # the lod goes in .w, so a 2d lookup pads to four components and a 3d one does not
             lod_src = "%s.w" % self.reg(coord.type, coord.num)
@@ -387,8 +394,9 @@ def translate(data):
     if sh.temps:
         body.append("\tfloat4 %s;" % ", ".join("r%d" % n for n in sorted(sh.temps)))
     for num in sorted(sh.defs):
+        # print the literal exactly; %g truncates to 6 digits and frc amplifies the loss
         body.append("\tconst float4 cd%d = float4(%s);"
-                    % (num, ", ".join("%g" % v for v in sh.defs[num])))
+                    % (num, ", ".join("%.17g" % v for v in sh.defs[num])))
 
     if not sh.is_vs:
         body.append("\tfloat4 oC0;")
