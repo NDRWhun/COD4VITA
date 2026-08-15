@@ -1,8 +1,4 @@
-// Textures: the engine's image formats mapped onto GXM, plus the 3D emulation.
-//
-// The shipped set is 98.8% DXT, which maps to UBC1/2/3 with no conversion. GXM has
-// no volume texture type, so a 3D image becomes a vertical strip of its slices and
-// the shader samples two of them; see docs/research/gxm-model.md.
+// The engine's image formats mapped onto GXM textures.
 #pragma once
 
 #include <psp2/gxm.h>

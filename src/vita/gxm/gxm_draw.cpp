@@ -45,8 +45,7 @@ static void GxmDraw_BindStage(GxmStage *stage, int shaderHandle)
     if (stage->shader == shaderHandle)
         return;
 
-    // the shadow survives a program change: the engine sets constants for a pass before
-    // binding its shaders, and D3D keeps constants across shader changes anyway
+    // the shadow survives a program change, as D3D constants do
     stage->shader = shaderHandle;
     stage->constants = NULL;
     stage->constantWords = 0;
@@ -76,8 +75,7 @@ void GxmDraw_SetFragmentProgram(int shaderHandle, const SceGxmFragmentProgram *p
 static void GxmDraw_StageConstants(GxmStage *stage, uint32_t startRegister,
                                    const float *values, uint32_t registerCount)
 {
-    // measured high-water is 32 vertex and 22 fragment registers, so an overflow means a
-    // wrong assumption rather than a tight budget; count it instead of dropping it quietly
+    // measured high-water is 32 vertex and 22 fragment registers
     if (startRegister >= GXM_MAX_CONSTANT_REGISTERS)
     {
         ++s_droppedConstants;
@@ -110,8 +108,7 @@ void GxmDraw_SetFragmentConstants(uint32_t startRegister, const float *values,
     GxmDraw_StageConstants(&s_fragment, startRegister, values, registerCount);
 }
 
-// a fragment program sampling a unit that was never bound faults, so unbinding has to
-// leave something valid behind rather than nothing
+// an unbound unit faults when sampled, so unbinding leaves the dummy behind
 void GxmDraw_SetTexture(uint32_t unit, const SceGxmTexture *texture)
 {
     if (unit >= GXM_MAX_TEXTURE_UNITS)

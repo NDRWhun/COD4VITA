@@ -1,7 +1,4 @@
-// Vertex and index buffers in GPU-visible memory.
-//
-// Static buffers are uploaded once and drawn for many frames. Dynamic data goes
-// through a per-frame ring, so the GPU is never reading what the CPU is writing.
+// Vertex and index buffers in GPU-visible memory, plus the per-frame ring.
 #pragma once
 
 #include <stdint.h>

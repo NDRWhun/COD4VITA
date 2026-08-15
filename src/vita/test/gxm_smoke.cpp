@@ -1,8 +1,4 @@
 // Standalone check that the GXM layer works on hardware.
-//
-// Brings up the device, uploads a texture and a quad, and draws with depth test
-// and blending on. Also loads the shader archive if it is present, so a device
-// that boots this has proved memory, programs, state, layout, draws and input.
 
 #include <psp2/ctrl.h>
 #include <psp2/kernel/processmgr.h>
@@ -39,8 +35,7 @@ static const SmokeVertex s_quad[4] =
     { -0.6f,  0.6f, 0.0f, 0.0f, 0.0f, 0xFFFFFF80 },
 };
 
-// the same quad wound both ways: with cull-back set, whichever one survives says
-// which winding GXM treats as front facing
+// the same quad wound both ways; with cull-back set only the front-facing one survives
 static const uint16_t s_indices[12] =
 {
     0, 1, 2, 0, 2, 3,       // counter-clockwise

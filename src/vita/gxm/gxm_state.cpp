@@ -2,8 +2,7 @@
 
 #include <string.h>
 
-// the state words carry D3D9 enum values directly; the engine's translation tables
-// are identity maps, so the nibbles are D3DBLEND / D3DBLENDOP / D3DSTENCILOP
+// the nibbles are raw D3DBLEND / D3DBLENDOP / D3DSTENCILOP values
 #define GFXS0_SRCBLEND_RGB_SHIFT    0
 #define GFXS0_DSTBLEND_RGB_SHIFT    4
 #define GFXS0_BLENDOP_RGB_SHIFT     8
@@ -163,9 +162,7 @@ void GxmState_Decode(uint32_t stateBits0, uint32_t stateBits1,
     // blending is on only when a blend op is set, matching R_ForceSetBlendState
     program->blendEnabled = (stateBits0 & GFXS0_BLENDOP_RGB_MASK) != 0;
 
-    // a material that declares no alpha blend op gets the rgb blend replicated into the
-    // alpha field; R_ChangeState does this before touching the device, so most materials
-    // reach the hardware with alpha blending set even though the bits do not say so
+    // R_ChangeState replicates the rgb blend into an unset alpha field before it sets state
     if (program->blendEnabled && (stateBits0 & GFXS0_BLENDOP_ALPHA_MASK) == 0)
         stateBits0 = (stateBits0 & 0xF800FFFF) | ((stateBits0 & GFXS0_BLEND_RGB_MASK) << 16);
 

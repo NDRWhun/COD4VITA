@@ -1,9 +1,4 @@
 // Builds a GXM vertex layout from the engine's stream routing.
-//
-// The engine describes a declaration as (source, dest) pairs: the source names a
-// field in the vertex struct, the dest names the shader input it feeds. GXM instead
-// wants attributes bound to the vertex program's register indices, which are looked
-// up from the compiled program by semantic.
 #pragma once
 
 #include <psp2/gxm.h>

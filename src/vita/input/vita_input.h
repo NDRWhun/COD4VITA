@@ -1,8 +1,4 @@
 // Pad, sticks, touch and the on-screen keyboard.
-//
-// The engine has no gamepad key codes -- CoD4 on PC is keyboard and mouse -- so pad
-// buttons emit the keyboard and mouse codes the binds already use, and the sticks
-// drive movement and look separately.
 #pragma once
 
 #include <stdint.h>

@@ -1,7 +1,4 @@
 // Registry and cache for the offline-compiled GXP programs.
-//
-// Fragment programs bake in blend, colour mask and MSAA, so one pixel shader turns
-// into several GXM programs. They are created on first use and kept, never per draw.
 #pragma once
 
 #include <psp2/gxm.h>

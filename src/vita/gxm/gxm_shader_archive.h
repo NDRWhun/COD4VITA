@@ -1,8 +1,4 @@
-// Lookup for the offline-baked GXP blobs.
-//
-// The engine hands the renderer D3D9 SM3 bytecode; the runtime hashes it the way
-// the bake did and asks here for the matching program. A shader with no entry does
-// not draw, and says so once -- it is never silently skipped.
+// Lookup for the offline-baked GXP blobs, keyed by SM3 bytecode hash.
 #pragma once
 
 #include <stdint.h>
@@ -28,6 +24,5 @@ int GxmShaderArchive_Lookup(uint32_t hash, GxmShaderStage stage, uint32_t alphaT
 uint32_t GxmShaderArchive_Count(void);
 uint32_t GxmShaderArchive_MissCount(void);
 
-// registers every blob and reports how many the shader patcher accepted; a
-// diagnostic, since the normal path registers lazily on first lookup
+// diagnostic; the normal path registers lazily on first lookup
 uint32_t GxmShaderArchive_RegisterAll(void);

@@ -1,8 +1,4 @@
 // Cinematic frames as GXM YUV textures.
-//
-// The decoder hands back planar YUV, and GXM samples that natively with the colour
-// conversion in the texture format, so a frame needs no conversion pass and the
-// cinematic quad samples one texture instead of the three the PC path used.
 #pragma once
 
 #include <psp2/gxm.h>

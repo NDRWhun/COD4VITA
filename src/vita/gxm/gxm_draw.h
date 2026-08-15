@@ -1,7 +1,4 @@
 // The draw path: programs, constants, textures, streams, submit.
-//
-// Constants are shadowed on the CPU because the engine sets them the D3D way, in
-// register ranges, while GXM wants one uniform buffer reserved per draw.
 #pragma once
 
 #include <psp2/gxm.h>

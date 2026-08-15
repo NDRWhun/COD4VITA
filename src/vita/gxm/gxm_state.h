@@ -1,8 +1,4 @@
 // Translates the engine's two state words into GXM state.
-//
-// The split matters: cull, depth and stencil are context state, but blend, colour
-// mask and alpha test are compiled into the fragment program, so they select a
-// program instance instead of being set per draw.
 #pragma once
 
 #include <psp2/gxm.h>
