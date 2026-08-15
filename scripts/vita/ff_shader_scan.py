@@ -4,7 +4,9 @@
 Decompresses each .ff and scans the zone image for D3D9 shader token streams,
 hashing each one the way the runtime will at CreateVertexShader time.
 
-  python ff_shader_scan.py "<cod4>/zone/english"
+  python ff_shader_scan.py "<cod4>/zone/english" [dumpdir]
+
+With a dumpdir, each unique stream is written there as <hash>.vs / <hash>.ps.
 """
 
 import os
@@ -52,7 +54,7 @@ def fnv1a(data):
     return h
 
 
-def scan(buf, shaders, per_file):
+def scan(buf, shaders, per_file, dumpdir=None):
     n = len(buf)
     p = 0
     while p + 4 <= n:
@@ -65,6 +67,9 @@ def scan(buf, shaders, per_file):
                 kind = "vs" if tok == VS_VERSION else "ps"
                 if h not in shaders:
                     shaders[h] = (kind, dwords)
+                    if dumpdir:
+                        with open(os.path.join(dumpdir, "%08x.%s" % (h, kind)), "wb") as f:
+                            f.write(blob)
                 per_file.add(h)
                 p += dwords * 4
                 continue
@@ -73,6 +78,10 @@ def scan(buf, shaders, per_file):
 
 def main():
     zone = sys.argv[1]
+    dumpdir = sys.argv[2] if len(sys.argv) > 2 else None
+    if dumpdir:
+        os.makedirs(dumpdir, exist_ok=True)
+
     files = sorted(f for f in os.listdir(zone) if f.endswith(".ff"))
 
     shaders = {}
@@ -91,7 +100,7 @@ def main():
 
         per_file = set()
         before = len(shaders)
-        scan(raw, shaders, per_file)
+        scan(raw, shaders, per_file, dumpdir)
         rows.append((name, len(raw), len(per_file), len(shaders) - before))
         print("%-32s %7.1f MB  %4d shaders (%3d new)  running total %d"
               % (name, len(raw) / 1048576.0, len(per_file), len(shaders) - before, len(shaders)))
