@@ -1,0 +1,34 @@
+// The draw path: programs, constants, textures, streams, submit.
+//
+// Constants are shadowed on the CPU because the engine sets them the D3D way, in
+// register ranges, while GXM wants one uniform buffer reserved per draw.
+#pragma once
+
+#include <psp2/gxm.h>
+#include <stdint.h>
+
+#include "gxm_vertex.h"
+
+#define GXM_MAX_CONSTANT_REGISTERS 64
+#define GXM_MAX_TEXTURE_UNITS      16
+
+bool GxmDraw_Init(void);
+
+// handles come from GxmProgram_Register; the programs from the program cache
+void GxmDraw_SetVertexProgram(int shaderHandle, const SceGxmVertexProgram *program);
+void GxmDraw_SetFragmentProgram(int shaderHandle, const SceGxmFragmentProgram *program);
+
+// register ranges, as SetVertexShaderConstantF supplies them
+void GxmDraw_SetVertexConstants(uint32_t startRegister, const float *values,
+                                uint32_t registerCount);
+void GxmDraw_SetFragmentConstants(uint32_t startRegister, const float *values,
+                                  uint32_t registerCount);
+
+void GxmDraw_SetTexture(uint32_t unit, const SceGxmTexture *texture);
+void GxmDraw_SetStream(uint32_t streamIndex, const void *data);
+
+bool GxmDraw_Indexed(SceGxmPrimitiveType primitive, const uint16_t *indices,
+                     uint32_t indexCount);
+
+uint32_t GxmDraw_DrawCount(void);
+void GxmDraw_ResetCounters(void);
