@@ -1,0 +1,9 @@
+// smoke test: modulate the texture by the vertex colour
+
+float4 main(
+	float2 uv : TEXCOORD0,
+	float4 colour : COLOR0,
+	uniform sampler2D albedo : TEXUNIT0) : COLOR
+{
+	return tex2D(albedo, uv) * colour;
+}

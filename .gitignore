@@ -432,3 +432,6 @@ KisakCOD/.idea/*
 build-radiant/
 KisakCOD/
 radiant_artifacts/
+
+# vita smoke test build output
+src/vita/test/build*/

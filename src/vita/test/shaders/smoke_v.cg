@@ -1,0 +1,15 @@
+// smoke test: transform a quad and pass through uv and colour
+
+void main(
+	float3 position : POSITION,
+	float2 uv : TEXCOORD0,
+	float4 colour : COLOR0,
+	uniform float4x4 mvp,
+	out float4 outPosition : POSITION,
+	out float2 outUv : TEXCOORD0,
+	out float4 outColour : COLOR0)
+{
+	outPosition = mul(float4(position, 1.0f), mvp);
+	outUv = uv;
+	outColour = colour;
+}
