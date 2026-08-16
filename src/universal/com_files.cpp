@@ -395,7 +395,11 @@ void __cdecl FS_ReplaceSeparators(char *path)
             if (!wasSep)
             {
                 wasSep = 1;
+#ifdef KISAK_VITA
+                *dst++ = 47;    // every os path funnels through here, so one separator suffices
+#else
                 *dst++ = 92;
+#endif
             }
         }
         else

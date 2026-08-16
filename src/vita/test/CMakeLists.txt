@@ -38,6 +38,8 @@ add_executable(gxm_smoke
   ${VITA_ROOT}/vita/input/vita_input.cpp
   ${VITA_ROOT}/vita/platform/vita_memory.cpp
   ${VITA_ROOT}/vita/platform/vita_threads.cpp
+  ${VITA_ROOT}/vita/platform/vita_files.cpp
+  ${VITA_ROOT}/vita/platform/vita_sys.cpp
   ${VITA_ROOT}/vita/platform/vita_selftest.cpp
 )
 

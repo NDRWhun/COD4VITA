@@ -1,7 +1,9 @@
 // On-device checks for the allocator and the threading layer.
 
 #include "vita_selftest.h"
+#include "vita_files.h"
 #include "vita_memory.h"
+#include "vita_sys.h"
 #include "vita_threads.h"
 
 #include <psp2/kernel/threadmgr.h>
@@ -208,4 +210,88 @@ bool VitaSelfTest_Threads(char *report, uint32_t reportSize)
     CloseHandle(s_ping);
     CloseHandle(s_pong);
     return pass;
+}
+
+#define TEST_DIRECTORY "ux0:data/kisakcod/selftest"
+
+static void TestWriteFile(const char *name)
+{
+    char path[256];
+    snprintf(path, sizeof(path), TEST_DIRECTORY "/%s", name);
+    FILE *file = fopen(path, "wb");
+    if (file)
+    {
+        fwrite("kcod", 1, 4, file);
+        fclose(file);
+    }
+}
+
+bool VitaSelfTest_Files(char *report, uint32_t reportSize)
+{
+    _mkdir(TEST_DIRECTORY);
+
+    TestWriteFile("alpha.ff");
+    TestWriteFile("beta.ff");
+    TestWriteFile("gamma.iwd");
+    _mkdir(TEST_DIRECTORY "/subdir");
+
+    // the engine writes specifications with backslashes, which must still open
+    uint32_t fastfiles = 0;
+    uint32_t everything = 0;
+    uint32_t directories = 0;
+
+    _finddata64i32_t entry;
+    intptr_t handle = _findfirst64i32(TEST_DIRECTORY "\\*.ff", &entry);
+    if (handle != -1)
+    {
+        do
+        {
+            ++fastfiles;
+        } while (_findnext64i32(handle, &entry) == 0);
+        _findclose(handle);
+    }
+
+    char seen[160];
+    seen[0] = 0;
+
+    handle = _findfirst64i32(TEST_DIRECTORY "/*", &entry);
+    if (handle != -1)
+    {
+        do
+        {
+            ++everything;
+            if (entry.attrib & _A_SUBDIR)
+                ++directories;
+            if (strlen(seen) + strlen(entry.name) + 2 < sizeof(seen))
+            {
+                strcat(seen, entry.name);
+                strcat(seen, " ");
+            }
+        } while (_findnext64i32(handle, &entry) == 0);
+        _findclose(handle);
+    }
+
+    char path[256];
+    static const char *const written[] = { "alpha.ff", "beta.ff", "gamma.iwd" };
+    for (uint32_t i = 0; i < 3; ++i)
+    {
+        snprintf(path, sizeof(path), TEST_DIRECTORY "/%s", written[i]);
+        remove(path);
+    }
+    _rmdir(TEST_DIRECTORY "/subdir");
+    _rmdir(TEST_DIRECTORY);
+
+    // '.' and '..' come back from readdir, so the wildcard sees five entries
+    const bool pass = fastfiles == 2 && everything >= 4 && directories >= 1;
+
+    const unsigned int start = VitaSys_Milliseconds();
+    sceKernelDelayThread(50000);
+    const unsigned int elapsed = VitaSys_Milliseconds() - start;
+    const bool clockSane = elapsed >= 45 && elapsed <= 80;
+
+    snprintf(report, reportSize,
+             "files: %s matched %u .ff, %u entries, %u dirs [%s]; clock %s (%u ms for 50)\n",
+             (pass && clockSane) ? "PASS" : "FAIL", fastfiles, everything, directories,
+             seen, clockSane ? "ok" : "BAD", elapsed);
+    return pass && clockSane;
 }

@@ -5,3 +5,4 @@
 
 bool VitaSelfTest_Memory(char *report, uint32_t reportSize);
 bool VitaSelfTest_Threads(char *report, uint32_t reportSize);
+bool VitaSelfTest_Files(char *report, uint32_t reportSize);
