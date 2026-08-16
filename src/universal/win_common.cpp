@@ -8,7 +8,9 @@
 #include <qcommon/threads.h>
 
 #include <direct.h>
+#ifndef KISAK_VITA
 #include <io.h>
+#endif
 #include "com_memory.h"
 #include "profile.h"
 

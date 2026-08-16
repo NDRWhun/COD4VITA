@@ -1,7 +1,9 @@
 #pragma once
 #include "scr_stringlist.h"
 #include <cstdio> // FILE
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 
 // LWSS: this enum name is kinda retarded
 enum Enum_t : __int32

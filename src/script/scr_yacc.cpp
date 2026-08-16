@@ -5,7 +5,7 @@
 // In the YACC file, you write your own main() function, which calls yyparse() at one point.The function
 // yyparse() is created for you by YACC, and ends up in y.tab.c.
 // yyparse() reads a stream of token / value pairs from yylex(), which needs to be supplied.You can code this
-// function yourself, or have Lex do it for you.In our examples, we’ve chosen to leave this task to Lex.
+// function yourself, or have Lex do it for you.In our examples, weï¿½ve chosen to leave this task to Lex.
 // The yylex() as written by Lex reads characters from a FILE *file pointer called yyin.If you do not set yyin,
 // it defaults to standard input.It outputs to yyout, which if unset defaults to stdout.You can also modify
 // yyin in the yywrap() function which is called at the end of a file.It allows you to open another file, and
@@ -21,7 +21,9 @@
 // your lexter, just beneath #include <y.tab.h>:
 
 #include <universal/q_shared.h>
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 
 #include "scr_yacc.h"
 

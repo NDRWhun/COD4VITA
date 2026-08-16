@@ -2,7 +2,9 @@
 #include "msg_mp.h"
 #include "huffman.h"
 
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 #include <bgame/bg_local.h>
 #include "sv_msg_write_mp.h"
 #include <server_mp/server_mp.h>

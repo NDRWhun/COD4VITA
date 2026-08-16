@@ -1,7 +1,9 @@
 #include <universal/q_shared.h>
 #include <qcommon/qcommon.h>
 
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 #include <win32/win_local.h>
 #include <qcommon/cmd.h>
 #include "com_files.h"

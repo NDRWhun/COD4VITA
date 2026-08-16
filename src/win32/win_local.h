@@ -21,6 +21,7 @@
 #ifdef KISAK_VITA
 #include <qcommon/sys_types.h>
 #endif
+#include <mutex>
 #include <qcommon/qcommon.h>
 #ifdef KISAK_MP
 #include <qcommon/net_chan_mp.h>

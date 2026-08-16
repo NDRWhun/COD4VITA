@@ -4,7 +4,9 @@
 #include <universal/assertive.h>
 #include <qcommon/qcommon.h>
 
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 #include "threads.h"
 #include <xanim/xanim.h>
 #include <mutex>

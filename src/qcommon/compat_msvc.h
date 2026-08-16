@@ -16,6 +16,16 @@
 
 #define __debugbreak() __builtin_trap()
 
+#include <stdio.h>
+#define _iobuf __FILE
+
+#define ARRAYSIZE(a) (sizeof(a) / sizeof((a)[0]))
+
+#define _vsnprintf vsnprintf
+#define _snprintf  snprintf
+#define _stricmp   strcasecmp
+#define _strnicmp  strncasecmp
+
 // macros rather than typedefs, since the tree writes 'unsigned __int64'
 #define __int8  char
 #define __int16 short

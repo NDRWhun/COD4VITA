@@ -33,6 +33,22 @@ typedef unsigned int UINT32;
 typedef unsigned long DWORD;    // as windef.h has it, not uint32_t
 typedef void *HANDLE;
 
+typedef struct _OSVERSIONINFOA
+{
+    DWORD dwOSVersionInfoSize;
+    DWORD dwMajorVersion;
+    DWORD dwMinorVersion;
+    DWORD dwBuildNumber;
+    DWORD dwPlatformId;
+    CHAR szCSDVersion[128];
+} OSVERSIONINFO;
+
+typedef unsigned int WPARAM;
+typedef long LPARAM;
+typedef long LRESULT;
+#define CALLBACK
+#define WINAPI
+
 // distinct incomplete types, matching windef.h and what snd_public.h already declares
 #if !defined(_WINDEF_) && !defined(MSS_H)
 typedef struct HWND__ *HWND;

@@ -3,7 +3,9 @@
 #include "mem_track.h"
 #include <xanim/xanim.h>
 
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 
 
 uint8_t windingPool[12292];

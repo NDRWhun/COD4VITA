@@ -8,7 +8,9 @@
 #include "scr_compiler.h"
 
 #include <qcommon/qcommon.h>
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 #include <universal/com_files.h>
 #include "scr_parser.h"
 #include <database/database.h>

@@ -11,6 +11,10 @@ unsigned long long __rdtsc(void);
 BOOL QueryPerformanceCounter(LARGE_INTEGER *counter);
 BOOL QueryPerformanceFrequency(LARGE_INTEGER *frequency);
 
+// the hunk reserves then commits; the kernel has no reserve, so a reserve allocates
+void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect);
+BOOL VirtualFree(void *address, SIZE_T size, DWORD type);
+
 }
 
 unsigned int VitaSys_Milliseconds(void);

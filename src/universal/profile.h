@@ -886,7 +886,7 @@ struct ProfileWritable // sizeof=0x1C
     ProfileAtom total;
     ProfileAtom child;
 };
-volatile struct ProfileReadable // sizeof=0xC
+struct ProfileReadable // sizeof=0xC
 {                                       // ...
     uint32_t hits;
     ProfileAtom total;                  // ...

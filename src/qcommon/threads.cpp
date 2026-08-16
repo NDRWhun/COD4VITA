@@ -1,7 +1,9 @@
 #include <universal/q_shared.h>
 #include "threads.h"
 
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 
 #include <universal/assertive.h>
 

@@ -532,7 +532,9 @@ int __cdecl LoadMapFiles(char* msg)
 
 char g_module[MAX_PATH];
 
+#ifndef KISAK_VITA
 #include <intrin.h>
+#endif
 
 // KISAKX64
 // this is broken right now

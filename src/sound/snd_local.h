@@ -4,14 +4,20 @@
 #ifndef KISAK_VITA
 #endif
 #else
+#ifndef KISAK_VITA
 #include <AL/al.h>
+#endif
+#ifndef KISAK_VITA
 #include <AL/alc.h>
+#endif
 // efx.h only declares its functions as directly-linkable (rather than just LPALGENEFFECTS-
 // style function-pointer typedefs meant for dynamic alGetProcAddress loading) when this is
 // defined first. Since we statically link openal-soft ourselves and know EFX is compiled
 // in, direct linkage is simpler than the usual portable-extension-loading dance.
 #define AL_ALEXT_PROTOTYPES
+#ifndef KISAK_VITA
 #include <AL/efx.h>
+#endif
 #endif
 #include "snd_public.h"
 

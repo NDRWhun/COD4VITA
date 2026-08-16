@@ -137,8 +137,12 @@ int __cdecl FileWrapper_GetFileSize(FILE *h)
 }
 
 #ifdef KISAK_SP
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
+#ifndef KISAK_VITA
 #include <fileapi.h>
+#endif
 uint32_t FS_FileTell(FILE *file)
 {
     _LARGE_INTEGER v2; // [sp+50h] [-20h] BYREF

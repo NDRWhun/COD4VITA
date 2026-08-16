@@ -1,7 +1,9 @@
 #include <universal/q_shared.h>
 #include "physicalmemory.h"
 
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 #include "assertive.h"
 #include <qcommon/mem_track.h>
 #include "q_shared.h"

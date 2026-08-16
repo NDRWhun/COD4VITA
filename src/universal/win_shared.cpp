@@ -3,7 +3,9 @@
 
 #include <cmath>
 
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 #include <qcommon/qcommon.h>
 
 int initialized_1 = 0;

@@ -4,7 +4,9 @@
 #include <qcommon/threads.h>
 #include "timing.h"
 
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 
 ProfileScript profileScript;
 int g_profileStack[256];

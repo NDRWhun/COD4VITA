@@ -1,7 +1,9 @@
 #include <universal/q_shared.h>
 #include "timing.h"
 
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 #include <qcommon/threads.h>
 
 long double msecPerRawTimerTick;
