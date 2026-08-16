@@ -131,9 +131,13 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     params.multisampleMode = SCE_GXM_MULTISAMPLE_NONE;
     params.driverMemBlock = -1;
 
-    VitaSys_LogPrintf("[rt]   createRenderTarget scenes=%u\n", (unsigned)params.scenesPerFrame);
+    // GXM cannot create a render target while a scene is open, so record that with the call
+    VitaSys_LogPrintf("[rt]   createRenderTarget scenes=%u sceneOpen=%d\n",
+                      (unsigned)params.scenesPerFrame, (int)(s_current != NULL));
+    VitaSys_LogFlush();
     const int created = sceGxmCreateRenderTarget(&params, &rt->target);
     VitaSys_LogPrintf("[rt]   createRenderTarget returned 0x%08x\n", (unsigned)created);
+    VitaSys_LogFlush();
     if (created < 0)
     {
         GxmMem_Free(&rt->colorMem);
