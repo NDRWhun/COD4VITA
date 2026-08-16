@@ -17,8 +17,8 @@ replacing Direct3D 9.
 | sceGxm renderer | draws on hardware — textures, blending, depth, state translation |
 | Shader pipeline | all 609 of the game's D3D9 shaders translate, compile and register on device |
 | Memory, threads, files, timing | implemented on the Vita kernel, checked by on-device self-tests |
-| Engine build target | configures and builds; 376 of 437 translation units compile for ARM |
-| Remaining failures | 61, almost all the Direct3D 9 call sites still awaiting a GXM rewrite |
+| Engine build target | configures and builds; 383 of 437 translation units compile for ARM |
+| Remaining failures | 54, almost all of them Direct3D 9 call sites still awaiting a GXM rewrite |
 | Link | fails — there is no Vita entry point yet, and the `src/win32` and `src/sound` exclusions leave gaps |
 | Boot | not reached; no fastfile has been loaded |
 
