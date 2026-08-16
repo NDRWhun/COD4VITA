@@ -62,6 +62,7 @@ typedef long LPARAM;
 typedef long LRESULT;
 #define CALLBACK
 #define WINAPI
+#define CONST const
 
 // distinct incomplete types, matching windef.h and what snd_public.h already declares
 #if !defined(_WINDEF_) && !defined(MSS_H)

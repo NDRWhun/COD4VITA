@@ -92,6 +92,25 @@ static ID_INLINE int BigLong(int l) { return LongSwap(l); }
 
 #define	PATH_SEP '\\'
 
+#elif defined(KISAK_VITA)
+
+#define	MAC_STATIC
+
+#define	CPUSTRING	"vita-armv7"
+
+#define ID_INLINE inline
+
+int __cdecl ShortSwap(__int16 l);
+int __cdecl LongSwap(int l);
+
+static ID_INLINE short BigShort(short l) { return ShortSwap(l); }
+#define LittleShort
+static ID_INLINE int BigLong(int l) { return LongSwap(l); }
+#define LittleLong
+#define LittleFloat
+
+#define	PATH_SEP '/'
+
 #endif // WIN32
 
 #define PI_DIV_180		0.017453292519943295769236907684886

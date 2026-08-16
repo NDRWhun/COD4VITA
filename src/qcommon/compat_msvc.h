@@ -8,6 +8,7 @@
 #define __cdecl
 #define __stdcall
 #define __fastcall
+#define __thiscall
 #define __forceinline inline __attribute__((always_inline))
 
 // every use in the tree is align(N)
@@ -16,7 +17,12 @@
 
 #define __debugbreak() __builtin_trap()
 
+// deps/ode/common.h routes alloca through _alloca
+#define _alloca __builtin_alloca
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <time.h>
 #define _iobuf __FILE
@@ -26,9 +32,15 @@
 #define _vsnprintf vsnprintf
 #define _snprintf  snprintf
 #define _stricmp   strcasecmp
-#define _time64    time
 #define __time64_t time_t
 #define _strnicmp  strncasecmp
+
+// time_t is 32 bits here, so these narrow the tree's __int64 seconds
+static inline long long _time64(long long *t) { const time_t v = time(0); if (t) *t = v; return v; }
+static inline struct tm *_localtime64(const long long *t) { time_t v = (time_t)*t; return localtime(&v); }
+
+// newlib hides strdup under -std=c++20
+static inline char *_strdup(const char *s) { const size_t n = strlen(s) + 1; char *p = (char *)malloc(n); if (p) memcpy(p, s, n); return p; }
 
 #define _itoa(value, buffer, radix) \
     ((void)(radix), sprintf((buffer), "%d", (int)(value)), (buffer))
