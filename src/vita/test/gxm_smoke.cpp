@@ -363,6 +363,11 @@ int main(void)
         {
             SmokeLog("first frame: draw %s\n", drew ? "submitted" : "REJECTED");
             firstDrawLogged = true;
+
+            // the first frame spans init, so time the window from here
+            windowStart = now;
+            worstUs = 0;
+            bestUs = 0xFFFFFFFFu;
         }
         else if ((GxmDevice_FrameIndex() % REPORT_FRAMES) == 0)
         {
