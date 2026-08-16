@@ -1,5 +1,6 @@
 #include "gxm_rendertarget.h"
 #include "gxm_device.h"
+#include <psp2/kernel/sysmem.h>
 #include <vita/platform/vita_memory.h>
 #include <vita/platform/vita_system.h>
 
@@ -131,10 +132,29 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     params.multisampleMode = SCE_GXM_MULTISAMPLE_NONE;
     params.driverMemBlock = -1;
 
-    // GXM cannot create a render target while a scene is open, so record that with the call
-    VitaSys_LogPrintf("[rt]   createRenderTarget scenes=%u sceneOpen=%d\n",
-                      (unsigned)params.scenesPerFrame, (int)(s_current != NULL));
+    // owning the driver memory keeps this off GXM's internal pool, which the shader patcher shares
+    unsigned int driverMemSize = 0;
+    const int sized = sceGxmGetRenderTargetMemSize(&params, &driverMemSize);
+    VitaSys_LogPrintf("[rt]   memSize rc=0x%08x size=%u\n", (unsigned)sized, driverMemSize);
     VitaSys_LogFlush();
+    if (sized < 0)
+    {
+        GxmMem_Free(&rt->colorMem);
+        return false;
+    }
+
+    const uint32_t aligned = (driverMemSize + 4095u) & ~4095u;
+    rt->driverMem = sceKernelAllocMemBlock("gxm_rendertarget",
+                                           SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE, aligned, NULL);
+    VitaSys_LogPrintf("[rt]   driverMem uid=0x%08x\n", (unsigned)rt->driverMem);
+    VitaSys_LogFlush();
+    if (rt->driverMem < 0)
+    {
+        GxmMem_Free(&rt->colorMem);
+        return false;
+    }
+    params.driverMemBlock = rt->driverMem;
+
     const int created = sceGxmCreateRenderTarget(&params, &rt->target);
     VitaSys_LogPrintf("[rt]   createRenderTarget returned 0x%08x\n", (unsigned)created);
     VitaSys_LogFlush();
@@ -162,6 +182,8 @@ void GxmRenderTarget_Free(GxmRenderTarget *rt)
 
     if (rt->target)
         sceGxmDestroyRenderTarget(rt->target);
+    if (rt->driverMem > 0)
+        sceKernelFreeMemBlock(rt->driverMem);
     GxmMem_Free(&rt->colorMem);
     memset(rt, 0, sizeof(*rt));
 }

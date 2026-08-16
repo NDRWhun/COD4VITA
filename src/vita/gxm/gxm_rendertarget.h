@@ -32,6 +32,7 @@ struct GxmRenderTarget
     uint32_t strideInPixels;
     uint32_t sceneCount;                        // scenes entered so far this frame
     uint32_t sceneBudget;                       // what its driver memory was sized for
+    SceUID driverMem;                           // the target's own driver memory block
     bool isDisplay;
 };
 
