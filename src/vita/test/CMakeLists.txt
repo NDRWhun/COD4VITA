@@ -55,17 +55,34 @@ target_link_libraries(gxm_smoke
 
 vita_create_self(gxm_smoke.self gxm_smoke UNSAFE)
 
+set(SCE_SYS ${VITA_ROOT}/../sce_sys)
+
+set(PORT_VERSION ${VITA_VERSION})
+configure_file(
+  ${SCE_SYS}/livearea/contents/template.xml.in
+  ${CMAKE_BINARY_DIR}/generated/livearea/template.xml
+  @ONLY)
+
+set(LIVEAREA_FILES
+  FILE ${SCE_SYS}/icon0.png sce_sys/icon0.png
+  FILE ${SCE_SYS}/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
+  FILE ${SCE_SYS}/livearea/contents/startup.png sce_sys/livearea/contents/startup.png
+  FILE ${CMAKE_BINARY_DIR}/generated/livearea/template.xml sce_sys/livearea/contents/template.xml
+)
+
 # the shader archive is built from game assets, so it is passed in rather than committed
 if(DEFINED SHADER_ARCHIVE AND EXISTS ${SHADER_ARCHIVE})
   message(STATUS "packing shader archive: ${SHADER_ARCHIVE}")
   vita_create_vpk(gxm_smoke.vpk ${VITA_TITLEID} gxm_smoke.self
     VERSION ${VITA_VERSION}
     NAME ${VITA_APP_NAME}
+    ${LIVEAREA_FILES}
     FILE ${SHADER_ARCHIVE} shaders.kgxp
   )
 else()
   vita_create_vpk(gxm_smoke.vpk ${VITA_TITLEID} gxm_smoke.self
     VERSION ${VITA_VERSION}
     NAME ${VITA_APP_NAME}
+    ${LIVEAREA_FILES}
   )
 endif()
