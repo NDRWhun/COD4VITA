@@ -94,7 +94,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
 
     VitaMemStats cd;
     VitaMem_GetStats(VITA_MEM_CDRAM, &cd);
-    VitaSys_LogPrintf("[rt] create %ux%u stride=%u need=%u cdram reserved=%u used=%u largestfree=%u\n", width, height, stride, stride * height * 4, cd.reserved, cd.used, cd.largestFreeRun);
+    VitaSys_LogPrintf("[rt] create %ux%u stride=%u need=%u budget=%u cdram reserved=%u used=%u largestfree=%u\n", width, height, stride, stride * height * 4, (unsigned)GXM_SCENES_PER_TARGET, cd.reserved, cd.used, cd.largestFreeRun);
     if (!GxmMem_Alloc(&rt->colorMem, stride * height * 4, GXM_MEM_CDRAM,
                       SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE))
     {
