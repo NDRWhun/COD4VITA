@@ -71,11 +71,16 @@ static void VitaSys_MakeParentDirs(const char *path)
     }
 }
 
+// newlib's default buffer is a kilobyte, so boot would still reach the card hundreds of times
+static char s_logBuffer[128 * 1024];
+
 bool VitaSys_LogOpen(const char *path)
 {
     VitaSys_MakeParentDirs(path);
     s_logMutex = sceKernelCreateMutex("kcod_log", SCE_KERNEL_MUTEX_ATTR_RECURSIVE, 0, NULL);
     s_log = fopen(path, "w");
+    if (s_log)
+        setvbuf(s_log, s_logBuffer, _IOFBF, sizeof(s_logBuffer));
     return s_log != NULL;
 }
 
