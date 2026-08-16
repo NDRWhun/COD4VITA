@@ -1561,7 +1561,12 @@ void Com_InitDvars()
     com_developer_script_abort_on_error = Dvar_RegisterBool("developer_script_abort_on_error", 0, DVAR_NOFLAG, "Halt Execution when an error is found in the scripts (Retail does not do this)"); // LWSS ADD
     com_logfile = Dvar_RegisterInt(
         "logfile",
+#ifdef KISAK_VITA
+        // a write per message to the card the fastfiles stream from; Sys_Print keeps the same text
+        0,
+#else
         1,
+#endif
         0,
         2,
         DVAR_NOFLAG,
