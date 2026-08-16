@@ -15,6 +15,9 @@
 #include "../gxm/gxm_texture.h"
 #include "../gxm/gxm_vertex.h"
 #include "../input/vita_input.h"
+#include "../platform/vita_memory.h"
+#include "../platform/vita_selftest.h"
+#include "../platform/vita_threads.h"
 #include "shaders/smoke_shaders.h"
 
 #define SHADER_ARCHIVE_PATH "app0:shaders.kgxp"
@@ -269,6 +272,19 @@ static bool SmokeDraw(float spin)
 int main(void)
 {
     SmokeLog("--- gxm smoke test ---\n");
+
+    char report[256];
+    if (VitaMem_Init() && VitaThreads_Init())
+    {
+        VitaSelfTest_Memory(report, sizeof(report));
+        SmokeLog("%s", report);
+        VitaSelfTest_Threads(report, sizeof(report));
+        SmokeLog("%s", report);
+    }
+    else
+    {
+        SmokeLog("platform init failed\n");
+    }
 
     if (!GxmDevice_Init())
     {

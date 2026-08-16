@@ -20,6 +20,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -O2 -ffast-math")
 
 set(VITA_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
+# the platform layer shares the engine's scalar type header
+include_directories(${VITA_ROOT})
+
 add_executable(gxm_smoke
   gxm_smoke.cpp
   ${VITA_ROOT}/vita/gxm/gxm_memory.cpp
@@ -33,6 +36,9 @@ add_executable(gxm_smoke
   ${VITA_ROOT}/vita/gxm/gxm_video.cpp
   ${VITA_ROOT}/vita/gxm/gxm_shader_archive.cpp
   ${VITA_ROOT}/vita/input/vita_input.cpp
+  ${VITA_ROOT}/vita/platform/vita_memory.cpp
+  ${VITA_ROOT}/vita/platform/vita_threads.cpp
+  ${VITA_ROOT}/vita/platform/vita_selftest.cpp
 )
 
 target_link_libraries(gxm_smoke
