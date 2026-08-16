@@ -332,6 +332,11 @@ int main(void)
     float spin = 0.0f;
     bool firstDrawLogged = false;
 
+    uint64_t windowStart = sceKernelGetProcessTimeWide();
+    uint64_t previousFrame = windowStart;
+    uint32_t worstUs = 0;
+    uint32_t bestUs = 0xFFFFFFFFu;
+
     while (!s_quit)
     {
         VitaInput_Frame();
@@ -342,6 +347,14 @@ int main(void)
         const bool drew = SmokeDraw(spin);
         GxmDevice_EndFrame();
 
+        const uint64_t now = sceKernelGetProcessTimeWide();
+        const uint32_t frameUs = (uint32_t)(now - previousFrame);
+        previousFrame = now;
+        if (frameUs > worstUs)
+            worstUs = frameUs;
+        if (frameUs < bestUs)
+            bestUs = frameUs;
+
         // report early and then rarely, so a force-quit still leaves evidence
         if (!firstDrawLogged)
         {
@@ -350,7 +363,14 @@ int main(void)
         }
         else if ((GxmDevice_FrameIndex() % 600) == 0)
         {
-            SmokeLog("frame %u, %u draws\n", GxmDevice_FrameIndex(), GxmDraw_DrawCount());
+            // the display callback waits on vsync, so 16667 us average means locked not saturated
+            const uint32_t windowUs = (uint32_t)(now - windowStart);
+            SmokeLog("frame %u, %u draws, avg %u us, best %u us, worst %u us over %u ms\n",
+                     GxmDevice_FrameIndex(), GxmDraw_DrawCount(), windowUs / 600,
+                     bestUs, worstUs, windowUs / 1000);
+            windowStart = now;
+            worstUs = 0;
+            bestUs = 0xFFFFFFFFu;
         }
 
         spin += 0.02f;
