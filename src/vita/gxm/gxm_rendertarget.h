@@ -9,7 +9,7 @@
 // GXM sizes a render target's driver memory for this many scenes per frame
 #define GXM_SCENES_PER_FRAME 8
 
-// an offscreen target is rendered into once or twice, so it must not reserve the display's budget
+// an offscreen target is rendered into once or twice
 #define GXM_SCENES_PER_TARGET 2
 
 struct GxmDepthStencil

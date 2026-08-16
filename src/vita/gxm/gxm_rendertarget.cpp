@@ -102,7 +102,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     if (!GxmMem_Alloc(&rt->colorMem, stride * height * 4, GXM_MEM_CDRAM,
                       SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE))
     {
-    VitaSys_LogPrintf("[rt]   colour alloc FAILED\n");
+        VitaSys_LogPrintf("[rt]   colour alloc FAILED\n");
         return false;
     }
     VitaSys_Breadcrumb("RT colour base=%p", rt->colorMem.base);
@@ -138,7 +138,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     params.multisampleMode = SCE_GXM_MULTISAMPLE_NONE;
     params.driverMemBlock = -1;
 
-    // owning the driver memory keeps this off GXM's internal pool, which the shader patcher shares
+    // GXM shares its internal pool with the shader patcher
     unsigned int driverMemSize = 0;
     const int sized = sceGxmGetRenderTargetMemSize(&params, &driverMemSize);
     VitaSys_Breadcrumb("memSize rc=0x%08x size=%u", (unsigned)sized, driverMemSize);

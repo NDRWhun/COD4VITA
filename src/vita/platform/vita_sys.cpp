@@ -57,7 +57,7 @@ void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect)
     if (!(type & (MEM_RESERVE | MEM_COMMIT)))
         return NULL;
 
-    // the arena, so the engine hunk comes from memblocks rather than the small malloc heap
+    // the arena rather than malloc; the hunk is larger than the heap
     void *memory = VitaMem_Alloc(VITA_MEM_MAIN, (uint32_t)size, 16);
     if (memory)
         memset(memory, 0, (size_t)size);   // Win32 zero-fills committed pages

@@ -39,7 +39,7 @@ extern "C" int fileno(FILE *);
 static FILE *s_log;
 static bool s_logLineFlush = true;
 
-// the database thread prints while the main thread does, and newlib stdio is not reentrant here
+// newlib stdio is not reentrant here, and the database thread also prints
 static SceUID s_logMutex = -1;
 
 static void VitaSys_LogLock(void)
@@ -97,7 +97,7 @@ void VitaSys_LogPrint(const char *text)
 
     VitaSys_LogLock();
 
-    // a timestamp per line is what tells a stall apart from a crash after the fact
+    // milliseconds since process start
     static bool atLineStart = true;
     if (atLineStart)
         fprintf(s_log, "[%8u] ", (unsigned)(sceKernelGetProcessTimeWide() / 1000));
@@ -132,7 +132,7 @@ void VitaSys_Breadcrumb(const char *format, ...)
     if (length <= 0)
         return;
 
-    // a fresh open/write/close per call, because a buffered stream loses its tail when the app dies
+    // open/write/close per call; a buffered stream loses its tail on an abnormal exit
     VitaSys_LogLock();
     const SceUID file = sceIoOpen("ux0:data/kisakcod/step.txt",
                                   SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
@@ -143,7 +143,7 @@ void VitaSys_Breadcrumb(const char *format, ...)
     }
     else if (s_log)
     {
-        // an open failure is itself the finding, so it must not pass silently
+        // an open failure is itself a finding
         fprintf(s_log, "[breadcrumb] sceIoOpen failed 0x%08x for: %s\n", (unsigned)file, text);
         fflush(s_log);
     }
@@ -154,8 +154,7 @@ void VitaSys_LogFlush(void)
 {
     if (!s_log)
         return;
-    // fileno gives a newlib descriptor, not a SceUID, so there is no sceIo call to make here;
-    // VitaSys_Breadcrumb is the durable channel
+    // fileno returns a newlib descriptor, not a SceUID
     fflush(s_log);
 }
 
