@@ -135,6 +135,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     // owning the driver memory keeps this off GXM's internal pool, which the shader patcher shares
     unsigned int driverMemSize = 0;
     const int sized = sceGxmGetRenderTargetMemSize(&params, &driverMemSize);
+    VitaSys_Breadcrumb("memSize rc=0x%08x size=%u", (unsigned)sized, driverMemSize);
     VitaSys_LogPrintf("[rt]   memSize rc=0x%08x size=%u\n", (unsigned)sized, driverMemSize);
     VitaSys_LogFlush();
     if (sized < 0)
@@ -143,26 +144,24 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
         return false;
     }
 
-    // three bare writes: if these stop mid-run the logging is the failure, not the calls
-    VitaSys_LogPrintf("[rt]   probe A\n");
-    VitaSys_LogFlush();
-    VitaSys_LogPrintf("[rt]   probe B\n");
-    VitaSys_LogFlush();
-    VitaSys_LogPrintf("[rt]   probe C\n");
-    VitaSys_LogFlush();
-
     SceKernelFreeMemorySizeInfo freeInfo;
     memset(&freeInfo, 0, sizeof(freeInfo));
     freeInfo.size = sizeof(freeInfo);
+    VitaSys_Breadcrumb("before sceKernelGetFreeMemorySize");
     const int freeRc = sceKernelGetFreeMemorySize(&freeInfo);
     const uint32_t aligned = (driverMemSize + 4095u) & ~4095u;
+    VitaSys_Breadcrumb("free rc=0x%08x main=%u cdram=%u phycont=%u asking=%u",
+                       (unsigned)freeRc, (unsigned)freeInfo.size_user,
+                       (unsigned)freeInfo.size_cdram, (unsigned)freeInfo.size_phycont, aligned);
     VitaSys_LogPrintf("[rt]   free rc=0x%08x main=%u cdram=%u phycont=%u, asking %u\n",
                       (unsigned)freeRc, (unsigned)freeInfo.size_user,
                       (unsigned)freeInfo.size_cdram, (unsigned)freeInfo.size_phycont, aligned);
     VitaSys_LogFlush();
 
+    VitaSys_Breadcrumb("before sceKernelAllocMemBlock %u", aligned);
     rt->driverMem = sceKernelAllocMemBlock("gxm_rendertarget",
                                            SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE, aligned, NULL);
+    VitaSys_Breadcrumb("driverMem uid=0x%08x", (unsigned)rt->driverMem);
     VitaSys_LogPrintf("[rt]   driverMem uid=0x%08x\n", (unsigned)rt->driverMem);
     VitaSys_LogFlush();
     if (rt->driverMem < 0)
@@ -172,7 +171,9 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     }
     params.driverMemBlock = rt->driverMem;
 
+    VitaSys_Breadcrumb("before sceGxmCreateRenderTarget");
     const int created = sceGxmCreateRenderTarget(&params, &rt->target);
+    VitaSys_Breadcrumb("createRenderTarget rc=0x%08x", (unsigned)created);
     VitaSys_LogPrintf("[rt]   createRenderTarget returned 0x%08x\n", (unsigned)created);
     VitaSys_LogFlush();
     if (created < 0)

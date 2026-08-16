@@ -102,6 +102,26 @@ void VitaSys_LogPrintf(const char *format, ...)
     VitaSys_LogPrint(text);
 }
 
+void VitaSys_Breadcrumb(const char *format, ...)
+{
+    char text[512];
+    va_list arguments;
+
+    va_start(arguments, format);
+    const int length = vsnprintf(text, sizeof(text), format, arguments);
+    va_end(arguments);
+    if (length <= 0)
+        return;
+
+    // a fresh open/write/close per call, because a buffered stream loses its tail when the app dies
+    const SceUID file = sceIoOpen("ux0:data/kisakcod/step.txt",
+                                  SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
+    if (file < 0)
+        return;
+    sceIoWrite(file, text, (SceSize)length);
+    sceIoClose(file);
+}
+
 void VitaSys_LogFlush(void)
 {
     if (!s_log)
