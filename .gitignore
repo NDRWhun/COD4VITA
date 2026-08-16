@@ -455,3 +455,6 @@ shaders.kgxp
 *.gxp
 /corpus/
 /gxp/
+
+# out-of-source build trees
+build-smoke/
