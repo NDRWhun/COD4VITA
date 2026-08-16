@@ -288,7 +288,11 @@ int main(void)
 
     if (!GxmDevice_Init())
     {
-        SmokeLog("device init failed\n");
+        VitaMemStats main, cdram;
+        VitaMem_GetStats(VITA_MEM_MAIN, &main);
+        VitaMem_GetStats(VITA_MEM_CDRAM, &cdram);
+        SmokeLog("device init failed; arenas hold main %u KB, cdram %u KB\n",
+                 main.reserved / 1024, cdram.reserved / 1024);
         return -1;
     }
     GxmProgram_Init();
@@ -315,8 +319,11 @@ int main(void)
         return -1;
     }
 
-    SmokeLog("textures resident: %u bytes, cdram used: %u bytes\n",
-             GxmTexture_BytesResident(), GxmMem_BytesUsed(GXM_MEM_CDRAM));
+    VitaMemStats cdram;
+    VitaMem_GetStats(VITA_MEM_CDRAM, &cdram);
+    SmokeLog("textures resident: %u bytes; cdram arena %u KB reserved, %u KB used, %u allocations\n",
+             GxmTexture_BytesResident(), cdram.reserved / 1024, cdram.used / 1024,
+             cdram.liveAllocations);
 
     float spin = 0.0f;
     bool firstDrawLogged = false;

@@ -104,14 +104,18 @@ bool VitaSelfTest_Memory(char *report, uint32_t reportSize)
     const bool balanced = after.used == before.used &&
                           after.liveAllocations == before.liveAllocations;
 
+    // freeing everything should leave one run per block, so a short one means a merge was missed
+    const bool merged = after.blocks == 0 || after.largestFreeRun + 64 * 1024 >= after.reserved;
+    const bool pass = !corrupted && !misaligned && !failed && balanced && merged;
+
     snprintf(report, reportSize,
              "memory: %s corrupt %u, misaligned %u, failed %u, live %u, "
-             "used %u->%u, reserved %u KB, largest free %u KB\n",
-             (!corrupted && !misaligned && !failed && balanced) ? "PASS" : "FAIL",
-             corrupted, misaligned, failed, live,
-             before.used, after.used, after.reserved / 1024, after.largestFreeRun / 1024);
+             "used %u->%u, reserved %u KB, largest free %u KB, blocks %u\n",
+             pass ? "PASS" : "FAIL", corrupted, misaligned, failed, live,
+             before.used, after.used, after.reserved / 1024,
+             after.largestFreeRun / 1024, after.blocks);
 
-    return !corrupted && !misaligned && !failed && balanced;
+    return pass;
 }
 
 static HANDLE s_ping;

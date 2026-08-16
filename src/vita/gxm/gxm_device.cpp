@@ -1,5 +1,6 @@
 #include "gxm_device.h"
 #include "gxm_memory.h"
+#include "../platform/vita_memory.h"
 
 #include <psp2/display.h>
 #include <psp2/kernel/sysmem.h>
@@ -223,6 +224,10 @@ bool GxmDevice_Init(void)
 
     if (!GxmDevice_InitLibrary())
         return false;
+
+    // pooled arenas map each block once, so every texture inside one is GPU-visible
+    VitaMem_SetGpuMapping(VITA_MEM_CDRAM, true, SCE_GXM_MEMORY_ATTRIB_READ);
+    VitaMem_SetGpuMapping(VITA_MEM_MAIN_UNCACHED, true, SCE_GXM_MEMORY_ATTRIB_READ);
     if (!GxmDevice_CreateContext())
         return false;
     if (!GxmDevice_CreateRenderTarget())

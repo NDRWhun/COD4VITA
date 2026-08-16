@@ -12,6 +12,7 @@
 #define VITA_MEM_CDRAM_GROWTH   (4 * 1024 * 1024)
 #define VITA_MEM_GUARD          0x4B434F44u     // 'KCOD', to catch a foreign pointer
 
+// a multiple of the alignment, so the payload after a header is aligned on its own
 struct VitaMemNode
 {
     VitaMemNode *next;
@@ -20,9 +21,11 @@ struct VitaMemNode
     uint32_t requested;
     uint8_t arena;
     uint8_t free;
-    uint16_t padding;           // bytes skipped before this header for alignment
+    uint16_t padding;
     uint32_t guard;
+    uint32_t reserved[2];
 };
+static_assert(sizeof(VitaMemNode) % VITA_MEM_ALIGNMENT == 0, "header must keep payloads aligned");
 
 struct VitaMemBlock
 {
@@ -174,6 +177,20 @@ static bool VitaMem_InBlock(const VitaMemBlock *block, const void *pointer)
            (const uint8_t *)pointer < block->base + block->size;
 }
 
+// every split and every merge moves a boundary, and the node past it has to be told
+static void VitaMem_LinkFollowing(VitaMemArenaState *state, VitaMemNode *node)
+{
+    VitaMemNode *following = VitaMem_NodeAfter(node);
+    for (VitaMemBlock *block = state->blocks; block; block = block->next)
+    {
+        if (VitaMem_InBlock(block, following) && following->guard == VITA_MEM_GUARD)
+        {
+            following->previous = node;
+            return;
+        }
+    }
+}
+
 void *VitaMem_Alloc(VitaMemArena arena, uint32_t size, uint32_t alignment)
 {
     if (arena >= VITA_MEM_ARENA_COUNT || !size)
@@ -192,11 +209,12 @@ void *VitaMem_Alloc(VitaMemArena arena, uint32_t size, uint32_t alignment)
         {
             uint8_t *payload = (uint8_t *)(node + 1);
             const uint32_t misalign = (uint32_t)((uintptr_t)payload & (alignment - 1));
-            const uint32_t shift = misalign ? alignment - misalign : 0;
+            uint32_t shift = misalign ? alignment - misalign : 0;
 
-            // the shift has to leave room for a header the free call can walk back to
-            if (shift && shift < sizeof(VitaMemNode) + VITA_MEM_ALIGNMENT)
-                continue;
+            // a shift splits off a free node, so grow it until it can hold a header
+            while (shift && shift < sizeof(VitaMemNode) + VITA_MEM_ALIGNMENT)
+                shift += alignment;
+
             if (node->size < wanted + shift)
                 continue;
 
@@ -213,6 +231,8 @@ void *VitaMem_Alloc(VitaMemArena arena, uint32_t size, uint32_t alignment)
                 node->free = 1;
                 node->arena = (uint8_t)arena;
                 node->padding = 0;
+
+                VitaMem_LinkFollowing(state, used);
                 VitaMem_PushFree(state, node);
             }
 
@@ -228,14 +248,8 @@ void *VitaMem_Alloc(VitaMemArena arena, uint32_t size, uint32_t alignment)
                 tail->previous = used;
                 tail->next = NULL;
 
-                VitaMemNode *following = VitaMem_NodeAfter(tail);
-                for (VitaMemBlock *block = state->blocks; block; block = block->next)
-                {
-                    if (VitaMem_InBlock(block, following) && following->guard == VITA_MEM_GUARD)
-                        following->previous = tail;
-                }
-
                 used->size = wanted;
+                VitaMem_LinkFollowing(state, tail);
                 VitaMem_PushFree(state, tail);
             }
 
@@ -259,6 +273,38 @@ void *VitaMem_Alloc(VitaMemArena arena, uint32_t size, uint32_t alignment)
 
     VitaMem_Leave();
     return NULL;
+}
+
+// a block whose whole span is one free node goes back to the kernel
+static void VitaMem_ReleaseEmptyBlocks(VitaMemArenaState *state)
+{
+    VitaMemBlock **link = &state->blocks;
+    while (*link)
+    {
+        VitaMemBlock *block = *link;
+        VitaMemNode *node = block->first;
+        const uint32_t whole = block->size - sizeof(VitaMemBlock) - sizeof(VitaMemNode);
+
+        if (!node->free || node->size != whole)
+        {
+            link = &block->next;
+            continue;
+        }
+
+        VitaMem_RemoveFree(state, node);
+        *link = block->next;
+
+        const SceUID uid = block->uid;
+        void *base = block->base;
+        const uint32_t size = block->size;
+
+        state->stats.reserved -= size;
+        state->stats.blocks--;
+
+        if (state->gpuMapped)
+            sceGxmUnmapMemory(base);
+        sceKernelFreeMemBlock(uid);
+    }
 }
 
 void VitaMem_Free(void *pointer)
@@ -288,6 +334,7 @@ void VitaMem_Free(void *pointer)
             VitaMem_RemoveFree(state, following);
             node->size += following->size + sizeof(VitaMemNode);
             following->guard = 0;
+            VitaMem_LinkFollowing(state, node);
         }
         break;
     }
@@ -300,9 +347,12 @@ void VitaMem_Free(void *pointer)
         previous->size += node->size + sizeof(VitaMemNode);
         node->guard = 0;
         node = previous;
+        VitaMem_LinkFollowing(state, node);
     }
 
+    node->free = 1;
     VitaMem_PushFree(state, node);
+    VitaMem_ReleaseEmptyBlocks(state);
     VitaMem_Leave();
 }
 

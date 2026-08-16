@@ -1,6 +1,8 @@
 #include "gxm_memory.h"
 
 #include <psp2/kernel/sysmem.h>
+
+#include "../platform/vita_memory.h"
 #include <psp2/gxm.h>
 #include <string.h>
 
@@ -104,10 +106,42 @@ bool GxmMem_AllocFragmentUsse(GxmAlloc *out, uint32_t size)
     return true;
 }
 
+bool GxmMem_AllocPooled(GxmAlloc *out, uint32_t size, GxmMemDomain domain, uint32_t alignment)
+{
+    memset(out, 0, sizeof(*out));
+
+    const VitaMemArena arena = domain == GXM_MEM_CDRAM ? VITA_MEM_CDRAM
+                             : domain == GXM_MEM_MAIN_UNCACHED ? VITA_MEM_MAIN_UNCACHED
+                             : VITA_MEM_MAIN;
+
+    void *base = VitaMem_Alloc(arena, size, alignment);
+    if (!base)
+        return false;
+
+    out->uid = -1;
+    out->base = base;
+    out->size = size;
+    out->domain = domain;
+    out->mapKind = GXM_MAP_PLAIN;
+
+    s_bytesUsed[domain] += size;
+    if (s_bytesUsed[domain] > s_bytesPeak[domain])
+        s_bytesPeak[domain] = s_bytesUsed[domain];
+    return true;
+}
+
 void GxmMem_Free(GxmAlloc *a)
 {
     if (!a->base)
         return;
+
+    if (a->uid < 0)
+    {
+        s_bytesUsed[a->domain] -= a->size;
+        VitaMem_Free(a->base);
+        memset(a, 0, sizeof(*a));
+        return;
+    }
 
     switch (a->mapKind)
     {

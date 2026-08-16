@@ -21,13 +21,16 @@ enum GxmMapKind
 
 struct GxmAlloc
 {
-    SceUID uid;
+    SceUID uid;             // -1 when the payload came from the shared arena
     void *base;
     uint32_t size;          // rounded up to the domain's page size
     uint32_t usseOffset;    // shader-core offset; USSE allocations only
     GxmMemDomain domain;
     GxmMapKind mapKind;
 };
+
+// small allocations come from the suballocating arena instead of their own memblock
+bool GxmMem_AllocPooled(GxmAlloc *out, uint32_t size, GxmMemDomain domain, uint32_t alignment);
 
 // gpuAttr is SCE_GXM_MEMORY_ATTRIB_READ, optionally ORed with _WRITE
 bool GxmMem_Alloc(GxmAlloc *out, uint32_t size, GxmMemDomain domain, uint32_t gpuAttr);

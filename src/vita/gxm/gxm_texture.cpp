@@ -3,6 +3,9 @@
 
 #include <string.h>
 
+// UBC2 and UBC3 have the strictest requirement at 16 bytes (GPU guide, memory alignment)
+#define GXM_TEXTURE_ALIGNMENT 16
+
 static uint32_t s_bytesResident;
 
 struct GxmTextureFormat
@@ -90,10 +93,11 @@ static bool GxmTexture_Allocate(GxmTexture *texture, uint32_t imageFormat,
     if (!size)
         return false;
 
-    if (!GxmMem_Alloc(&texture->memory, size, GXM_MEM_CDRAM, SCE_GXM_MEMORY_ATTRIB_READ))
+    // pooled: a texture per memblock would round every one up to a 256KB CDRAM page
+    if (!GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_CDRAM, GXM_TEXTURE_ALIGNMENT))
     {
-        // CDRAM is the smaller pool; main memory still works, just further from the GPU
-        if (!GxmMem_Alloc(&texture->memory, size, GXM_MEM_MAIN, SCE_GXM_MEMORY_ATTRIB_READ))
+        if (!GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_MAIN_UNCACHED,
+                                GXM_TEXTURE_ALIGNMENT))
             return false;
     }
 
