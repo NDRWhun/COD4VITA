@@ -39,6 +39,21 @@ extern "C" int fileno(FILE *);
 static FILE *s_log;
 static bool s_logLineFlush = true;
 
+// the database thread prints while the main thread does, and newlib stdio is not reentrant here
+static SceUID s_logMutex = -1;
+
+static void VitaSys_LogLock(void)
+{
+    if (s_logMutex >= 0)
+        sceKernelLockMutex(s_logMutex, 1, NULL);
+}
+
+static void VitaSys_LogUnlock(void)
+{
+    if (s_logMutex >= 0)
+        sceKernelUnlockMutex(s_logMutex, 1);
+}
+
 static void VitaSys_MakeParentDirs(const char *path)
 {
     char partial[256];
@@ -58,6 +73,7 @@ static void VitaSys_MakeParentDirs(const char *path)
 bool VitaSys_LogOpen(const char *path)
 {
     VitaSys_MakeParentDirs(path);
+    s_logMutex = sceKernelCreateMutex("kcod_log", SCE_KERNEL_MUTEX_ATTR_RECURSIVE, 0, NULL);
     s_log = fopen(path, "w");
     return s_log != NULL;
 }
@@ -79,6 +95,8 @@ void VitaSys_LogPrint(const char *text)
     if (!s_log || !text)
         return;
 
+    VitaSys_LogLock();
+
     // a timestamp per line is what tells a stall apart from a crash after the fact
     static bool atLineStart = true;
     if (atLineStart)
@@ -89,6 +107,7 @@ void VitaSys_LogPrint(const char *text)
     fputs(text, s_log);
     if (s_logLineFlush)
         VitaSys_LogFlushLine();
+    VitaSys_LogUnlock();
 }
 
 void VitaSys_LogPrintf(const char *format, ...)
@@ -114,12 +133,21 @@ void VitaSys_Breadcrumb(const char *format, ...)
         return;
 
     // a fresh open/write/close per call, because a buffered stream loses its tail when the app dies
+    VitaSys_LogLock();
     const SceUID file = sceIoOpen("ux0:data/kisakcod/step.txt",
                                   SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
-    if (file < 0)
-        return;
-    sceIoWrite(file, text, (SceSize)length);
-    sceIoClose(file);
+    if (file >= 0)
+    {
+        sceIoWrite(file, text, (SceSize)length);
+        sceIoClose(file);
+    }
+    else if (s_log)
+    {
+        // an open failure is itself the finding, so it must not pass silently
+        fprintf(s_log, "[breadcrumb] sceIoOpen failed 0x%08x for: %s\n", (unsigned)file, text);
+        fflush(s_log);
+    }
+    VitaSys_LogUnlock();
 }
 
 void VitaSys_LogFlush(void)
