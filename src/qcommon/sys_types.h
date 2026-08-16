@@ -33,6 +33,10 @@ typedef unsigned int UINT32;
 typedef unsigned long DWORD;    // as windef.h has it, not uint32_t
 typedef void *HANDLE;
 
+typedef struct tagPOINT { LONG x; LONG y; } POINT;
+
+typedef void (*LPOVERLAPPED_COMPLETION_ROUTINE)(DWORD, DWORD, struct _OVERLAPPED *);
+
 typedef struct _OVERLAPPED
 {
     ULONG_PTR Internal;

@@ -1,11 +1,15 @@
 #include "vita_sys.h"
 
 #include <psp2/kernel/processmgr.h>
+#include <psp2/kernel/threadmgr.h>
 
 #include "vita_memory.h"
 #include "vita_threads.h"
 
 #include <sys/stat.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define VITA_TICKS_PER_SECOND 1000000ull
 
@@ -102,6 +106,137 @@ DWORD GetFileAttributesA(const char *path)
     if (stat(path, &info) != 0)
         return 0xFFFFFFFFu;                 // INVALID_FILE_ATTRIBUTES
     return S_ISDIR(info.st_mode) ? 0x10u : 0x80u;
+}
+
+BOOL SetFileAttributesA(const char *path, DWORD attributes)
+{
+    (void)path;
+    (void)attributes;       // there is no read-only bit to set here
+    return 1;
+}
+
+// a descriptor of 0 is valid, so handles carry it offset by one
+static int VitaSys_Descriptor(HANDLE file)
+{
+    return (int)(intptr_t)file - 1;
+}
+
+HANDLE CreateFileA(const char *path, DWORD access, DWORD share, void *security,
+                   DWORD creation, DWORD flags, HANDLE templateFile)
+{
+    (void)share;
+    (void)security;
+    (void)flags;
+    (void)templateFile;
+
+    const bool wants_write = (access & 0x40000000u) != 0;       // GENERIC_WRITE
+    const bool wants_read = (access & 0x80000000u) != 0;        // GENERIC_READ
+
+    int mode = wants_write ? (wants_read ? O_RDWR : O_WRONLY) : O_RDONLY;
+    if (creation == 2 || creation == 1)                         // CREATE_ALWAYS, CREATE_NEW
+        mode |= O_CREAT | O_TRUNC;
+    else if (creation == 4)                                     // OPEN_ALWAYS
+        mode |= O_CREAT;
+
+    char normalized[512];
+    uint32_t i = 0;
+    for (; path[i] && i + 1 < sizeof(normalized); ++i)
+        normalized[i] = path[i] == '\\' ? '/' : path[i];
+    normalized[i] = 0;
+
+    const int descriptor = open(normalized, mode, 0777);
+    if (descriptor < 0)
+        return INVALID_HANDLE_VALUE;
+    return (HANDLE)(intptr_t)(descriptor + 1);
+}
+
+BOOL ReadFile(HANDLE file, void *buffer, DWORD count, DWORD *read, OVERLAPPED *overlapped)
+{
+    (void)overlapped;
+    const ssize_t got = ::read(VitaSys_Descriptor(file), buffer, count);
+    if (read)
+        *read = got < 0 ? 0 : (DWORD)got;
+    return got >= 0;
+}
+
+BOOL WriteFile(HANDLE file, const void *buffer, DWORD count, DWORD *written,
+               OVERLAPPED *overlapped)
+{
+    (void)overlapped;
+    const ssize_t put = ::write(VitaSys_Descriptor(file), buffer, count);
+    if (written)
+        *written = put < 0 ? 0 : (DWORD)put;
+    return put >= 0;
+}
+
+BOOL SetFilePointerEx(HANDLE file, LARGE_INTEGER move, LARGE_INTEGER *newPosition, DWORD from)
+{
+    const int whence = from == FILE_CURRENT ? SEEK_CUR : from == FILE_END ? SEEK_END : SEEK_SET;
+    const off_t position = lseek(VitaSys_Descriptor(file), (off_t)move.QuadPart, whence);
+    if (position < 0)
+        return 0;
+    if (newPosition)
+        newPosition->QuadPart = position;
+    return 1;
+}
+
+BOOL GetFileSizeEx(HANDLE file, LARGE_INTEGER *size)
+{
+    struct stat info;
+    if (fstat(VitaSys_Descriptor(file), &info) != 0)
+        return 0;
+    if (size)
+        size->QuadPart = info.st_size;
+    return 1;
+}
+
+DWORD GetLastError(void)
+{
+    return (DWORD)errno;
+}
+
+HANDLE GetCurrentProcess(void)
+{
+    return (HANDLE)1;
+}
+
+HANDLE GetCurrentThread(void)
+{
+    return (HANDLE)(intptr_t)sceKernelGetThreadId();
+}
+
+BOOL OpenClipboard(HWND owner)
+{
+    (void)owner;
+    return 0;
+}
+
+BOOL CloseClipboard(void)
+{
+    return 0;
+}
+
+BOOL EmptyClipboard(void)
+{
+    return 0;
+}
+
+HANDLE SetClipboardData(unsigned int format, HANDLE data)
+{
+    (void)format;
+    (void)data;
+    return NULL;
+}
+
+HANDLE GetClipboardData(unsigned int format)
+{
+    (void)format;
+    return NULL;
+}
+
+HWND GetDesktopWindow(void)
+{
+    return (HWND)1;
 }
 
 BOOL MessageBoxA(HWND owner, const char *text, const char *caption, unsigned int type)

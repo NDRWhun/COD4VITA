@@ -17,6 +17,8 @@
 #define __debugbreak() __builtin_trap()
 
 #include <stdio.h>
+#include <strings.h>
+#include <time.h>
 #define _iobuf __FILE
 
 #define ARRAYSIZE(a) (sizeof(a) / sizeof((a)[0]))
@@ -24,6 +26,8 @@
 #define _vsnprintf vsnprintf
 #define _snprintf  snprintf
 #define _stricmp   strcasecmp
+#define _time64    time
+#define __time64_t time_t
 #define _strnicmp  strncasecmp
 
 #define _itoa(value, buffer, radix) \

@@ -425,6 +425,11 @@ struct DynEntityServer // sizeof=0x24
     int32_t health;
 };
 
+// these two enums are named by the decompiler but defined nowhere in the tree
+enum weapPositionAnimNum_t : int;
+enum weaponAltModel_t : int;
+enum weapAnimFiles_t : int;
+
 void *varint;
 void *varuint;
 GfxVertex *varGfxVertex;

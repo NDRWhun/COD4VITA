@@ -7,7 +7,9 @@
 #include <qcommon/qcommon.h>
 #include <qcommon/threads.h>
 
+#ifndef KISAK_VITA
 #include <direct.h>
+#endif
 #ifndef KISAK_VITA
 #include <io.h>
 #endif
