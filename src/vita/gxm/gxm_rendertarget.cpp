@@ -93,8 +93,11 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     // colour surfaces stride in multiples of 8 pixels
     const uint32_t stride = (width + 7) & ~7u;
 
+    VitaSys_Breadcrumb("RT enter %ux%u", width, height);
+
     VitaMemStats cd;
     VitaMem_GetStats(VITA_MEM_CDRAM, &cd);
+    VitaSys_Breadcrumb("RT stats read, about to alloc %u", stride * height * 4);
     VitaSys_LogPrintf("[rt] create %ux%u stride=%u need=%u budget=%u cdram reserved=%u used=%u largestfree=%u\n", width, height, stride, stride * height * 4, (unsigned)GXM_SCENES_PER_TARGET, cd.reserved, cd.used, cd.largestFreeRun);
     if (!GxmMem_Alloc(&rt->colorMem, stride * height * 4, GXM_MEM_CDRAM,
                       SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE))
@@ -102,8 +105,8 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     VitaSys_LogPrintf("[rt]   colour alloc FAILED\n");
         return false;
     }
+    VitaSys_Breadcrumb("RT colour base=%p", rt->colorMem.base);
     VitaSys_LogPrintf("[rt]   colour base=%p\n", rt->colorMem.base);
-
 
     VitaSys_LogPrintf("[rt]   colorSurfaceInit\n");
     if (sceGxmColorSurfaceInit(&rt->color, colorFormat,
@@ -116,6 +119,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
         return false;
     }
 
+    VitaSys_Breadcrumb("RT colorSurfaceInit done");
     VitaSys_LogPrintf("[rt]   textureInitLinearStrided\n");
     if (sceGxmTextureInitLinearStrided(&rt->texture, rt->colorMem.base, textureFormat,
                                        width, height, stride * 4) < 0)
@@ -123,6 +127,8 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
         GxmMem_Free(&rt->colorMem);
         return false;
     }
+
+    VitaSys_Breadcrumb("RT textureInit done, filling params");
 
     SceGxmRenderTargetParams params;
     memset(&params, 0, sizeof(params));

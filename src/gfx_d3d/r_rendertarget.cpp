@@ -9,6 +9,7 @@
 #ifdef KISAK_VITA
 #include <vita/gxm/gxm_device.h>
 #include <vita/gxm/gxm_rendertarget.h>
+#include <vita/platform/vita_system.h>
 #include <vita/gxm/gxm_texture.h>
 
 // the GXM objects behind GfxRenderTargetSurface, indexed by GfxRenderTargetId
@@ -391,6 +392,7 @@ void __cdecl R_InitRenderTargetImage(
     if (!R_GxmRenderTargetFormat(format, &colorFormat, &textureFormat))
         Com_Error(ERR_FATAL, "No GXM render target format for D3D format 0x%08x\n", format);
     Com_Printf(8, "  RT[%i] creating gxm target\n", renderTargetId);
+    VitaSys_Breadcrumb("r_rendertarget: RT[%i] calling GxmRenderTarget_Create", renderTargetId);
     if (!GxmRenderTarget_Create(&s_gxmColor[renderTargetId], width, height, colorFormat, textureFormat))
         Com_Error(ERR_FATAL, "Couldn't create a %i x %i render target\n", width, height);
     s_gxmColorOwned[renderTargetId] = true;
