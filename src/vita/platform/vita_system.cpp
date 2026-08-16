@@ -72,13 +72,23 @@ void VitaSys_LogClose(void)
     fclose(file);
 }
 
+static void VitaSys_LogFlushLine(void);
+
 void VitaSys_LogPrint(const char *text)
 {
     if (!s_log || !text)
         return;
+
+    // a timestamp per line is what tells a stall apart from a crash after the fact
+    static bool atLineStart = true;
+    if (atLineStart)
+        fprintf(s_log, "[%8u] ", (unsigned)(sceKernelGetProcessTimeWide() / 1000));
+    const size_t length = strlen(text);
+    atLineStart = length && text[length - 1] == '\n';
+
     fputs(text, s_log);
     if (s_logLineFlush)
-        VitaSys_LogFlush();
+        VitaSys_LogFlushLine();
 }
 
 void VitaSys_LogPrintf(const char *format, ...)
@@ -98,6 +108,24 @@ void VitaSys_LogFlush(void)
         return;
     fflush(s_log);
     // fflush only leaves libc; the filesystem cache still loses the tail on an abnormal exit
+    const int descriptor = fileno(s_log);
+    if (descriptor >= 0)
+        sceIoSyncByFd(descriptor, 0);
+}
+
+// the per-line path: a card sync costs milliseconds, so it runs at most ten times a second
+static void VitaSys_LogFlushLine(void)
+{
+    if (!s_log)
+        return;
+    fflush(s_log);
+
+    static uint64_t lastSync;
+    const uint64_t now = sceKernelGetProcessTimeWide();
+    if (lastSync && now - lastSync < 100000)
+        return;
+    lastSync = now;
+
     const int descriptor = fileno(s_log);
     if (descriptor >= 0)
         sceIoSyncByFd(descriptor, 0);
