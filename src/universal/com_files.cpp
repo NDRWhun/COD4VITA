@@ -1613,7 +1613,7 @@ void __cdecl FS_AddIwdFilesForGameDirectory(char *path, char *pszGameFolder)
     FS_FreeFileList((const char **)list);
 }
 
-#ifdef WIN32
+#if defined(WIN32) || defined(KISAK_VITA)
 int __cdecl Sys_DirectoryHasContents(const char *directory)
 {
     _finddata64i32_t findinfo; // [esp+0h] [ebp-238h] BYREF

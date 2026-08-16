@@ -96,6 +96,7 @@ struct _SAMPLE;
 struct _STREAM;
 typedef char MSS_FILE;
 typedef uintptr_t UINTa;
+#define FAR
 #endif
 
 #ifndef KISAK_OPENAL

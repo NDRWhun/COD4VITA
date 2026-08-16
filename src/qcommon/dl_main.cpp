@@ -8,7 +8,11 @@
 
 #include <universal/com_files.h>
 
+#ifdef KISAK_VITA
+int __cdecl DL_VPrintf(const char *fmt, va_list argptr)
+#else
 int __cdecl DL_VPrintf(const char *fmt, char *argptr)
+#endif
 {
     char msg[1028]; // [esp+10h] [ebp-408h] BYREF
 

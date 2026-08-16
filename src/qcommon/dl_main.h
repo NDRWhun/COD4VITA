@@ -7,7 +7,12 @@ enum dlStatus_t : __int32
     DL_FAILED = 0x2,
 };
 
+#ifdef KISAK_VITA
+#include <cstdarg>
+int __cdecl DL_VPrintf(const char *fmt, va_list argptr);
+#else
 int __cdecl DL_VPrintf(const char *fmt, char *argptr);
+#endif
 void __cdecl DL_CancelDownload();
 void __cdecl DL_InitDownload();
 int __cdecl DL_BeginDownload(char *localName, char *remoteName);
