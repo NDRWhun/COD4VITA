@@ -8,8 +8,22 @@
 
 #define VITA_BREADCRUMB_PATH "ux0:data/kisakcod/step.txt"
 
+// held open for the run; opening per call fails once the engine exhausts the descriptor table
+static SceUID s_file = -1;
+
+void VitaSys_BreadcrumbReset(void)
+{
+    if (s_file >= 0)
+        sceIoClose(s_file);
+    s_file = sceIoOpen(VITA_BREADCRUMB_PATH,
+                       SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
+}
+
 void VitaSys_Breadcrumb(const char *format, ...)
 {
+    if (s_file < 0)
+        return;
+
     char text[512];
     va_list arguments;
 
@@ -23,19 +37,6 @@ void VitaSys_Breadcrumb(const char *format, ...)
     length += stamp;
     text[length++] = '\n';
 
-    // open/write/close per call; a buffered stream loses its tail on an abnormal exit
-    const SceUID file = sceIoOpen(VITA_BREADCRUMB_PATH,
-                                  SCE_O_WRONLY | SCE_O_CREAT | SCE_O_APPEND, 0777);
-    if (file < 0)
-        return;
-    sceIoWrite(file, text, (SceSize)length);
-    sceIoClose(file);
-}
-
-void VitaSys_BreadcrumbReset(void)
-{
-    const SceUID file = sceIoOpen(VITA_BREADCRUMB_PATH,
-                                  SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
-    if (file >= 0)
-        sceIoClose(file);
+    sceIoWrite(s_file, text, (SceSize)length);
+    sceIoSyncByFd(s_file, 0);
 }
