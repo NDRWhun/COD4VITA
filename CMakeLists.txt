@@ -9,7 +9,7 @@ add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATE)
 
 # Set this to match the folder name in scripts/platform
 # This will handle the path overrides if needed
-set(KISAK_PLATFORM win32)
+set(KISAK_PLATFORM win32 CACHE STRING "folder name under scripts/platform")
 
 # Set Address Sanitizer
 # NOTE: If you use this you will need to copy to the game's directory
@@ -41,7 +41,11 @@ include(${SCRIPTS_DIR}/platform_override.cmake)
 message("Building KISAK_PLATFORM: ${KISAK_PLATFORM}")
 
 # Include the subprojects
+if (KISAK_PLATFORM STREQUAL "vita")
+add_subdirectory(${SCRIPTS_DIR}/vita)
+else()
 add_subdirectory(${SCRIPTS_DIR}/mp)
 add_subdirectory(${SCRIPTS_DIR}/sp)
 add_subdirectory(${SCRIPTS_DIR}/dedi)
 add_subdirectory(${SCRIPTS_DIR}/radiant)
+endif()
