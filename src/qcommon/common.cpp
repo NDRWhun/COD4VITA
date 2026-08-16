@@ -420,6 +420,13 @@ void Com_Prefetch(const void* s, const uint32_t bytes, e_prefetch type)
 
 void __cdecl Com_LogPrintMessage(int channel, const char* msg)
 {
+#ifdef KISAK_VITA
+    // Sys_Print already records this text, and a write per message contends with the fastfile
+    // streaming on the same card
+    (void)channel;
+    (void)msg;
+    return;
+#else
     Sys_EnterCriticalSection(CRITSECT_CONSOLE);
     if (FS_Initialized())
     {
@@ -433,6 +440,7 @@ void __cdecl Com_LogPrintMessage(int channel, const char* msg)
         }
     }
     Sys_LeaveCriticalSection(CRITSECT_CONSOLE);
+#endif
 }
 
 void Com_OpenLogFile()
