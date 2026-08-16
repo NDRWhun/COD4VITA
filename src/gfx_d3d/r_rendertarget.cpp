@@ -114,7 +114,9 @@ void R_InitRenderTargets_PC()
 {
     _D3DFORMAT backBufferFormat; // [esp+0h] [ebp-4h]
 
+    VitaSys_Breadcrumb("R_InitRenderTargets_PC entered");
     backBufferFormat = R_InitFrameBufferRenderTarget();
+    VitaSys_Breadcrumb("frame buffer target done, format=0x%08x", (unsigned)backBufferFormat);
     if (!g_allocateMinimalResources)
     {
         if (r_floatz->current.enabled)
@@ -380,6 +382,7 @@ void __cdecl R_InitRenderTargetImage(
             renderTargetId,
             15);
     Com_Printf(8, "  RT[%i] %ix%i fmt=0x%08x usage=%i: alloc image\n", renderTargetId, width, height, format, usage);
+    VitaSys_Breadcrumb("R_InitRenderTargetImage id=%u %ux%u", renderTargetId, width, height);
     renderTarget->image = Image_AllocProg(imageProgType, 6u, 0);
     iassert( renderTarget->image );
 #ifdef KISAK_VITA
