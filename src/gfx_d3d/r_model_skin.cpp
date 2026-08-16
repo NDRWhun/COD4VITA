@@ -60,7 +60,12 @@ void R_SkinXModelCmd(_WORD *data)
 
     PROF_SCOPED("R_SkinXModel");
 
+#ifdef KISAK_VITA
+    // NEON is unconditional on the Cortex-A9; only the renderer's toggle gates it
+    bool sseEnabled = r_sse_skinning->current.enabled;
+#else
     bool sseEnabled = sys_SSE->current.enabled && r_sse_skinning->current.enabled;
+#endif
     bool sseStateUsed = false;
 
     SkinXModelCmd* skinCmd = (SkinXModelCmd*)data;
@@ -99,7 +104,10 @@ void R_SkinXModelCmd(_WORD *data)
                 if (sseStateUsed)
                 {
                     sseStateUsed = false;
+#ifndef KISAK_VITA
+                    // NEON keeps no register state to retire, unlike the SSE path's MMX
                     _m_empty();
+#endif
                 }
 
                 DObjSkelMat mat0, mat1;
@@ -144,9 +152,11 @@ void R_SkinXModelCmd(_WORD *data)
             if (!sseStateUsed)
             {
                 sseStateUsed = true;
+#ifndef KISAK_VITA
                 _m_empty();
+#endif
             }
-        
+
             GfxPackedVertexNormal *skinVertNormalIn = 0, *skinVertNormalOut = 0;
             if (gfxBuf.fastSkin)
             {
@@ -163,8 +173,10 @@ void R_SkinXModelCmd(_WORD *data)
         }
     }
 
+#ifndef KISAK_VITA
     if (sseStateUsed)
         _m_empty();
+#endif
 }
 
 

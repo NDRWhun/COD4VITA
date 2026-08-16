@@ -6,14 +6,19 @@
 #include "r_state.h"
 #include "r_meshdata.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_pipeline.h>
+#endif
 
 void R_DepthPrepassCallback(const void *userData, GfxCmdBufContext context, GfxCmdBufContext prepassContext)
 {
     int height; // [esp+10h] [ebp-54h]
     int width; // [esp+14h] [ebp-50h]
     int y; // [esp+18h] [ebp-4Ch]
+#ifndef KISAK_VITA
     IDirect3DDevice9 *device; // [esp+20h] [ebp-44h]
     tagRECT v6; // [esp+24h] [ebp-40h] BYREF
+#endif
     GfxDrawSurfListInfo info; // [esp+34h] [ebp-30h] BYREF
     MaterialTechniqueType baseTechType; // [esp+5Ch] [ebp-8h]
     const GfxViewInfo *viewInfo; // [esp+60h] [ebp-4h]
@@ -22,6 +27,9 @@ void R_DepthPrepassCallback(const void *userData, GfxCmdBufContext context, GfxC
     height = viewInfo->scissorViewport.height;
     width = viewInfo->scissorViewport.width;
     y = viewInfo->scissorViewport.y;
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(true, viewInfo->scissorViewport.x, y, width, height);
+#else
     device = context.state->prim.device;
     v6.left = viewInfo->scissorViewport.x;
     v6.top = y;
@@ -29,6 +37,7 @@ void R_DepthPrepassCallback(const void *userData, GfxCmdBufContext context, GfxC
     v6.bottom = height + y;
     device->SetRenderState(D3DRS_SCISSORTESTENABLE, 1u);
     device->SetScissorRect(&v6);
+#endif
     if (viewInfo->needsFloatZ)
     {
         iassert( R_HaveFloatZ() );
@@ -52,7 +61,11 @@ void R_DepthPrepassCallback(const void *userData, GfxCmdBufContext context, GfxC
     qmemcpy(&info, &viewInfo->decalInfo, sizeof(info));
     info.baseTechType = baseTechType;
     R_DrawSurfs(context, 0, &info);
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(false, 0, 0, 0, 0);
+#else
     context.state->prim.device->SetRenderState(D3DRS_SCISSORTESTENABLE, 0);
+#endif
 }
 
 void R_DepthPrepass(

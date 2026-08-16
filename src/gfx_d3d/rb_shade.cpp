@@ -9,10 +9,35 @@
 #include "r_draw_bsp.h"
 #include <universal/profile.h>
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_material.h>
+#include <vita/gxm/gxm_pipeline.h>
 
+static const GxmVertexDecl *s_boundDecl;
+static const GxmMaterialShader *s_boundVertexShader;
+
+// a layout needs both halves, and the engine sets the shader and the declaration separately
+static void RB_BindVertexProgram()
+{
+    const GxmVertexLayout *layout = GxmMaterial_Layout(s_boundVertexShader, s_boundDecl);
+    GxmPipeline_SetVertexShader(layout ? s_boundVertexShader->handle : -1, layout);
+}
+#endif
 
 void __cdecl R_SetVertexDecl(GfxCmdBufPrimState *primState, const MaterialVertexDeclaration *vertexDecl)
 {
+#ifdef KISAK_VITA
+    IDirect3DVertexDeclaration9 *decl =
+        vertexDecl ? vertexDecl->routing.decl[primState->vertDeclType] : 0;
+
+    if (primState->vertexDecl == decl)
+        return;
+
+    PROF_SCOPED("RB_SetVertexDeclaration");
+    primState->vertexDecl = decl;
+    s_boundDecl = (const GxmVertexDecl *)decl;
+    RB_BindVertexProgram();
+#else
     IDirect3DVertexDeclaration9 *v3; // [esp+0h] [ebp-40h]
     int hr; // [esp+34h] [ebp-Ch]
     IDirect3DDevice9 *device; // [esp+3Ch] [ebp-4h]
@@ -48,6 +73,7 @@ void __cdecl R_SetVertexDecl(GfxCmdBufPrimState *primState, const MaterialVertex
         } while (alwaysfails);
         primState->vertexDecl = v3;
     }
+#endif
 }
 
 void __cdecl RB_ClearPixelShader()
@@ -59,6 +85,12 @@ void __cdecl RB_ClearPixelShader()
 
 void __cdecl R_HW_SetPixelShader(IDirect3DDevice9 *device, const MaterialPixelShader *mtlShader)
 {
+#ifdef KISAK_VITA
+    // the hash, not a handle: the alpha test state picks the archive variant at draw time
+    (void)device;
+    const GxmMaterialShader *shader = mtlShader ? (const GxmMaterialShader *)mtlShader->prog.ps : 0;
+    GxmPipeline_SetFragmentShader(shader ? shader->hash : 0);
+#else
     int v2; // eax
     HRESULT hr; // [esp+4h] [ebp-4h]
 
@@ -91,6 +123,7 @@ void __cdecl R_HW_SetPixelShader(IDirect3DDevice9 *device, const MaterialPixelSh
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl RB_ClearVertexShader()
@@ -102,6 +135,11 @@ void __cdecl RB_ClearVertexShader()
 
 void __cdecl R_HW_SetVertexShader(IDirect3DDevice9 *device, const MaterialVertexShader *mtlShader)
 {
+#ifdef KISAK_VITA
+    (void)device;
+    s_boundVertexShader = mtlShader ? (const GxmMaterialShader *)mtlShader->prog.vs : 0;
+    RB_BindVertexProgram();
+#else
     int v2; // eax
     HRESULT hr; // [esp+4h] [ebp-4h]
 
@@ -133,6 +171,7 @@ void __cdecl R_HW_SetVertexShader(IDirect3DDevice9 *device, const MaterialVertex
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl RB_ClearVertexDecl()

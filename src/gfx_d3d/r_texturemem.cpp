@@ -3,11 +3,16 @@
 #include <universal/assertive.h>
 #include "r_init.h"
 
-#define INITGUID 
+#ifdef KISAK_VITA
+#include <psp2/kernel/sysmem.h>
+#else
+#define INITGUID
 #include <ddraw.h>
+#endif
 
 uint32_t s_maxReportedTexMem;
 
+#ifndef KISAK_VITA
 uint32_t __cdecl R_VideoMemoryForDevice(_GUID *lpGUID)
 {
     _DDSCAPS2 caps; // [esp+0h] [ebp-20h] BYREF
@@ -139,6 +144,7 @@ uint32_t __cdecl R_VideoMemory()
         size >>= 1;
     return size;
 }
+#endif
 
 uint32_t __cdecl R_AvailableTextureMemory()
 {
@@ -154,6 +160,20 @@ uint32_t __cdecl R_AvailableTextureMemory()
 
 uint32_t __cdecl R_DetectCurrentTextureMemory()
 {
+#ifdef KISAK_VITA
+    SceKernelFreeMemorySizeInfo info;
+    memset(&info, 0, sizeof(info));
+    info.size = sizeof(info);
+    if (sceKernelGetFreeMemorySize(&info) < 0)
+        Com_Error(ERR_FATAL, "sceKernelGetFreeMemorySize failed\n");
+
+    // CDRAM is what gxm_texture.cpp fills first; main memory is the fallback and also holds
+    // the assets, so reporting CDRAM alone keeps picmip on the conservative side
+    const uint32_t cdramInMegs = (uint32_t)info.size_cdram >> 20;
+    Com_Printf(8, "GXM reports %i MB of free CDRAM and %i MB of free main memory.\n",
+               cdramInMegs, (uint32_t)info.size_user >> 20);
+    return cdramInMegs;
+#else
     uint32_t texMemInMegs; // [esp+0h] [ebp-Ch]
     uint32_t vidMemInMegs; // [esp+8h] [ebp-4h]
 
@@ -185,4 +205,5 @@ uint32_t __cdecl R_DetectCurrentTextureMemory()
             texMemInMegs);
         return texMemInMegs;
     }
+#endif
 }

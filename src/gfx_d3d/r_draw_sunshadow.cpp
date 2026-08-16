@@ -6,9 +6,29 @@
 #include "r_dvars.h"
 #include "rb_postfx.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_scissor.h>
+#endif
+
 
 void __cdecl R_DrawSunShadowMapCallback(const void *userData, GfxCmdBufContext context, GfxCmdBufContext prepassContext)
 {
+#ifdef KISAK_VITA
+    (void)prepassContext;
+    const GfxSunShadowPartition *partition = (const GfxSunShadowPartition *)userData;
+
+    R_SetRenderTarget(context, R_RENDERTARGET_SHADOWMAP_SUN);
+
+    if (partition->partitionIndex == 0)
+        R_ClearScreen(context.state->prim.device, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, shadowmapClearColor, 1.0f, 0, 0);
+
+    GxmScissor_Set(partition->viewport.x,
+                   partition->viewport.y + (int)(partition->partitionIndex * 1024),
+                   partition->viewport.width, partition->viewport.height);
+    R_DrawSurfs(context, 0, &partition->info);
+    GxmScissor_Set(context.state->viewport.x, context.state->viewport.y,
+                   context.state->viewport.width, context.state->viewport.height);
+#else
     int height; // [esp+10h] [ebp-28h]
     int width; // [esp+14h] [ebp-24h]
     int verticalOffset; // [esp+18h] [ebp-20h]
@@ -36,6 +56,7 @@ void __cdecl R_DrawSunShadowMapCallback(const void *userData, GfxCmdBufContext c
     R_DrawSurfs(context, 0, &partition->info);
 
     context.state->prim.device->SetRenderState(D3DRS_SCISSORTESTENABLE, 0);
+#endif
 }
 
 void R_DrawSunShadowMap(

@@ -1012,9 +1012,15 @@ GfxDrawSurf *__cdecl R_AddDObjSurfaces(
 
 bool __cdecl R_EndFencePending()
 {
+#ifdef KISAK_VITA
+    // GXM has no per-scene event query; R_HW_InsertFence leaves endFence null
+    iassert(!frontEndDataOut->endFence);
+    return false;
+#else
     _BYTE v2[4]; // [esp+Ch] [ebp-4h] BYREF
 
     return frontEndDataOut->endFence && frontEndDataOut->endFence->GetData(v2, 4u, 1u) == 1;
+#endif
 }
 
 void __cdecl R_SetEndTime(int endTime)

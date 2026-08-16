@@ -110,9 +110,17 @@ const Material *__cdecl R_PixelCost_GetAccumulationMaterial(const Material *mate
 void __cdecl R_PixelCost_BeginSurface(GfxCmdBufContext context)
 {
     int cost; // [esp+4h] [ebp-Ch]
+#ifndef KISAK_VITA
     unsigned __int64 packedKey; // [esp+8h] [ebp-8h]
+#endif
     unsigned __int64 packedKeya; // [esp+8h] [ebp-8h]
 
+#ifdef KISAK_VITA
+    // GXM's visibility buffer binds at scene begin and reads back only once the scene
+    // retires, so it cannot bracket an arbitrary run of draws the way a D3D query does
+    if (pixelCostMode == GFX_PIXEL_COST_MODE_MEASURE_COST)
+        Com_Error(ERR_FATAL, "r_showPixelCost: cost mode needs occlusion queries, which GXM has no equivalent for\n");
+#else
     if (pixelCostMode == GFX_PIXEL_COST_MODE_MEASURE_COST)
     {
         packedKey = R_PixelCost_PackedKeyForMaterial(*(_QWORD *)&context.state->material);
@@ -122,7 +130,9 @@ void __cdecl R_PixelCost_BeginSurface(GfxCmdBufContext context)
         RB_PixelCost_BeginTiming();
         RB_HW_BeginOcclusionQuery(gfxAssets.pixelCountQuery);
     }
-    else if (pixelCostMode == GFX_PIXEL_COST_MODE_MEASURE_MSEC)
+    else
+#endif
+    if (pixelCostMode == GFX_PIXEL_COST_MODE_MEASURE_MSEC)
     {
         packedKeya = R_PixelCost_PackedKeyForMaterial(*(_QWORD *)&context.state->material);
         if (!RB_PixelCost_DoesPrimMatch(packedKeya))
@@ -274,12 +284,19 @@ void __cdecl R_HW_FinishGpu()
 
 void __cdecl R_PixelCost_EndSurface(GfxCmdBufContext context)
 {
+#ifndef KISAK_VITA
     uint16_t v1; // [esp+10h] [ebp-38h]
     int v2; // [esp+14h] [ebp-34h]
     int v3; // [esp+28h] [ebp-20h]
     int cost; // [esp+40h] [ebp-8h]
     uint32_t pixelCount; // [esp+44h] [ebp-4h]
+#endif
 
+#ifdef KISAK_VITA
+    (void)context;
+    if (pixelCostMode == GFX_PIXEL_COST_MODE_MEASURE_COST)
+        Com_Error(ERR_FATAL, "r_showPixelCost: cost mode needs occlusion queries, which GXM has no equivalent for\n");
+#else
     if (pixelCostMode == GFX_PIXEL_COST_MODE_MEASURE_COST)
     {
         gfxAssets.pixelCountQuery->Issue(D3DISSUE_END);
@@ -309,7 +326,9 @@ void __cdecl R_PixelCost_EndSurface(GfxCmdBufContext context)
             v1 = cost;
         pixelCostGlob.records[pixelCostGlob.recordCount++].costHistory[pixelCostGlob.frameIndex] = v1;
     }
-    else if (pixelCostMode == GFX_PIXEL_COST_MODE_MEASURE_MSEC)
+    else
+#endif
+    if (pixelCostMode == GFX_PIXEL_COST_MODE_MEASURE_MSEC)
     {
         RB_PixelCost_EndTiming();
         RB_PixelCost_AccumulateMsec();

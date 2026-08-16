@@ -9,6 +9,13 @@
 #include "rb_shade.h"
 #include "r_draw_method.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_material.h>
+#include <vita/gxm/gxm_program.h>
+#include <vita/gxm/gxm_shader_archive.h>
+#include <vita/gxm/gxm_state.h>
+#endif
+
 $C28D828B354D71D7584331F40DBDE744 mtlUploadGlob;
 
 void __cdecl Material_UploadShaders(MaterialTechniqueSet *techSet)
@@ -28,6 +35,37 @@ void __cdecl Material_UploadShaders(MaterialTechniqueSet *techSet)
         ++mtlUploadGlob.put;
     }
 }
+
+#ifdef KISAK_VITA
+// the D3D upload was a dummy draw to make the driver compile the pass; on GXM the equivalent
+// cost is the shader patcher, so the layout and the fragment program are built and cached.
+// the vertex program is not, because its stream strides only exist once a draw sets them.
+static uint32_t RB_UploadMaterialPassPrograms(const MaterialPass *pass,
+                                              MaterialVertexDeclType vertDeclType)
+{
+    const GxmVertexDecl *decl = (const GxmVertexDecl *)pass->vertexDecl->routing.decl[vertDeclType];
+    const GxmMaterialShader *vertexShader = (const GxmMaterialShader *)pass->vertexShader->prog.vs;
+    const GxmMaterialShader *pixelShader = (const GxmMaterialShader *)pass->pixelShader->prog.ps;
+
+    if (!decl || !vertexShader || !pixelShader)
+        return 0;
+    if (!GxmMaterial_Layout(vertexShader, decl))
+        return 0;
+
+    const int fragmentShader = GxmShaderArchive_Lookup(pixelShader->hash, GXM_STAGE_FRAGMENT,
+                                                       GXM_ATEST_NONE);
+    if (fragmentShader < 0)
+        return 0;
+
+    GxmProgramState state;
+    memset(&state, 0, sizeof(state));
+    state.alphaTest = GXM_ATEST_NONE;
+    state.blend.colorMask = SCE_GXM_COLOR_MASK_R | SCE_GXM_COLOR_MASK_G |
+                            SCE_GXM_COLOR_MASK_B | SCE_GXM_COLOR_MASK_A;
+
+    return GxmProgram_Fragment(fragmentShader, &state, vertexShader->handle) ? 1 : 0;
+}
+#endif
 
 void __cdecl RB_SetUploadMaterialArg(const MaterialShaderArgument *arg)
 {
@@ -64,6 +102,7 @@ void __cdecl RB_SetUploadMaterialArg(const MaterialShaderArgument *arg)
     }
 }
 
+#ifndef KISAK_VITA
 uint32_t __cdecl RB_UploadMaterialPassVertexDecl(
     GfxCmdBufPrimState *primState,
     MaterialVertexDeclaration *vertexDecl,
@@ -79,11 +118,26 @@ uint32_t __cdecl RB_UploadMaterialPassVertexDecl(
     dx.device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, data, stride);
     return 1;
 }
+#endif
 
 uint32_t RB_UploadMaterialPass(
     const MaterialPass *pass,
     MaterialVertexDeclType vertDeclType)
 {
+#ifdef KISAK_VITA
+    iassert( pass->vertexShader );
+    iassert( pass->pixelShader );
+    iassert( pass->vertexDecl );
+
+    // no draw is issued, so the black samplers and constants the D3D path needed are not set
+    if (vertDeclType)
+        return RB_UploadMaterialPassPrograms(pass, vertDeclType);
+
+    return RB_UploadMaterialPassPrograms(pass, VERTDECL_GENERIC)
+         + RB_UploadMaterialPassPrograms(pass, VERTDECL_PACKED)
+         + RB_UploadMaterialPassPrograms(pass, VERTDECL_WORLD)
+         + RB_UploadMaterialPassPrograms(pass, VERTDECL_STATICMODELCACHE);
+#else
     uint32_t v4; // [esp-Ch] [ebp-B4h]
     uint32_t v5; // [esp-Ch] [ebp-B4h]
     uint32_t v6; // [esp-Ch] [ebp-B4h]
@@ -120,6 +174,7 @@ uint32_t RB_UploadMaterialPass(
     }
     gfxCmdBufContext.state->prim.vertDeclType = VERTDECL_GENERIC;
     return v4;
+#endif
 }
 
 uint32_t __cdecl RB_UploadMaterialTechnique(const MaterialTechnique *tech, uint32_t techType)

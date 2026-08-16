@@ -9,6 +9,10 @@
 #include <universal/profile.h>
 #include "r_state.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_texture.h>
+#endif
+
 struct $D83B18AC5ED51685DB5F92059A920C50 // sizeof=0x4
 {                                       // ...
     uint32_t baseIndex;             // ...
@@ -625,6 +629,15 @@ void __cdecl R_ResetModelLighting()
 
 void __cdecl R_InitModelLightingImage()
 {
+#ifdef KISAK_VITA
+    iassert(modelLightGlob.totalEntryLimit);
+
+    // r_altModelLightingUpdate stages through a second memory pool that Vita has not got
+    modelLightGlob.lightImages[0] = Image_AllocProg(12, 4u, 1u);
+    Image_SetupAndLoad(modelLightGlob.lightImages[0], 256, modelLightGlob.imageHeight, 4, 0xA, D3DFMT_A8R8G8B8);
+    modelLightGlob.lightImages[1] = 0;
+    modelLightGlob.image = modelLightGlob.lightImages[0];
+#else
     bool useAltUpdate; // [esp+1h] [ebp-1h]
 
     iassert(modelLightGlob.totalEntryLimit);
@@ -643,6 +656,7 @@ void __cdecl R_InitModelLightingImage()
         modelLightGlob.lightImages[1] = 0;
     }
     modelLightGlob.image = modelLightGlob.lightImages[0];
+#endif
 }
 
 void __cdecl R_ShutdownModelLightingImage()
@@ -688,6 +702,60 @@ void __cdecl R_ApplyLightGridColorsPatch(const GfxModelLightingPatch *patch, uin
     }
 }
 
+#ifdef KISAK_VITA
+void __cdecl RB_PatchModelLighting(const GfxModelLightingPatch *patchList, uint32_t patchCount)
+{
+    if (!patchCount)
+        return;
+
+    iassert(modelLightGlob.lockedBox.pBits == NULL);
+
+    GfxImage *lightImage = modelLightGlob.lightImages[0];
+    iassert(lightImage);
+
+    const GxmTexture *volume = (const GxmTexture *)lightImage->texture.volmap;
+    iassert(volume);
+    iassert(volume->depth == lightImage->depth);
+
+    // the volume is a vertical strip, so a slice is a contiguous run of rows
+    const uint32_t rowPitch = GxmTexture_LevelSize(volume->imageFormat, volume->width, 1);
+    modelLightGlob.lockedBox.RowPitch = (int)rowPitch;
+    modelLightGlob.lockedBox.SlicePitch = (int)(rowPitch * (volume->height / volume->depth));
+    modelLightGlob.lockedBox.pBits = volume->memory.base;
+
+    R_SetModelLightingSampleDeltas();
+    R_SetLightGridSampleDeltas(modelLightGlob.lockedBox.RowPitch, modelLightGlob.lockedBox.SlicePitch);
+
+    for (uint32_t patchIter = 0; patchIter < patchCount; ++patchIter)
+    {
+        const GfxModelLightingPatch *patch = &patchList[patchIter];
+        const uint32_t modelLightingIndex = patch->modelLightingIndex;
+        const uint32_t y0 = (modelLightingIndex >> 4) & 0xFFFFFFFC;
+
+        uint8_t *pixels = (uint8_t *)modelLightGlob.lockedBox.pBits
+            + 16 * (modelLightingIndex & 0x3F)
+            + modelLightGlob.lockedBox.RowPitch * y0;
+
+        if (patch->colorsCount)
+        {
+            R_ApplyLightGridColorsPatch(patch, pixels);
+        }
+        else
+        {
+            for (uint32_t sampleIndex = 0; sampleIndex < 0x40; ++sampleIndex)
+            {
+                uint8_t *pPixels = &pixels[s_modelLightingSampleDelta[sampleIndex]];
+                pPixels[0] = patch->groundLighting[0];
+                pPixels[1] = patch->groundLighting[1];
+                pPixels[2] = patch->groundLighting[2];
+                pPixels[3] = patch->groundLighting[3];
+            }
+        }
+    }
+
+    modelLightGlob.lockedBox.pBits = 0;
+}
+#else
 void __cdecl RB_PatchModelLighting(const GfxModelLightingPatch *patchList, uint32_t patchCount)
 {
     uint32_t modelLightingIndex; // [esp+4h] [ebp-4Ch]
@@ -825,3 +893,4 @@ void __cdecl RB_PatchModelLighting(const GfxModelLightingPatch *patchList, uint3
         }
     }
 }
+#endif

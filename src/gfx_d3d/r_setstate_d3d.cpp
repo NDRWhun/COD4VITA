@@ -2,9 +2,20 @@
 #include "r_setstate_d3d.h"
 #include "r_init.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_device.h>
+#endif
 
 bool __cdecl RB_IsGpuFinished()
 {
+#ifdef KISAK_VITA
+    // the fence is a value the GPU writes into notification memory as it retires each scene
+    if (!GxmDevice_FenceReached())
+        return 0;
+
+    --dx.flushGpuQueryCount;
+    return 1;
+#else
     const char *v1; // eax
     int hr; // [esp+0h] [ebp-8h]
 
@@ -46,6 +57,7 @@ bool __cdecl RB_IsGpuFinished()
             --dx.flushGpuQueryCount;
         return hr != 1;
     }
+#endif
 }
 
 bool __cdecl RB_IsGpuFenceFinished()

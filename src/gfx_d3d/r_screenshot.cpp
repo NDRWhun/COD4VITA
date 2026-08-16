@@ -54,6 +54,63 @@ namespace
 }
 #endif
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_device.h>
+#include <vita/gxm/gxm_pipeline.h>
+
+// the display buffer is A8B8G8R8 (R,G,B,A bytes); the engine's copies are D3D A8R8G8B8 order
+static char R_ReadDisplayPixels(int x, int y, int width, int height, int bytesPerPixel, uint8_t *buffer)
+{
+    uint32_t surfWidth; // [esp+0h] [ebp-18h] BYREF
+    uint32_t surfHeight; // [esp+4h] [ebp-14h] BYREF
+    uint32_t pitchInPixels; // [esp+8h] [ebp-10h] BYREF
+    const uint8_t *front; // [esp+Ch] [ebp-Ch]
+    const uint8_t *srcPixel; // [esp+10h] [ebp-8h]
+    uint8_t *dstPixel; // [esp+14h] [ebp-4h]
+    int row;
+    int col;
+
+    front = (const uint8_t *)GxmDevice_FrontBuffer(&surfWidth, &surfHeight, &pitchInPixels);
+    if (!front)
+    {
+        Com_PrintError(8, "ERROR: cannot take screenshot: the display buffer is not available\n");
+        return 0;
+    }
+    if (x < 0 || y < 0 || width <= 0 || height <= 0
+        || (uint32_t)(x + width) > surfWidth || (uint32_t)(y + height) > surfHeight)
+    {
+        Com_PrintError(
+            8,
+            "ERROR: cannot take screenshot: %i x %i at (%i, %i) does not fit the %i x %i display\n",
+            width,
+            height,
+            x,
+            y,
+            surfWidth,
+            surfHeight);
+        return 0;
+    }
+    iassert( bytesPerPixel == 3 || bytesPerPixel == 4 );
+
+    dstPixel = buffer;
+    for (row = 0; row < height; ++row)
+    {
+        srcPixel = front + 4 * ((y + row) * pitchInPixels + x);
+        for (col = 0; col < width; ++col)
+        {
+            dstPixel[0] = srcPixel[2];
+            dstPixel[1] = srcPixel[1];
+            dstPixel[2] = srcPixel[0];
+            if (bytesPerPixel == 4)
+                dstPixel[3] = srcPixel[3];
+            dstPixel += bytesPerPixel;
+            srcPixel += 4;
+        }
+    }
+    return 1;
+}
+#endif
+
 #define ratio 4
 
 struct $EF604BEDDA69129AF7FD28DC5064E1AD // sizeof=0x18
@@ -846,6 +903,12 @@ void __cdecl R_CreateReflectionRawDataFromCubemapShot(DiskGfxReflectionProbe *pr
             "rawPixels - probeRawData->pixels == sizeof( probeRawData->pixels )");
 }
 
+#ifdef KISAK_VITA
+char __cdecl R_GetFrontBufferData(int x, int y, int width, int height, int bytesPerPixel, uint8_t *buffer)
+{
+    return R_ReadDisplayPixels(x, y, width, height, bytesPerPixel, buffer);
+}
+#else
 char __cdecl R_GetFrontBufferData(int x, int y, int width, int height, int bytesPerPixel, uint8_t *buffer)
 {
     const char *v7; // eax
@@ -1003,6 +1066,7 @@ char __cdecl R_GetFrontBufferData(int x, int y, int width, int height, int bytes
         return 0;
     }
 }
+#endif
 
 void __cdecl R_UpsamplePixelData(
     int oldSize,
@@ -1367,6 +1431,20 @@ void __cdecl R_BeginCubemapShot(int pixelWidthHeight, int pixelBorder)
     R_CubemapShotSetInitialState();
 }
 
+#ifdef KISAK_VITA
+void R_CubemapShotSetInitialState()
+{
+    // opaque magenta, as the D3D clear colour -65281 (0xFFFF00FF) is
+    static const float magenta[4] = { 1.0f, 0.0f, 1.0f, 1.0f };
+    const uint32_t clearStencil = 4;
+
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
+    // the caller primes the frame buffer between frames, where GXM has no scene to clear into
+    if (!GxmPipeline_Clear(D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER | clearStencil, magenta, 1.0f, 0))
+        Com_PrintWarning(8, "Cubemap shot: no open scene to clear; pixels the face does not cover keep the previous frame\n");
+}
+#else
 void R_CubemapShotSetInitialState()
 {
     const char *v0; // eax
@@ -1420,6 +1498,7 @@ void R_CubemapShotSetInitialState()
         }
     } while (alwaysfails);
 }
+#endif
 
 void __cdecl R_EndCubemapShot(CubemapShot shotIndex)
 {
@@ -1445,6 +1524,13 @@ void __cdecl R_CopyCubemapShot(CubemapShot imgIndex)
     R_CubemapShotCopySurfaceToBuffer(cubeShotGlob.pixels[imgIndex - 1], sizeInBytes);
 }
 
+#ifdef KISAK_VITA
+// the caller reads after the frame has been submitted and presented, so this is the same buffer
+char __cdecl R_GetBackBufferData(int x, int y, int width, int height, int bytesPerPixel, uint8_t *buffer)
+{
+    return R_ReadDisplayPixels(x, y, width, height, bytesPerPixel, buffer);
+}
+#else
 char __cdecl R_GetBackBufferData(int x, int y, int width, int height, int bytesPerPixel, uint8_t *buffer)
 {
     const char *v6; // eax
@@ -1603,6 +1689,7 @@ char __cdecl R_GetBackBufferData(int x, int y, int width, int height, int bytesP
         return 0;
     }
 }
+#endif
 
 void __cdecl R_CubemapShotFlipVerticalBuffer(uint8_t *buffer)
 {

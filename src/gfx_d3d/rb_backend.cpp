@@ -36,6 +36,15 @@
 #include <universal/timing.h>
 
 #include <setjmp.h>
+
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_blit.h>
+#include <vita/gxm/gxm_device.h>
+#include <vita/gxm/gxm_fence.h>
+#include <vita/gxm/gxm_rendertarget.h>
+#include <vita/gxm/gxm_texture.h>
+#endif
+
 #ifdef KISAK_SP
 #include <client/cl_scrn.h>
 #endif
@@ -111,6 +120,9 @@ void __cdecl R_ReleaseGpuFenceLock()
 
 void __cdecl R_InsertGpuFence()
 {
+#ifdef KISAK_VITA
+    GxmDevice_IssueFence();
+#else
     const char *v0; // eax
     int hr; // [esp+0h] [ebp-4h]
 
@@ -134,6 +146,7 @@ void __cdecl R_InsertGpuFence()
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
     dx.flushGpuQueryIssued = 1;
     ++dx.flushGpuQueryCount;
 }
@@ -389,18 +402,45 @@ void __cdecl RB_SplitScreenTexCoords(float x, float y, float w, float h, float *
     *t1 = ya + ha;
 }
 
+#ifdef KISAK_VITA
+// the destination is always another render target's image, so its GXM target owns the memory
+static GxmRenderTarget *R_GxmTargetForImage(const GfxImage *image)
+{
+    for (uint32_t i = 0; i < R_RENDERTARGET_COUNT; ++i)
+    {
+        if (gfxRenderTargets[i].image == image)
+            return (GxmRenderTarget *)gfxRenderTargets[i].surface.color;
+    }
+    return 0;
+}
+#endif
+
 void __cdecl R_Resolve(GfxCmdBufContext context, GfxImage *image)
 {
+#ifndef KISAK_VITA
     const char *v4; // eax
     int v6; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
     IDirect3DSurface9 *imageSurface; // [esp+8h] [ebp-4h]
+#endif
 
     iassert( image );
     iassert(image->width == gfxRenderTargets[context.state->renderTargetId].width);
     iassert(image->height == gfxRenderTargets[context.state->renderTargetId].height);
     iassert( image != gfxRenderTargets[context.state->renderTargetId].image );
 
+#ifdef KISAK_VITA
+    {
+        GxmRenderTarget *src =
+            (GxmRenderTarget *)gfxRenderTargets[context.state->renderTargetId].surface.color;
+        GxmRenderTarget *dst = R_GxmTargetForImage(image);
+
+        if (!src || !dst)
+            Com_Error(ERR_FATAL, "R_Resolve: %s is not a render target image\n", image->name);
+        if (!GxmBlit_Resolve(src, dst))
+            Com_Error(ERR_FATAL, "R_Resolve: copy into %s failed\n", image->name);
+    }
+#else
     imageSurface = Image_GetSurface(image);
     iassert( imageSurface );
 
@@ -440,6 +480,7 @@ void __cdecl R_Resolve(GfxCmdBufContext context, GfxImage *image)
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl RB_StretchPicCmd(GfxRenderCommandExecState *execState)
@@ -634,8 +675,56 @@ void __cdecl RB_StretchRawCmd(GfxRenderCommandExecState *execState)
     execState->cmd = (char*)execState->cmd + cmd->header.byteCount;
 }
 
+#ifdef KISAK_VITA
+// the raw frame lands in one texture that only changes size when the source does
+static GxmTexture s_rawTexture;
+static uint32_t s_rawWidth;
+static uint32_t s_rawHeight;
+
+static bool RB_FillRawTexture(int cols, int rows, const uint8_t *data)
+{
+    if ((uint32_t)cols != s_rawWidth || (uint32_t)rows != s_rawHeight)
+    {
+        GxmTexture_Free(&s_rawTexture);
+        s_rawWidth = 0;
+        s_rawHeight = 0;
+        if (!GxmTexture_Create(&s_rawTexture, GXM_IMG_A8R8G8B8, cols, rows, 1, false))
+            return false;
+        s_rawWidth = cols;
+        s_rawHeight = rows;
+    }
+
+    // written in place: the swizzle would otherwise need a staging copy of the whole frame
+    const uint32_t size = GxmTexture_LevelSize(GXM_IMG_A8R8G8B8, s_rawWidth, s_rawHeight);
+    if (!s_rawTexture.memory.base || size < (uint32_t)cols * (uint32_t)rows * 4)
+        return false;
+
+    uint8_t *dest = (uint8_t *)s_rawTexture.memory.base;
+    for (int pixel = 0; pixel < cols * rows; ++pixel)
+    {
+        Byte4CopyRgbaToVertexColor(data, dest);
+        data += 4;
+        dest += 4;
+    }
+    return true;
+}
+#endif
+
 void __cdecl RB_StretchRaw(int x, int y, int w, int h, int cols, int rows, const uint8_t *data)
 {
+#ifdef KISAK_VITA
+    GxmRenderTarget *target =
+        (GxmRenderTarget *)gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color;
+
+    if (!target || !RB_FillRawTexture(cols, rows, data))
+        Com_Error(ERR_FATAL, "RB_StretchRaw: no %ix%i raw frame texture\n", cols, rows);
+
+    if (!GxmRenderTarget_Begin(target))
+        Com_Error(ERR_FATAL, "RB_StretchRaw: no scene for the frame buffer\n");
+
+    if (!GxmBlit_Rect(&s_rawTexture.texture, x, y, w, h, target->width, target->height))
+        Com_Error(ERR_FATAL, "RB_StretchRaw: the raw frame blit failed\n");
+#else
     const char *v7; // eax
     int v8; // [esp+8h] [ebp-34h]
     _D3DLOCKED_RECT lockedRect; // [esp+10h] [ebp-2Ch] BYREF
@@ -696,6 +785,7 @@ void __cdecl RB_StretchRaw(int x, int y, int w, int h, int cols, int rows, const
 
         rawSurf->Release();
     }
+#endif
 }
 
 void __cdecl R_DrawSurfs(GfxCmdBufContext context, GfxCmdBufState *prepassState, const GfxDrawSurfListInfo *info)
@@ -859,6 +949,11 @@ void __cdecl RB_ClearScreenCmd(GfxRenderCommandExecState *execState)
 
 void __cdecl RB_SetGammaRamp(const GfxGammaRamp *gammaTable)
 {
+#ifdef KISAK_VITA
+    // GXM drives no per-channel display LUT, so r_gamma has nothing to apply itself to;
+    // r_init.cpp must leave vidConfig.deviceSupportsGamma false so this is never reached
+    (void)gammaTable;
+#else
     int colorIndex; // [esp+0h] [ebp-60Ch]
     _D3DGAMMARAMP d3dGammaRamp; // [esp+4h] [ebp-608h] BYREF
 
@@ -872,6 +967,7 @@ void __cdecl RB_SetGammaRamp(const GfxGammaRamp *gammaTable)
         d3dGammaRamp.blue[colorIndex] = gammaTable->entries[colorIndex];
     }
     dx.device->SetGammaRamp(dx.targetWindowIndex, 0, &d3dGammaRamp);
+#endif
 }
 
 void __cdecl RB_SaveScreenCmd(GfxRenderCommandExecState *execState)
@@ -2602,7 +2698,9 @@ void __cdecl RB_ResetStatTracking()
 
 void __cdecl RB_BeginFrame(const GfxBackEndData *data)
 {
+#ifndef KISAK_VITA
     int hr; // [esp+0h] [ebp-4h]
+#endif
 
     backEndData = (GfxBackEndData*)data;
     if ((data->drawType & 1) != 0)
@@ -2617,6 +2715,9 @@ void __cdecl RB_BeginFrame(const GfxBackEndData *data)
 
         dx.inScene = 1;
 
+#ifdef KISAK_VITA
+        GxmDevice_BeginFrame();
+#else
         do
         {
             if (r_logFile && r_logFile->current.integer)
@@ -2631,6 +2732,7 @@ void __cdecl RB_BeginFrame(const GfxBackEndData *data)
                 } while (alwaysfails);
             }
         } while (alwaysfails);
+#endif
 
         RB_UploadShaderStep();
         RB_ResetStatTracking();
@@ -2663,13 +2765,20 @@ void __cdecl RB_EndFrame(char drawType)
 GfxIndexBufferState *RB_SwapBuffers()
 {
     GfxIndexBufferState *result;
+#ifndef KISAK_VITA
     int hr;
 
     iassert(dx.targetWindowIndex >= 0 && dx.targetWindowIndex < dx.windowCount);
+#endif
 
     {
         PROF_SCOPED("Present");
+#ifdef KISAK_VITA
+        // ends the frame's scene, queues the flip and rotates to the next display buffer
+        GxmDevice_EndFrame();
+#else
         hr = dx.windows[dx.targetWindowIndex].swapChain->Present(0, 0, 0, 0, 0);
+#endif
     }
 
 #ifdef KISAK_RADIANT
@@ -2691,10 +2800,12 @@ GfxIndexBufferState *RB_SwapBuffers()
     }
 #endif
 
+#ifndef KISAK_VITA
     if (hr < 0 && hr != -2005530520)
     {
         Com_Error(ERR_FATAL, "Direct3DDevice9::Present failed: %s\n", R_ErrorDescription(hr));
     }
+#endif
 
     R_HW_InsertFence(&dx.swapFence);
     result = gfxBuf.dynamicIndexBuffer;
@@ -2716,11 +2827,14 @@ void RB_UpdateBackEndDvarOptions()
         }
         if (R_CheckDvarModified(r_showPixelCost) && !r_showPixelCost->current.integer)
             R_PixelCost_PrintColorCodeKey();
+#ifndef KISAK_VITA
+        // alpha to coverage is excised on GXM, so r_aaAlpha has no state to push
         if (R_CheckDvarModified(r_aaAlpha))
         {
             if (gfxMetrics.hasTransparencyMsaa)
                 R_SetAlphaAntiAliasingState(gfxCmdBufState.prim.device, gfxCmdBufState.activeStateBits[0]);
         }
+#endif
     }
 }
 
@@ -2808,8 +2922,10 @@ int RB_AdaptiveGpuSyncFinal()
 
 void __cdecl RB_CallExecuteRenderCommands()
 {
+#ifndef KISAK_VITA
     const char *v0; // eax
     int hr; // [esp+40h] [ebp-4h]
+#endif
     
     PROF_SCOPED("ExecuteRenderCmds");
     if ((backEndData->drawType & 2) != 0)
@@ -2876,6 +2992,9 @@ void __cdecl RB_CallExecuteRenderCommands()
                 tess.indexCount);
         iassert( dx.device );
         iassert( dx.inScene );
+#ifdef KISAK_VITA
+        // the GXM scene stays open until RB_SwapBuffers, which is what queues the flip
+#else
         do
         {
             if (r_logFile && r_logFile->current.integer)
@@ -2892,6 +3011,7 @@ void __cdecl RB_CallExecuteRenderCommands()
                 } while (alwaysfails);
             }
         } while (alwaysfails);
+#endif
         dx.inScene = 0;
         if (!r_glob.isRenderingRemoteUpdate)
         {
@@ -3019,12 +3139,18 @@ void __cdecl  RB_RenderThread(uint32_t threadContext)
 int __cdecl RB_BackendTimeout()
 {
     BOOL v1; // [esp+0h] [ebp-Ch]
+#ifndef KISAK_VITA
     _BYTE v2[4]; // [esp+8h] [ebp-4h] BYREF
+#endif
 
     if (dx.swapFence)
     {
+#ifdef KISAK_VITA
+        v1 = !GxmFence_Reached((uint32_t)(uintptr_t)dx.swapFence);
+#else
         //v1 = dx.swapFence->GetData(dx.swapFence, v2, 4u, 1u) == 1;
         v1 = dx.swapFence->GetData(v2, 4, 1) == 1;
+#endif
     }
     else
         v1 = 0;

@@ -147,8 +147,11 @@ SceGxmFragmentProgram *GxmProgram_Fragment(int handle, const GxmProgramState *st
     if (s_fragmentCount >= GXM_MAX_FRAGMENT_PROGRAMS)
         return NULL;
 
-    // a null blend info tells the patcher to write the output register straight out
-    const SceGxmBlendInfo *blend = state->blendEnabled ? &state->blend : NULL;
+    // a null blend info writes the output register straight out, colour mask included, so a
+    // masked write needs the blend info even with the blend funcs left at NONE
+    const SceGxmBlendInfo *blend =
+        (state->blendEnabled || state->blend.colorMask != SCE_GXM_COLOR_MASK_ALL)
+            ? &state->blend : NULL;
     const SceGxmProgram *linked = GxmProgram_Get(linkedVertexHandle);
 
     SceGxmFragmentProgram *program = NULL;

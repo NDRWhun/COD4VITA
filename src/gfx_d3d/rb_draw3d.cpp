@@ -22,8 +22,17 @@
 #include "rb_shade.h"
 #include "r_meshdata.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_fence.h>
+#include <vita/gxm/gxm_pipeline.h>
+#endif
+
 void __cdecl R_HW_InsertFence(IDirect3DQuery9 **fence)
 {
+#ifdef KISAK_VITA
+    // the fence is the scene count at this point, kept in the pointer slot the engine already has
+    *fence = (IDirect3DQuery9 *)(uintptr_t)GxmFence_Insert();
+#else
     const char *v1; // eax
     int hr; // [esp+0h] [ebp-4h]
 
@@ -48,6 +57,7 @@ void __cdecl R_HW_InsertFence(IDirect3DQuery9 **fence)
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_ShowTris(GfxCmdBufContext context, const GfxDrawSurfListInfo *info)
@@ -213,8 +223,10 @@ void __cdecl R_DrawDebugShaderLitCallback(const void *data, GfxCmdBufContext con
     int height; // [esp+4h] [ebp-28h]
     int width; // [esp+8h] [ebp-24h]
     int y; // [esp+Ch] [ebp-20h]
+#ifndef KISAK_VITA
     IDirect3DDevice9 *device; // [esp+14h] [ebp-18h]
     tagRECT v6; // [esp+18h] [ebp-14h] BYREF
+#endif
     const GfxViewInfo *viewInfo; // [esp+28h] [ebp-4h]
 
     viewInfo = (const GfxViewInfo * )data;
@@ -222,6 +234,9 @@ void __cdecl R_DrawDebugShaderLitCallback(const void *data, GfxCmdBufContext con
     height = viewInfo->scissorViewport.height;
     width = viewInfo->scissorViewport.width;
     y = viewInfo->scissorViewport.y;
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(true, viewInfo->scissorViewport.x, y, width, height);
+#else
     device = context.state->prim.device;
     v6.left = viewInfo->scissorViewport.x;
     v6.top = y;
@@ -235,9 +250,14 @@ void __cdecl R_DrawDebugShaderLitCallback(const void *data, GfxCmdBufContext con
     device->SetRenderState(D3DRS_SCISSORTESTENABLE, 1);
     //device->SetScissorRect(device, (const tagRECT *)v6);
     device->SetScissorRect(&v6);
+#endif
     R_DrawSurfs(context, 0, &viewInfo->litInfo);
     //context.state->prim.device->SetRenderState(context.state->prim.device, D3DRS_SCISSORTESTENABLE, 0);
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(false, 0, 0, 0, 0);
+#else
     context.state->prim.device->SetRenderState(D3DRS_SCISSORTESTENABLE, 0);
+#endif
 }
 
 void __cdecl R_DrawFullbrightDecalCallback(const void *data, GfxCmdBufContext context, GfxCmdBufContext prepassContext)
@@ -245,8 +265,10 @@ void __cdecl R_DrawFullbrightDecalCallback(const void *data, GfxCmdBufContext co
     int height; // [esp+4h] [ebp-28h]
     int width; // [esp+8h] [ebp-24h]
     int y; // [esp+Ch] [ebp-20h]
+#ifndef KISAK_VITA
     IDirect3DDevice9 *device; // [esp+14h] [ebp-18h]
     tagRECT v6; // [esp+18h] [ebp-14h] BYREF
+#endif
     const GfxViewInfo *viewInfo; // [esp+28h] [ebp-4h]
 
     viewInfo = (const GfxViewInfo*)data;
@@ -254,6 +276,9 @@ void __cdecl R_DrawFullbrightDecalCallback(const void *data, GfxCmdBufContext co
     height = viewInfo->scissorViewport.height;
     width = viewInfo->scissorViewport.width;
     y = viewInfo->scissorViewport.y;
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(true, viewInfo->scissorViewport.x, y, width, height);
+#else
     device = context.state->prim.device;
     v6.left = viewInfo->scissorViewport.x;
     v6.top = y;
@@ -267,8 +292,13 @@ void __cdecl R_DrawFullbrightDecalCallback(const void *data, GfxCmdBufContext co
     device->SetRenderState(D3DRS_SCISSORTESTENABLE, 1);
     //device->SetScissorRect(device, (const tagRECT *)v6);
     device->SetScissorRect(&v6);
+#endif
     R_DrawSurfs(context, 0, &viewInfo->decalInfo);
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(false, 0, 0, 0, 0);
+#else
     context.state->prim.device->SetRenderState(D3DRS_SCISSORTESTENABLE, 0);
+#endif
 }
 
 void __cdecl R_DrawDebugShaderEmissiveCallback(const void *data, GfxCmdBufContext context, GfxCmdBufContext prepassContext)
@@ -276,8 +306,10 @@ void __cdecl R_DrawDebugShaderEmissiveCallback(const void *data, GfxCmdBufContex
     int height; // [esp+4h] [ebp-28h]
     int width; // [esp+8h] [ebp-24h]
     int y; // [esp+Ch] [ebp-20h]
+#ifndef KISAK_VITA
     IDirect3DDevice9 *device; // [esp+14h] [ebp-18h]
     tagRECT v6; // [esp+18h] [ebp-14h] BYREF
+#endif
     const GfxViewInfo *viewInfo; // [esp+28h] [ebp-4h]
 
     viewInfo = (const GfxViewInfo * )data;
@@ -285,6 +317,9 @@ void __cdecl R_DrawDebugShaderEmissiveCallback(const void *data, GfxCmdBufContex
     height = viewInfo->scissorViewport.height;
     width = viewInfo->scissorViewport.width;
     y = viewInfo->scissorViewport.y;
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(true, viewInfo->scissorViewport.x, y, width, height);
+#else
     device = context.state->prim.device;
     v6.left = viewInfo->scissorViewport.x;
     v6.top = y;
@@ -297,11 +332,16 @@ void __cdecl R_DrawDebugShaderEmissiveCallback(const void *data, GfxCmdBufContex
     //    1);
     device->SetRenderState(D3DRS_SCISSORTESTENABLE, 1);
     device->SetScissorRect(&v6);
+#endif
     R_DrawSurfs(context, 0, &viewInfo->emissiveInfo);
     R_ShowTris(context, &viewInfo->litInfo);
     R_ShowTris(context, &viewInfo->decalInfo);
     R_ShowTris(context, &viewInfo->emissiveInfo);
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(false, 0, 0, 0, 0);
+#else
     context.state->prim.device->SetRenderState(D3DRS_SCISSORTESTENABLE, 0);
+#endif
 }
 
 void __cdecl RB_DebugShaderDrawCommands(const GfxViewInfo *viewInfo)
@@ -613,8 +653,10 @@ void __cdecl R_DrawPointLitSurfsCallback(const void *userData, GfxCmdBufContext 
     uint32_t h; // [esp+4h] [ebp-28h]
     uint32_t w; // [esp+8h] [ebp-24h]
     uint32_t y; // [esp+Ch] [ebp-20h]
+#ifndef KISAK_VITA
     IDirect3DDevice9 *device; // [esp+14h] [ebp-18h]
     tagRECT rect; // [esp+18h] [ebp-14h] BYREF
+#endif
     const GfxPointLitSurfsInfo *info; // [esp+28h] [ebp-4h]
 
     info = (const GfxPointLitSurfsInfo * )userData;
@@ -626,6 +668,9 @@ void __cdecl R_DrawPointLitSurfsCallback(const void *userData, GfxCmdBufContext 
     h = info->h;
     w = info->w;
     y = info->y;
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(true, (int)info->x, (int)y, (int)w, (int)h);
+#else
     device = context.state->prim.device;
 
     rect.left = info->x;
@@ -635,10 +680,15 @@ void __cdecl R_DrawPointLitSurfsCallback(const void *userData, GfxCmdBufContext 
 
     device->SetRenderState(D3DRS_SCISSORTESTENABLE, 1u);
     device->SetScissorRect(&rect);
+#endif
 
     R_DrawSurfs(context, 0, info->drawSurfInfo);
 
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(false, 0, 0, 0, 0);
+#else
     context.state->prim.device->SetRenderState(D3DRS_SCISSORTESTENABLE, 0);
+#endif
 }
 
 void __cdecl R_DrawEmissiveCallback(const void *userData, GfxCmdBufContext context, GfxCmdBufContext prepassContext)
@@ -646,8 +696,10 @@ void __cdecl R_DrawEmissiveCallback(const void *userData, GfxCmdBufContext conte
     int height; // [esp+4h] [ebp-28h]
     int width; // [esp+8h] [ebp-24h]
     int y; // [esp+Ch] [ebp-20h]
+#ifndef KISAK_VITA
     IDirect3DDevice9 *device; // [esp+14h] [ebp-18h]
     tagRECT v6; // [esp+18h] [ebp-14h] BYREF
+#endif
     const GfxViewInfo *viewInfo; // [esp+28h] [ebp-4h]
 
     viewInfo = (const GfxViewInfo * )userData;
@@ -656,6 +708,9 @@ void __cdecl R_DrawEmissiveCallback(const void *userData, GfxCmdBufContext conte
     height = viewInfo->scissorViewport.height;
     width = viewInfo->scissorViewport.width;
     y = viewInfo->scissorViewport.y;
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(true, viewInfo->scissorViewport.x, y, width, height);
+#else
     device = context.state->prim.device;
     v6.left = viewInfo->scissorViewport.x;
     v6.top = y;
@@ -663,12 +718,17 @@ void __cdecl R_DrawEmissiveCallback(const void *userData, GfxCmdBufContext conte
     v6.bottom = height + y;
     device->SetRenderState(D3DRS_SCISSORTESTENABLE, 1u);
     device->SetScissorRect(&v6);
+#endif
     KISAK_NULLSUB();
     R_DrawSurfs(context, 0, &viewInfo->emissiveInfo);
     R_ShowTris(context, &viewInfo->litInfo);
     R_ShowTris(context, &viewInfo->decalInfo);
     R_ShowTris(context, &viewInfo->emissiveInfo);
+#ifdef KISAK_VITA
+    GxmPipeline_SetScissor(false, 0, 0, 0, 0);
+#else
     context.state->prim.device->SetRenderState(D3DRS_SCISSORTESTENABLE, 0);
+#endif
 }
 
 void R_DrawEmissive(const GfxViewInfo *viewInfo, GfxCmdBuf *cmdBuf)

@@ -10,6 +10,12 @@
 #include "r_utils.h"
 #include "r_reflection_probe.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_buffer.h>
+#include <vita/gxm/gxm_pipeline.h>
+#include <vita/gxm/gxm_rendertarget.h>
+#endif
+
 //float const *const shadowmapClearColor 820ebb50     gfx_d3d : r_state.obj
 //BOOL g_renderTargetIsOverridden 85b5dd38     gfx_d3d : r_state.obj
 //uint32_t *s_decodeSamplerFilterState 85b5dcb8     gfx_d3d : r_state.obj
@@ -34,6 +40,11 @@ const uint32_t s_stencilFuncTable_30[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
 
 void __cdecl R_ChangeIndices(GfxCmdBufPrimState *state, IDirect3DIndexBuffer9 *ib)
 {
+#ifdef KISAK_VITA
+    iassert( ib != state->indexBuffer );
+    state->indexBuffer = ib;
+    GxmPipeline_SetIndexBuffer(ib ? ((const GxmBuffer *)ib)->memory.base : NULL);
+#else
     const char *v2; // eax
     int hr; // [esp+0h] [ebp-8h]
     IDirect3DDevice9 *device; // [esp+4h] [ebp-4h]
@@ -65,6 +76,7 @@ void __cdecl R_ChangeIndices(GfxCmdBufPrimState *state, IDirect3DIndexBuffer9 *i
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_ChangeStreamSource(
@@ -74,14 +86,19 @@ void __cdecl R_ChangeStreamSource(
     uint32_t vertexOffset,
     uint32_t vertexStride)
 {
-    int hr; // [esp+0h] [ebp-8h]
-    IDirect3DDevice9 *device; // [esp+4h] [ebp-4h]
-
     iassert(state->streams[streamIndex].vb != vb || state->streams[streamIndex].offset != vertexOffset || state->streams[streamIndex].stride != vertexStride);
 
     state->streams[streamIndex].vb = vb;
     state->streams[streamIndex].offset = vertexOffset;
     state->streams[streamIndex].stride = vertexStride;
+
+#ifdef KISAK_VITA
+    GxmPipeline_SetStream(streamIndex, vb ? ((const GxmBuffer *)vb)->memory.base : NULL,
+                          vertexOffset, vertexStride);
+#else
+    int hr; // [esp+0h] [ebp-8h]
+    IDirect3DDevice9 *device; // [esp+4h] [ebp-4h]
+
     device = state->device;
 
     iassert(device);
@@ -104,6 +121,7 @@ void __cdecl R_ChangeStreamSource(
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_SetTexFilter()
@@ -247,6 +265,11 @@ void __cdecl R_SetTexFilter()
 
 void __cdecl R_SetInitialContextState(IDirect3DDevice9 *device)
 {
+#ifdef KISAK_VITA
+    // separate alpha blend and two-sided stencil are structural in GXM; this pushes the rest
+    (void)device;
+    GxmPipeline_Reset();
+#else
     const char *v1; // eax
     const char *v2; // eax
     const char *v3; // eax
@@ -313,6 +336,7 @@ void __cdecl R_SetInitialContextState(IDirect3DDevice9 *device)
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_ChangeDepthHackNearClip(GfxCmdBufSourceState *source, uint32_t depthHackFlags)
@@ -699,6 +723,12 @@ void __cdecl R_ChangeDepthRange(GfxCmdBufState *state, GfxDepthRangeType depthRa
 
 void __cdecl R_HW_SetViewport(IDirect3DDevice9 *device, const GfxViewport *viewport, float nearValue, float farValue)
 {
+#ifdef KISAK_VITA
+    (void)device;
+    iassert( nearValue < farValue );
+    GxmPipeline_SetViewport(viewport->x, viewport->y, viewport->width, viewport->height,
+                            nearValue, farValue);
+#else
     const char *v4; // eax
     int hr; // [esp+10h] [ebp-1Ch]
     _D3DVIEWPORT9 d3dViewport; // [esp+14h] [ebp-18h] BYREF
@@ -736,6 +766,7 @@ void __cdecl R_HW_SetViewport(IDirect3DDevice9 *device, const GfxViewport *viewp
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 int __cdecl R_BeginMaterial(GfxCmdBufState *state, const Material *material, MaterialTechniqueType techType)
@@ -770,10 +801,12 @@ void __cdecl R_ClearAllStreamSources(GfxCmdBufPrimState *state)
 
 void __cdecl R_DrawIndexedPrimitive(GfxCmdBufPrimState *state, const GfxDrawPrimArgs *args)
 {
+#ifndef KISAK_VITA
     const char *v2; // eax
     int hr; // [esp+0h] [ebp-Ch]
-    int triCount; // [esp+4h] [ebp-8h]
     IDirect3DDevice9 *device; // [esp+8h] [ebp-4h]
+#endif
+    int triCount; // [esp+4h] [ebp-8h]
 
     triCount = args->triCount;
     if (triCount >= r_drawPrimFloor->current.integer
@@ -781,6 +814,11 @@ void __cdecl R_DrawIndexedPrimitive(GfxCmdBufPrimState *state, const GfxDrawPrim
     {
         if (r_skipDrawTris->current.enabled)
             triCount = 1;
+#ifdef KISAK_VITA
+        (void)state;
+        RB_TrackDrawPrimCall(triCount);
+        GxmPipeline_DrawIndexed(args->baseIndex, triCount);
+#else
         device = state->device;
         iassert( device );
         RB_TrackDrawPrimCall(triCount);
@@ -804,11 +842,44 @@ void __cdecl R_DrawIndexedPrimitive(GfxCmdBufPrimState *state, const GfxDrawPrim
                 } while (alwaysfails);
             }
         } while (alwaysfails);
+#endif
     }
 }
 
 void __cdecl R_ChangeState_0(GfxCmdBufState *state, uint32_t stateBits0)
 {
+#ifdef KISAK_VITA
+    const int changedBits = state->activeStateBits[0] ^ stateBits0;
+    if (!changedBits && ((state->refStateBits[0] ^ stateBits0) & 0x7000700) == 0)
+        return;
+
+    if (r_logFile->current.integer)
+        RB_LogPrintState_0(stateBits0, changedBits);
+
+    // the derivations below leave activeStateBits exactly as the D3D arm leaves it
+    if ((stateBits0 & GFXS0_ATEST_DISABLE) != 0)
+        stateBits0 |= state->activeStateBits[0] & GFXS0_ATEST_MASK;
+
+    if ((stateBits0 & GFXS0_BLENDOP_RGB_MASK) != 0)
+    {
+        if ((stateBits0 & GFXS0_BLENDOP_ALPHA_MASK) == 0)
+            stateBits0 = (stateBits0 & 0xF800FFFF) | ((stateBits0 & GFXS0_BLEND_RGB_MASK) << 16);
+    }
+    else
+    {
+        if ((stateBits0 & GFXS0_BLENDOP_ALPHA_MASK) != 0)
+            MyAssertHandler(
+                ".\\r_state.cpp",
+                883,
+                0,
+                "%s",
+                "(stateBits0 & GFXS0_BLENDOP_ALPHA_MASK) == (GFXS_BLENDOP_DISABLED << GFXS0_BLENDOP_ALPHA_SHIFT)");
+        stateBits0 = (stateBits0 & 0xF800F800) | (state->activeStateBits[0] & 0x7FF07FF);
+    }
+
+    state->activeStateBits[0] = stateBits0;
+    GxmPipeline_SetStateBits(stateBits0, state->activeStateBits[1]);
+#else
     bool blendOpRgbWasEnabled; // [esp+2Fh] [ebp-Dh]
     int changedBits; // [esp+30h] [ebp-Ch]
     IDirect3DDevice9 *device; // [esp+38h] [ebp-4h]
@@ -868,8 +939,12 @@ void __cdecl R_ChangeState_0(GfxCmdBufState *state, uint32_t stateBits0)
             R_SetAlphaAntiAliasingState(device, stateBits0);
         state->activeStateBits[0] = stateBits0;
     }
+#endif
 }
 
+// GXM takes cull, blend, colour mask, polygon mode and the alpha test from the state words
+// in one go, so these per-state entry points exist only for the D3D arm
+#ifndef KISAK_VITA
 void __cdecl R_HW_SetAlphaTestEnable(IDirect3DDevice9 *device, __int16 stateBits0)
 {
     const char *v2; // eax
@@ -1290,9 +1365,38 @@ void __cdecl R_SetAlphaTestFunction(GfxCmdBufState *state, __int16 stateBits0)
         state->alphaRef = ref;
     }
 }
+#endif
 
 void __cdecl R_ChangeState_1(GfxCmdBufState *state, uint32_t stateBits1)
 {
+#ifdef KISAK_VITA
+    if (state->activeStateBits[1] == stateBits1)
+        return;
+
+    if (!((stateBits1 & GFXS1_STENCIL_FRONT_ENABLE) | ((stateBits1 & GFXS1_STENCIL_BACK_ENABLE) == 0)))
+        MyAssertHandler(
+            ".\\r_state.cpp",
+            937,
+            0,
+            "%s",
+            "!(stateBits1 & GFXS1_STENCIL_BACK_ENABLE) | (stateBits1 & GFXS1_STENCIL_FRONT_ENABLE)");
+
+    if (r_logFile->current.integer)
+        RB_LogPrintState_1(stateBits1, state->activeStateBits[1] ^ stateBits1);
+
+    // the derivations below leave activeStateBits exactly as the D3D arm leaves it
+    if ((stateBits1 & GFXS1_DEPTHTEST_DISABLE) != 0)
+        stateBits1 |= state->activeStateBits[1] & GFXS1_DEPTHTEST_MASK;
+
+    if ((stateBits1 & GFXS1_STENCIL_FRONT_ENABLE) == 0)
+        stateBits1 = (stateBits1 & 0x7F) | (state->activeStateBits[1] & 0xFFFFFF80);
+
+    if ((stateBits1 & GFXS1_STENCIL_BACK_ENABLE) == 0)
+        stateBits1 = (stateBits1 & 0xFFFFF) | ((stateBits1 & GFXS1_STENCIL_FRONT_MASK) << 12);
+
+    state->activeStateBits[1] = stateBits1;
+    GxmPipeline_SetStateBits(state->activeStateBits[0], stateBits1);
+#else
     int changedBits; // [esp+30h] [ebp-Ch]
     IDirect3DDevice9 *device; // [esp+38h] [ebp-4h]
 
@@ -1353,8 +1457,10 @@ void __cdecl R_ChangeState_1(GfxCmdBufState *state, uint32_t stateBits1)
             R_HW_SetBackStencilFunc(device, stateBits1 >> 29);
         state->activeStateBits[1] = stateBits1;
     }
+#endif
 }
 
+#ifndef KISAK_VITA
 void __cdecl R_HW_SetDepthWriteEnable(IDirect3DDevice9 *device, char stateBits1)
 {
     const char *v2; // eax
@@ -1696,6 +1802,7 @@ void __cdecl R_HW_SetBackStencilFunc(IDirect3DDevice9 *device, uint32_t stencilF
         }
     } while (alwaysfails);
 }
+#endif
 
 void __cdecl R_SetSampler(
     GfxCmdBufContext context,
@@ -1735,6 +1842,12 @@ uint32_t __cdecl R_HW_SetSamplerState(
     uint32_t samplerState,
     uint32_t oldSamplerState)
 {
+#ifdef KISAK_VITA
+    (void)device;
+    (void)oldSamplerState;
+    GxmPipeline_SetSamplerState(samplerIndex, samplerState);
+    return samplerState;
+#else
     const char *v4; // eax
     const char *v5; // eax
     const char *v6; // eax
@@ -1933,6 +2046,7 @@ uint32_t __cdecl R_HW_SetSamplerState(
         }
     }
     return finalSamplerState;
+#endif
 }
 
 uint32_t __cdecl R_DecodeSamplerState(uint8_t samplerState)
@@ -1975,6 +2089,7 @@ void __cdecl R_SetSamplerState(GfxCmdBufState *state, uint32_t samplerIndex, uin
     }
 }
 
+#ifndef KISAK_VITA
 void __cdecl R_ForceSetBlendState(IDirect3DDevice9 *device, uint32_t stateBits0)
 {
     if ((stateBits0 & 0x700) != 0)
@@ -2000,6 +2115,7 @@ void __cdecl R_ForceSetStencilState(IDirect3DDevice9 *device, uint32_t stateBits
         R_HW_DisableStencil(device);
     }
 }
+#endif
 
 void __cdecl R_GetViewport(GfxCmdBufSourceState *source, GfxViewport *outViewport)
 {
@@ -2195,6 +2311,10 @@ void __cdecl R_DisableSampler(GfxCmdBufState *state, uint32_t samplerIndex)
 
 void __cdecl R_HW_DisableSampler(IDirect3DDevice9 *device, uint32_t samplerIndex)
 {
+#ifdef KISAK_VITA
+    (void)device;
+    GxmPipeline_SetTexture(samplerIndex, NULL);
+#else
     const char *v2; // eax
     int hr; // [esp+0h] [ebp-4h]
 
@@ -2219,6 +2339,7 @@ void __cdecl R_HW_DisableSampler(IDirect3DDevice9 *device, uint32_t samplerIndex
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_UnbindImage(GfxCmdBufState *state, const GfxImage *image)
@@ -2328,6 +2449,32 @@ void __cdecl R_SetRenderTarget(GfxCmdBufContext context, GfxRenderTargetId newTa
 
 void __cdecl R_HW_SetRenderTarget(GfxCmdBufState *state, GfxRenderTargetId newTargetId)
 {
+#ifdef KISAK_VITA
+    // GXM cannot change surfaces inside a scene, so a target switch ends one and begins the next
+    GxmRenderTarget *target = (GxmRenderTarget *)gfxRenderTargets[newTargetId].surface.color;
+    iassert(target);
+
+    GxmRenderTarget_SetDepth(target,
+        (const GxmDepthStencil *)gfxRenderTargets[newTargetId].surface.depthStencil);
+
+    if (!GxmRenderTarget_Begin(target))
+        Com_Error(ERR_FATAL, "R_HW_SetRenderTarget: no scene for %s\n", R_RenderTargetName(newTargetId));
+
+    if (gfxRenderTargets[state->renderTargetId].surface.color != gfxRenderTargets[newTargetId].surface.color)
+    {
+        state->viewport.x = 0;
+        state->viewport.y = 0;
+        state->viewport.width = gfxRenderTargets[newTargetId].width;
+        state->viewport.height = gfxRenderTargets[newTargetId].height;
+        state->depthRangeType = GFX_DEPTH_RANGE_FULL;
+        state->depthRangeNear = 0.0;
+        state->depthRangeFar = 1.0;
+    }
+
+    // the scene carries no viewport, so the new target's takes effect from here
+    R_HW_SetViewport(state->prim.device, &state->viewport,
+                     state->depthRangeNear, state->depthRangeFar);
+#else
     int hr; // [esp+4h] [ebp-8h]
     IDirect3DDevice9 *device; // [esp+8h] [ebp-4h]
 
@@ -2388,6 +2535,7 @@ void __cdecl R_HW_SetRenderTarget(GfxCmdBufState *state, GfxRenderTargetId newTa
             }
         } while (alwaysfails);
     }
+#endif
 }
 
 void __cdecl R_UpdateStatsTarget(int newTargetId)
@@ -2409,8 +2557,10 @@ void __cdecl R_ClearScreenInternal(
     const char *v6; // eax
     const char *v7; // eax
     const char *v8; // eax
+#ifndef KISAK_VITA
     const char *v9; // eax
     int hr; // [esp+9Ch] [ebp-8h]
+#endif
     GfxColor nativeColor; // [esp+A0h] [ebp-4h] BYREF
 
     iassert( device );
@@ -2435,6 +2585,13 @@ void __cdecl R_ClearScreenInternal(
     //iassert( depth not in [0.0f, 1.0f]\n\t%g not in [%g, %g] );
     Byte4PackVertexColor(color, (uint8_t *)&nativeColor);
     iassert( !viewport );
+#ifdef KISAK_VITA
+    (void)device;
+    (void)nativeColor;
+    if (!GxmPipeline_Clear(whichToClear, color, depth, stencil))
+        Com_Error(ERR_FATAL, ".\\r_state.cpp (%i) clear of %i to depth %g failed\n",
+                  1458, whichToClear, depth);
+#else
     do
     {
         if (r_logFile && r_logFile->current.integer)
@@ -2462,6 +2619,7 @@ void __cdecl R_ClearScreenInternal(
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_ClearScreen(
@@ -2487,6 +2645,9 @@ void __cdecl R_ClearScreen(
         R_ClearScreenInternal(device, whichToClear, color, depth, stencil, viewport);
 }
 
+// GXM takes depth bias as integer factor and units, which GxmState_Decode derives from the
+// offset level directly; the r_/sm_polygonOffset dvars have no equivalent and are dropped
+#ifndef KISAK_VITA
 void __cdecl R_ForceSetPolygonOffset(IDirect3DDevice9 *device, char stateBits1)
 {
     __int64 v2; // [esp+10h] [ebp-24h]
@@ -2564,6 +2725,7 @@ void __cdecl R_HW_SetPolygonOffset(IDirect3DDevice9 *device, float scale, float 
         }
     } while (alwaysfails);
 }
+#endif
 
 void __cdecl R_SetMeshStream(GfxCmdBufState *state, GfxMeshData *mesh)
 {
@@ -2572,6 +2734,10 @@ void __cdecl R_SetMeshStream(GfxCmdBufState *state, GfxMeshData *mesh)
 
 void __cdecl R_SetCompleteState(IDirect3DDevice9 *device, uint32_t *stateBits)
 {
+#ifdef KISAK_VITA
+    (void)device;
+    GxmPipeline_SetStateBits(stateBits[0], stateBits[1]);
+#else
     iassert(device);
     R_HW_SetColorMask(device, stateBits[0]);
     R_HW_SetAlphaTestEnable(device, stateBits[0]);
@@ -2584,6 +2750,7 @@ void __cdecl R_SetCompleteState(IDirect3DDevice9 *device, uint32_t *stateBits)
     R_HW_SetDepthTestFunction(device, stateBits[1]);
     R_ForceSetPolygonOffset(device, stateBits[1]);
     R_ForceSetStencilState(device, stateBits[1]);
+#endif
 }
 
 void __cdecl R_InitLocalCmdBufState(GfxCmdBufState *state)
@@ -2700,6 +2867,9 @@ void __cdecl R_UpdateCodeConstant(
 }
 
 
+// alpha to coverage rides on the D3DRS_ADAPTIVETESS_Y format hack, which GXM has no
+// counterpart for; foliage and chain-link keep their hard alpha-test edges
+#ifndef KISAK_VITA
 void __cdecl R_SetAlphaAntiAliasingState(IDirect3DDevice9 *device, __int16 stateBits0)
 {
     const char *v2; // eax
@@ -2738,3 +2908,4 @@ void __cdecl R_SetAlphaAntiAliasingState(IDirect3DDevice9 *device, __int16 state
         }
     } while (alwaysfails);
 }
+#endif

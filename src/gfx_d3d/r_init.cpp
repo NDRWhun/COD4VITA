@@ -33,6 +33,13 @@
 #include <game_mp/g_public_mp.h>
 #endif
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_device.h>
+#include <vita/gxm/gxm_pipeline.h>
+#include <vita/gxm/gxm_program.h>
+#include <vita/gxm/gxm_rendertarget.h>
+#endif
+
 enum DxCapsResponse : __int32
 {                                       // ...
     DX_CAPS_RESPONSE_QUIT = 0x0,  // ...
@@ -358,6 +365,11 @@ void __cdecl TRACK_r_init()
 
 void __cdecl Sys_DirectXFatalError()
 {
+#ifdef KISAK_VITA
+    // no message box and no help page to open; the caller has already printed the detail
+    Com_PrintError(8, "Renderer initialization failed - shutting down\n");
+    exit(-1);
+#else
     HWND ActiveWindow; // eax
     char *v1; // [esp-Ch] [ebp-Ch]
     char *v2; // [esp-8h] [ebp-8h]
@@ -371,6 +383,7 @@ void __cdecl Sys_DirectXFatalError()
     MessageBoxA(ActiveWindow, v1, v2, 0x10u);
     ShellExecuteA(0, "open", "Docs\\TechHelp\\Tech Help\\Information\\DirectX.htm", 0, 0, 3);
     exit(-1);
+#endif
 }
 
 const char *__stdcall DXGetErrorDescription9A(int a1)
@@ -2890,6 +2903,22 @@ void R_UnloadGraphicsAssets()
     DB_ShutdownXAssets();
 }
 
+#ifdef KISAK_VITA
+void R_ShutdownDirect3D()
+{
+    if (IsFastFileLoad())
+        R_UnloadGraphicsAssets();
+    R_Cinematic_Shutdown();
+    R_ReleaseForShutdownOrReset();
+    dx.windowCount = 0;
+    dx.windows[0].hwnd = 0;
+    dx.device = 0;
+    dx.d3d9 = 0;
+    GxmPipeline_Shutdown();
+    GxmProgram_Shutdown();
+    GxmDevice_Shutdown();
+}
+#else
 void R_ShutdownDirect3D()
 {
     IDirect3DSurface9 *var; // [esp+4h] [ebp-8h]
@@ -2930,6 +2959,7 @@ void R_ShutdownDirect3D()
         } while (alwaysfails);
     }
 }
+#endif
 
 void __cdecl R_UnloadWorld()
 {
@@ -2963,6 +2993,15 @@ void R_Init()
     R_InitGraphicsApi();
     RB_RegisterBackendAssets();
     R_InitWater();
+#ifdef KISAK_VITA
+    (void)hr;
+    dx.sunSpriteSamples = RB_CalcSunSpriteSamples();
+    if (!dx.sunSpriteSamples)
+    {
+        Com_Printf(8, "Sun sprite occlusion query calibration failed; reverting to low-quality sun visibility test");
+        RB_FreeSunSpriteQueries();
+    }
+#else
     if (!dx.deviceLost)
     {
         hr = dx.device->TestCooperativeLevel();
@@ -2976,11 +3015,16 @@ void R_Init()
             }
         }
     }
+#endif
     RB_ProfileInit();
 }
 
 char __cdecl R_ReduceWindowSettings()
 {
+#ifdef KISAK_VITA
+    // one fixed display mode, so a failed bring-up cannot be retried at a smaller size
+    return 0;
+#else
     if (r_aaSamples->current.integer <= 1)
     {
         if (r_displayRefresh->current.integer <= 0 || vidConfig.displayFrequency <= 0x3C)
@@ -3006,6 +3050,7 @@ char __cdecl R_ReduceWindowSettings()
         Dvar_SetInt((dvar_s *)r_aaSamples, r_aaSamples->current.integer - 1);
         return 1;
     }
+#endif
 }
 
 void R_InitGraphicsApi()
@@ -3094,6 +3139,42 @@ int __cdecl R_AddValidRefreshRate(int refreshRate, int rateCount, int *available
     return rateCount + 1;
 }
 
+#ifdef KISAK_VITA
+void __cdecl R_EnumDisplayModes(uint32_t adapterIndex)
+{
+    char *modeText; // [esp+C24h] [ebp-Ch]
+
+    (void)adapterIndex;
+    dx.displayModeCount = 1;
+    dx.displayModes[0].Width = GXM_SCREEN_WIDTH;
+    dx.displayModes[0].Height = GXM_SCREEN_HEIGHT;
+    dx.displayModes[0].RefreshRate = 60;
+    dx.displayModes[0].Format = D3DFMT_X8R8G8B8;
+
+    modeText = dx.modeText;
+    dx.resolutionNameTable[0] = modeText;
+    modeText += snprintf(modeText, ARRAYSIZE(dx.modeText), "%ix%i", GXM_SCREEN_WIDTH, GXM_SCREEN_HEIGHT) + 1;
+    dx.resolutionNameTable[1] = 0;
+    r_mode = Dvar_RegisterEnum(
+        "r_mode",
+        dx.resolutionNameTable,
+        0,
+        DVAR_ARCHIVE | DVAR_LATCH,
+        "Direct X resolution mode");
+
+    dx.refreshRateNameTable[0] = modeText;
+    snprintf(modeText, ARRAYSIZE(dx.modeText) - (modeText - dx.modeText), "%i Hz", 60);
+    dx.refreshRateNameTable[1] = 0;
+    r_displayRefresh = Dvar_RegisterEnum(
+        "r_displayRefresh",
+        dx.refreshRateNameTable,
+        0,
+        DVAR_ARCHIVE | DVAR_LATCH | DVAR_AUTOEXEC,
+        "Refresh rate");
+
+    r_noborder = Dvar_RegisterBool("r_noborder", false, DVAR_ARCHIVE, "Do not use a border in windowed mode");
+}
+#else
 void __cdecl R_EnumDisplayModes(uint32_t adapterIndex)
 {
     const char *v1; // eax
@@ -3185,7 +3266,17 @@ void __cdecl R_EnumDisplayModes(uint32_t adapterIndex)
 
     r_noborder = Dvar_RegisterBool("r_noborder", false, DVAR_ARCHIVE, "Do not use a border in windowed mode");
 }
+#endif
 
+#ifdef KISAK_VITA
+char __cdecl R_PreCreateWindow()
+{
+    dx.adapterIndex = 0;
+    R_StoreDirect3DCaps(dx.adapterIndex);
+    R_EnumDisplayModes(dx.adapterIndex);
+    return 1;
+}
+#else
 char __cdecl R_PreCreateWindow()
 {
     if (dx.d3d9)
@@ -3208,6 +3299,7 @@ char __cdecl R_PreCreateWindow()
     R_EnumDisplayModes(dx.adapterIndex);
     return 1;
 }
+#endif
 
 void __cdecl R_RespondToMissingCaps(DxCapsResponse response, const char *msg, int *allowedPaths)
 {
@@ -3340,6 +3432,25 @@ void __cdecl R_PickRenderer(_D3DCAPS9 *caps)
     Dvar_SetInt((dvar_s *)r_rendererInUse, rendererChosen);
 }
 
+#ifdef KISAK_VITA
+void __cdecl R_StoreDirect3DCaps(uint32_t adapterIndex)
+{
+    Com_Printf(8, "Using %s code path because it is the only path this hardware provides.\n", R_DescribeRenderer(GFX_RENDERER_SHADER_3));
+    Dvar_SetInt((dvar_s *)r_rendererInUse, GFX_RENDERER_SHADER_3);
+
+    vidConfig.maxTextureSize = 4096;
+    vidConfig.maxTextureMaps = GXM_PIPELINE_TEXTURE_UNITS;
+    vidConfig.deviceSupportsGamma = false;
+    gfxMetrics.maxClipPlanes = 0;
+    gfxMetrics.hasAnisotropicMinFilter = false;
+    gfxMetrics.hasAnisotropicMagFilter = false;
+    gfxMetrics.maxAnisotropy = 1;
+    gfxMetrics.slopeScaleDepthBias = false;
+    gfxMetrics.canMipCubemaps = true;
+    gfxMetrics.hasTransparencyMsaa = false;
+    R_SetShadowmapFormats_DX(adapterIndex);
+}
+#else
 bool __cdecl R_CheckTransparencyMsaa(uint32_t adapterIndex)
 {
     return r_aaSamples->current.integer != 1
@@ -3418,7 +3529,20 @@ void __cdecl R_GetDirect3DCaps(uint32_t adapterIndex, _D3DCAPS9 *caps)
         }
     }
 }
+#endif
 
+#ifdef KISAK_VITA
+void __cdecl R_SetShadowmapFormats_DX(uint32_t adapterIndex)
+{
+    // GXM cannot bind a depth-stencil surface as a texture, so shadow depth goes to F32 colour
+    (void)adapterIndex;
+    gfxMetrics.shadowmapFormatPrimary = D3DFMT_R32F;
+    gfxMetrics.shadowmapFormatSecondary = D3DFMT_D24X8;
+    gfxMetrics.shadowmapBuildTechType = TECHNIQUE_BUILD_SHADOWMAP_COLOR;
+    gfxMetrics.hasHardwareShadowmap = 0;
+    gfxMetrics.shadowmapSamplerState = (SAMPLER_CLAMP_V | SAMPLER_CLAMP_U | SAMPLER_FILTER_NEAREST);
+}
+#else
 void __cdecl R_SetShadowmapFormats_DX(uint32_t adapterIndex)
 {
     _D3DFORMAT colorFormat; // [esp+0h] [ebp-24h]
@@ -3472,7 +3596,24 @@ void __cdecl R_SetShadowmapFormats_DX(uint32_t adapterIndex)
     //gfxMetrics.shadowmapSamplerState = 97;
     gfxMetrics.shadowmapSamplerState = (SAMPLER_CLAMP_V | SAMPLER_CLAMP_U | SAMPLER_FILTER_NEAREST);
 }
+#endif
 
+#ifdef KISAK_VITA
+uint32_t __cdecl R_ChooseAdapter()
+{
+    return 0;
+}
+
+char __cdecl R_CreateWindow(GfxWindowParms *wndParms)
+{
+    iassert( wndParms );
+    iassert( wndParms->hwnd == NULL );
+    Com_Printf(8, "Using the %i x %i display\n", wndParms->displayWidth, wndParms->displayHeight);
+    // no window system; the handle is only an identity token for dx.windows[0]
+    wndParms->hwnd = (HWND__ *)&dx;
+    return 1;
+}
+#else
 struct GfxEnumMonitors // sizeof=0x8
 {                                       // ...
     int monitorIndex;                   // ...
@@ -3611,21 +3752,26 @@ char __cdecl R_CreateWindow(GfxWindowParms *wndParms)
         return 0;
     }
 }
+#endif
 
 void __cdecl Sys_HideSplashWindow()
 {
+#ifndef KISAK_VITA
     if (g_splashWnd)
         ShowWindow(g_splashWnd, 0);
+#endif
 }
 
 void __cdecl Sys_DestroySplashWindow()
 {
+#ifndef KISAK_VITA
     if (g_splashWnd)
     {
         Sys_HideSplashWindow();
         DestroyWindow(g_splashWnd);
         g_splashWnd = 0;
     }
+#endif
 }
 
 char __cdecl R_CreateGameWindow(GfxWindowParms *wndParms)
@@ -3635,7 +3781,9 @@ char __cdecl R_CreateGameWindow(GfxWindowParms *wndParms)
     if (!R_InitHardware(wndParms))
         return 0;
     dx.targetWindowIndex = 0;
+#ifndef KISAK_VITA
     ShowWindow(wndParms->hwnd, 5);
+#endif
     Sys_HideSplashWindow();
     return 1;
 }
@@ -3726,7 +3874,9 @@ void __cdecl R_FinishAttachingToWindow(const GfxWindowParms *wndParms)
             "23987 / (123987)) ? 5 : 1))",
             dx.windowCount);
 #endif
+#ifndef KISAK_VITA
     iassert( dx.windows[dx.windowCount].swapChain );
+#endif
     dx.windows[dx.windowCount].hwnd = wndParms->hwnd;
     dx.windows[dx.windowCount].width = wndParms->displayWidth;
     dx.windows[dx.windowCount++].height = wndParms->displayHeight;
@@ -3860,11 +4010,23 @@ char __cdecl R_CreateForInitOrReset()
         Com_Printf(8, "Initializing particle cloud buffer...\n");
         R_CreateParticleCloudBuffer();
     }
-    Com_Printf(8, "Creating Direct3D queries...\n");
     dx.nextFence = 0;
     dx.flushGpuQueryIssued = 0;
     dx.flushGpuQueryCount = 0;
 
+#ifdef KISAK_VITA
+    // the D3D event-query fence pool is replaced by GxmDevice_IssueFence / GxmDevice_FenceReached
+    (void)v0;
+    (void)hr;
+    (void)fenceIter;
+    if (!g_allocateMinimalResources)
+    {
+        RB_AllocSunSpriteQueries();
+        gfxAssets.pixelCountQuery = RB_HW_AllocOcclusionQuery();
+    }
+    return 1;
+#else
+    Com_Printf(8, "Creating Direct3D queries...\n");
     hr = dx.device->CreateQuery(D3DQUERYTYPE_EVENT, &dx.flushGpuQuery);
     if (hr >= 0)
     {
@@ -3889,8 +4051,67 @@ char __cdecl R_CreateForInitOrReset()
         Com_Printf(8, "Event query creation failed: %s (0x%08x)\n", v0, hr);
         return 0;
     }
+#endif
 }
 
+#ifdef KISAK_VITA
+IDirect3DQuery9 *__cdecl RB_HW_AllocOcclusionQuery()
+{
+    static bool reported;
+
+    // GXM binds its visibility buffer at sceGxmBeginScene and only publishes counts once the
+    // scene retires, which D3D's Issue(BEGIN)/Issue(END) around a run of draws cannot express
+    if (!reported)
+    {
+        Com_Printf(8, "Occlusion queries are unavailable on GXM\n");
+        reported = true;
+    }
+    return 0;
+}
+
+char __cdecl R_CreateDevice(const GfxWindowParms *wndParms)
+{
+    iassert( wndParms );
+    iassert( dx.windowCount == 0 );
+    iassert( wndParms->hwnd );
+    iassert( dx.device == NULL );
+    dx.depthStencilFormat = (D3DFORMAT)R_GetDepthStencilFormat(D3DFMT_A8R8G8B8);
+    dx.multiSampleType = D3DMULTISAMPLE_NONE;
+    dx.multiSampleQuality = 0;
+
+    Com_Printf(8, "Creating GXM device...\n");
+    if (!GxmDevice_Init())
+    {
+        Com_Printf(8, "Couldn't initialize GXM\n");
+        return 0;
+    }
+    if (!GxmProgram_Init())
+    {
+        Com_Printf(8, "Couldn't initialize the GXM program cache\n");
+        GxmDevice_Shutdown();
+        return 0;
+    }
+    if (!GxmPipeline_Init())
+    {
+        Com_Printf(8, "Couldn't initialize the GXM pipeline\n");
+        GxmProgram_Shutdown();
+        GxmDevice_Shutdown();
+        return 0;
+    }
+
+    dx.adapterNativeIsValid = true;
+    dx.adapterNativeWidth = GXM_SCREEN_WIDTH;
+    dx.adapterNativeHeight = GXM_SCREEN_HEIGHT;
+    dx.adapterFullscreenWidth = GXM_SCREEN_WIDTH;
+    dx.adapterFullscreenHeight = GXM_SCREEN_HEIGHT;
+    // nothing is ever called through these; the engine only tests them for null
+    dx.d3d9 = (IDirect3D9 *)&dx;
+    dx.device = (IDirect3DDevice9 *)&dx;
+    r_glob.haveThreadOwnership = 1;
+    dx.deviceLost = 0;
+    return 1;
+}
+#else
 IDirect3DQuery9 *__cdecl RB_HW_AllocOcclusionQuery()
 {
     const char *v0; // eax
@@ -4007,7 +4228,21 @@ void __cdecl R_SetupAntiAliasing(const GfxWindowParms *wndParms)
     dx.multiSampleType = D3DMULTISAMPLE_NONE;
     dx.multiSampleQuality = 0;
 }
+#endif
 
+#ifdef KISAK_VITA
+bool __cdecl R_GetMonitorDimensions(int *width, int *height)
+{
+    *width = GXM_SCREEN_WIDTH;
+    *height = GXM_SCREEN_HEIGHT;
+    return true;
+}
+
+int __cdecl R_GetDeviceType()
+{
+    return D3DDEVTYPE_HAL;
+}
+#else
 bool __cdecl R_GetMonitorDimensions(int *width, int *height)
 {
     tagMONITORINFO mi; // [esp+0h] [ebp-2Ch] BYREF
@@ -4084,6 +4319,7 @@ int __cdecl R_GetDeviceType()
         return 1;
     }
 }
+#endif
 
 bool __cdecl R_SetCustomResolution(GfxWindowParms *wndParms)
 {
@@ -4152,6 +4388,21 @@ const char *__cdecl R_ClosestRefreshRateForMode(uint32_t width, uint32_t height,
     return dx.resolutionNameTable[4 * bot - 1022];
 }
 
+#ifdef KISAK_VITA
+void __cdecl R_SetWndParms(GfxWindowParms *wndParms)
+{
+    wndParms->fullscreen = 1;
+    wndParms->displayWidth = GXM_SCREEN_WIDTH;
+    wndParms->displayHeight = GXM_SCREEN_HEIGHT;
+    wndParms->sceneWidth = GXM_SCREEN_WIDTH;
+    wndParms->sceneHeight = GXM_SCREEN_HEIGHT;
+    wndParms->hz = 60;
+    wndParms->x = 0;
+    wndParms->y = 0;
+    wndParms->hwnd = 0;
+    wndParms->aaSamples = 1;
+}
+#else
 void __cdecl R_SetWndParms(GfxWindowParms *wndParms)
 {
     const char *resolutionString; // [esp+0h] [ebp-Ch]
@@ -4181,6 +4432,7 @@ void __cdecl R_SetWndParms(GfxWindowParms *wndParms)
     wndParms->hwnd = 0;
     wndParms->aaSamples = r_aaSamples->current.integer;
 }
+#endif
 
 void R_Register()
 {
@@ -4243,12 +4495,44 @@ void __cdecl R_ComErrorCleanup()
     R_SyncRenderThread();
     if (dx.inScene)
     {
+#ifdef KISAK_VITA
+        GxmRenderTarget_End();
+#else
         //((void(__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *))dx.device->EndScene)(dx.device, dx.device);
         dx.device->EndScene();
+#endif
         dx.inScene = 0;
     }
 }
 
+#ifdef KISAK_VITA
+void R_ReleaseForShutdownOrReset()
+{
+    uint32_t fenceIter; // [esp+10h] [ebp-8h]
+
+    // unmapping memory the GPU is still reading page-faults, so drain it before anything frees
+    GxmDevice_Finish();
+    R_ShutdownRenderTargets();
+    R_ShutdownModelLightingImage();
+    R_ShutdownStaticModelCache();
+    R_DestroyDynamicBuffers();
+    R_DestroyParticleCloudBuffer();
+    if (!g_allocateMinimalResources)
+        R_ShutdownRenderBuffers();
+    iassert( !gfxBuf.smodelCacheVb );
+    RB_FreeSunSpriteQueries();
+    gfxAssets.pixelCountQuery = 0;
+    dx.flushGpuQuery = 0;
+    for (fenceIter = 0; fenceIter < 8; ++fenceIter)
+        dx.fencePool[fenceIter] = 0;
+}
+
+bool R_CheckLostDevice()
+{
+    // GXM has no cooperative level and no device loss, so the device is usable once it exists
+    return dx.device != NULL;
+}
+#else
 bool __cdecl R_CanRecoverLostDevice()
 {
     HRESULT hr; // [esp+0h] [ebp-4h]
@@ -4459,9 +4743,10 @@ bool R_CheckLostDevice()
 
     if (Sys_IsMainThread())
         R_RecoverLostDevice();
-    
+
     return false;
 }
+#endif
 
 void __cdecl R_MakeDedicated(const GfxConfiguration *config)
 {

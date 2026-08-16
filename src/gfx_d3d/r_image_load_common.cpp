@@ -4,6 +4,10 @@
 #include <universal/profile.h>
 #include "r_init.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_image.h>
+#endif
+
 uint32_t __cdecl Image_CubemapFace(uint32_t faceIndex)
 {
     iassert(faceIndex < 6);
@@ -186,11 +190,8 @@ void __cdecl Image_Upload3D_CopyData_PC(
     int v6; // [esp+0h] [ebp-44h]
     int v7; // [esp+4h] [ebp-40h]
     int v8; // [esp+8h] [ebp-3Ch]
-    int v9; // [esp+18h] [ebp-2Ch]
-    int hr; // [esp+1Ch] [ebp-28h]
     int srcRowPitch; // [esp+24h] [ebp-20h]
     int sliceIndex; // [esp+28h] [ebp-1Ch]
-    _D3DLOCKED_BOX lockedBox; // [esp+2Ch] [ebp-18h] BYREF
     int width; // [esp+38h] [ebp-Ch]
     int height; // [esp+3Ch] [ebp-8h]
     uint8_t *dst; // [esp+40h] [ebp-4h]
@@ -214,6 +215,27 @@ void __cdecl Image_Upload3D_CopyData_PC(
         v6 = 1;
     srcRowPitch = Image_SourceBytesPerSlice_PC(format, width, height);
     iassert(image->texture.volmap);
+
+#ifdef KISAK_VITA
+    void *bits;
+    uint32_t rowPitch;
+    uint32_t slicePitch;
+    if (!GxmImage_MapLevel((const GxmImage *)image->texture.basemap, mipLevel, 0,
+                           &bits, &rowPitch, &slicePitch))
+        Com_Error(ERR_FATAL, "Volume image '%s' has no mip level %i\n", image->name, mipLevel);
+
+    dst = (uint8_t *)bits;
+    for (sliceIndex = 0; sliceIndex < v6; ++sliceIndex)
+    {
+        Image_Upload2D_CopyDataBlock_PC(width, height, src, format, rowPitch, dst);
+        src += srcRowPitch;
+        dst += slicePitch;
+    }
+#else
+    int v9; // [esp+18h] [ebp-2Ch]
+    int hr; // [esp+1Ch] [ebp-28h]
+    _D3DLOCKED_BOX lockedBox; // [esp+2Ch] [ebp-18h] BYREF
+
     do
     {
         if (r_logFile && r_logFile->current.integer)
@@ -260,6 +282,7 @@ void __cdecl Image_Upload3D_CopyData_PC(
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl Image_Upload2D_CopyData_PC(
@@ -271,13 +294,15 @@ void __cdecl Image_Upload2D_CopyData_PC(
 {
     uint32_t v9; // [esp+0h] [ebp-30h]
     uint32_t v10; // [esp+4h] [ebp-2Ch]
+    uint32_t width; // [esp+28h] [ebp-8h]
+    uint32_t height; // [esp+2Ch] [ebp-4h]
+#ifndef KISAK_VITA
     int v11; // [esp+10h] [ebp-20h]
     int v12; // [esp+14h] [ebp-1Ch]
     int v13; // [esp+18h] [ebp-18h]
     int hr; // [esp+1Ch] [ebp-14h]
     _D3DLOCKED_RECT lockedRect; // [esp+20h] [ebp-10h] BYREF
-    uint32_t width; // [esp+28h] [ebp-8h]
-    uint32_t height; // [esp+2Ch] [ebp-4h]
+#endif
 
     if (image->width >> mipLevel > 1)
         v10 = image->width >> mipLevel;
@@ -289,6 +314,22 @@ void __cdecl Image_Upload2D_CopyData_PC(
     else
         v9 = 1;
     height = v9;
+
+#ifdef KISAK_VITA
+    iassert(image->texture.basemap);
+    iassert(image->mapType == MAPTYPE_2D || image->mapType == MAPTYPE_CUBE);
+
+    const uint32_t faceIndex = image->mapType == MAPTYPE_CUBE ? (uint32_t)face : 0u;
+    void *bits;
+    uint32_t rowPitch;
+    uint32_t slicePitch;
+    if (!GxmImage_MapLevel((const GxmImage *)image->texture.basemap, mipLevel, faceIndex,
+                           &bits, &rowPitch, &slicePitch))
+        Com_Error(ERR_FATAL, "Image '%s' has no face %i mip level %i\n",
+                  image->name, faceIndex, mipLevel);
+
+    Image_Upload2D_CopyDataBlock_PC(width, height, src, format, rowPitch, (uint8_t *)bits);
+#else
     if (image->mapType == MAPTYPE_2D)
     {
         iassert(image->texture.map);
@@ -377,6 +418,7 @@ void __cdecl Image_Upload2D_CopyData_PC(
             }
         } while (alwaysfails);
     }
+#endif
 }
 
 

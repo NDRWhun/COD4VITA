@@ -123,6 +123,16 @@ void __cdecl R_ShutdownRenderBuffers()
 
 void __cdecl R_ShutdownDynamicMesh(GfxMeshData *mesh)
 {
+#ifdef KISAK_VITA
+    R_FreeGlobalVariable(mesh->indices);
+    if (mesh->vb.buffer)
+    {
+        IDirect3DVertexBuffer9 *varCopy = mesh->vb.buffer;
+        mesh->vb.buffer = 0;
+        // dynamic and static vertex buffers are one GXM object, freed the same way
+        R_FreeStaticVertexBuffer(varCopy);
+    }
+#else
     IDirect3DVertexBuffer9 *varCopy; // [esp+0h] [ebp-4h]
 
     R_FreeGlobalVariable(mesh->indices);
@@ -140,6 +150,7 @@ void __cdecl R_ShutdownDynamicMesh(GfxMeshData *mesh)
             R_ReleaseAndSetNULL<IDirect3DDevice9>((IDirect3DSurface9 *)varCopy, "mesh->vb.buffer", ".\\r_rendercmds.cpp", 246);
         } while (alwaysfails);
     }
+#endif
 }
 
 void __cdecl R_InitRenderCommands()

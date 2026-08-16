@@ -6,6 +6,10 @@
 #include "rb_state.h"
 #include "r_utils.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_rendertarget.h>
+#endif
+
 int __cdecl RB_CompareTouchImages(int *e0, int *e1)
 {
     int image; // [esp+0h] [ebp-Ch]
@@ -48,10 +52,12 @@ void __cdecl RB_TouchImage(GfxImage *image)
 
 void __cdecl RB_TouchAllImages()
 {
+#ifndef KISAK_VITA
     const char *v0; // eax
     const char *v1; // eax
     int v2; // [esp+0h] [ebp-201Ch]
     int hr; // [esp+4h] [ebp-2018h]
+#endif
     bool inScene; // [esp+Bh] [ebp-2011h]
     uint32_t i; // [esp+Ch] [ebp-2010h]
     int v6; // [esp+10h] [ebp-200Ch]
@@ -60,6 +66,14 @@ void __cdecl RB_TouchAllImages()
     inScene = dx.inScene;
     if (!dx.inScene)
     {
+#ifdef KISAK_VITA
+        // the touch pass draws, so it needs a scene, but not the frame's buffer rotation
+        if (!GxmRenderTarget_Begin(GxmRenderTarget_Display()))
+        {
+            ++g_disableRendering;
+            Com_Error(ERR_FATAL, "rb_imagetouch.cpp: no scene for the image touch pass\n");
+        }
+#else
         do
         {
             if (r_logFile && r_logFile->current.integer)
@@ -75,6 +89,7 @@ void __cdecl RB_TouchAllImages()
                 } while (alwaysfails);
             }
         } while (alwaysfails);
+#endif
     }
     if (tess.indexCount)
         RB_EndTessSurface();
@@ -89,6 +104,9 @@ void __cdecl RB_TouchAllImages()
     R_SetCodeImageTexture(&gfxCmdBufSourceState, TEXTURE_SRC_CODE_FEEDBACK, 0);
     if (!inScene)
     {
+#ifdef KISAK_VITA
+        GxmRenderTarget_End();
+#else
         do
         {
             if (r_logFile && r_logFile->current.integer)
@@ -104,5 +122,6 @@ void __cdecl RB_TouchAllImages()
                 } while (alwaysfails);
             }
         } while (alwaysfails);
+#endif
     }
 }

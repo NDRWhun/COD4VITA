@@ -15,8 +15,8 @@
 #include "d3d9_shim.h"
 #else
 #include <d3d9.h>
-#endif
 #include <d3dx9shader.h>
+#endif
 
 #include "r_image.h"
 #include <win32/win_local.h>
@@ -501,10 +501,10 @@ const MtlStateMapBitName s_stencilFuncBackBitNames[9] =
     { "Less", 0x20000000 },
     { "Equal", 0x40000000 },
     { "LessEqual", 0x60000000 },
-    { "Greater", 0x80000000 },
-    { "NotEqual", 0x0A0000000 },
-    { "GreaterEqual", 0x0C0000000 },
-    { "Always", 0x0E0000000 },
+    { "Greater", (int)0x80000000 },
+    { "NotEqual", (int)0x0A0000000 },
+    { "GreaterEqual", (int)0x0C0000000 },
+    { "Always", (int)0x0E0000000 },
     {0}
 };
 
@@ -549,7 +549,7 @@ const MtlStateMapBitName s_stencilOpBackZFailBitNames[9] =
 
 const MtlStateMapBitName s_wireframeBitNames[3] =
 {
-    { "Enable", 0x80000000 },
+    { "Enable", (int)0x80000000 },
     { "Disable", 0 },
     {0}
 };
@@ -615,7 +615,7 @@ const MtlStateMapBitGroup s_stateMapDstPolygonOffsetBitGroup[2] =
 }; // idb
 const MtlStateMapBitGroup s_stateMapDstWireframeBitGroup[2] =
 {
-  { "wireframe", s_wireframeBitNames, { 2147483648, 0 } },
+  { "wireframe", s_wireframeBitNames, { (int)2147483648u, 0 } },
   { NULL, NULL, { 0, 0 } }
 }; // idb
 const MtlStateMapBitGroup s_stateMapDstStencilBitGroup[10] =
@@ -1628,6 +1628,8 @@ uint32_t __cdecl Material_GenerateShaderString(
     }
 }
 
+#ifndef KISAK_VITA
+// the loose-file loader compiles HLSL with D3DX at load time, which no Vita build can do
 void __cdecl Material_DeleteDirectory(const char *dirname)
 {
     DWORD errorCode; // [esp+0h] [ebp-360h]
@@ -1779,6 +1781,7 @@ char __cdecl Material_FindCachedShader(
         return 0;
     }
 }
+#endif
 
 #ifdef KISAK_NO_FASTFILES
 static bool Material_FindCachedShader2(uint32_t *shaderLen, void **cachedShader, const char *filename)
@@ -1842,6 +1845,7 @@ static bool Material_CopyTextToDXBuffer2(uint32_t shaderHash, ID3DXBuffer **shad
 }
 #endif
 
+#ifndef KISAK_VITA
 char __cdecl Material_CopyTextToDXBuffer(uint8_t *cachedShader, uint32_t shaderLen, ID3DXBuffer **shader)
 {
     const char *v3; // eax
@@ -2060,6 +2064,7 @@ ID3DXBuffer *__cdecl Material_CompileShader(
     Hunk_FreeTempMemory(shaderString);
     return 0;
 }
+#endif
 
 #ifdef KISAK_NO_FASTFILES
 static int GetHashedFilename(int shaderType, const char *shaderName)
@@ -2102,6 +2107,17 @@ static int GetHashedFilename(int shaderType, const char *shaderName)
 }
 #endif
 
+#ifdef KISAK_VITA
+MaterialVertexShader *__cdecl Material_LoadVertexShader(char *shaderName, int shaderVersion, GfxRenderer renderer)
+{
+    // GXM runs the offline-translated GXP archive, so there is no bytecode to compile or hash here
+    (void)shaderVersion;
+    (void)renderer;
+    Com_Error(ERR_DROP, "Can't compile vertex shader '%s': loose-file materials need fast files on Vita\n",
+              shaderName);
+    return 0;
+}
+#else
 MaterialVertexShader *__cdecl Material_LoadVertexShader(char *shaderName, int shaderVersion, GfxRenderer renderer)
 {
     uint32_t programSize; // [esp+10h] [ebp-34h]
@@ -2158,6 +2174,7 @@ MaterialVertexShader *__cdecl Material_LoadVertexShader(char *shaderName, int sh
         return 0;
     }
 }
+#endif
 
 MaterialVertexShader *__cdecl Material_RegisterVertexShader(
     char *shaderName,
@@ -2300,6 +2317,16 @@ char __cdecl Material_GetPixelShaderHashIndex(
     return 0;
 }
 
+#ifdef KISAK_VITA
+MaterialPixelShader *__cdecl Material_LoadPixelShader(char *shaderName, int shaderVersion, GfxRenderer renderer)
+{
+    (void)shaderVersion;
+    (void)renderer;
+    Com_Error(ERR_DROP, "Can't compile pixel shader '%s': loose-file materials need fast files on Vita\n",
+              shaderName);
+    return 0;
+}
+#else
 MaterialPixelShader *__cdecl Material_LoadPixelShader(char *shaderName, int shaderVersion, GfxRenderer renderer)
 {
     uint32_t programSize; // [esp+10h] [ebp-34h]
@@ -2358,6 +2385,7 @@ MaterialPixelShader *__cdecl Material_LoadPixelShader(char *shaderName, int shad
         return 0;
     }
 }
+#endif
 
 MaterialPixelShader *__cdecl Material_RegisterPixelShader(
     char *shaderName,
@@ -2381,6 +2409,7 @@ MaterialPixelShader *__cdecl Material_RegisterPixelShader(
     return mtlShader;
 }
 
+#ifndef KISAK_VITA
 char *__cdecl BufferOffset(char *buffer, int offset)
 {
     return &buffer[offset];
@@ -2450,6 +2479,7 @@ uint32_t __cdecl Material_PrepareToParseShaderArguments(
         usedCount += R_SetParameterDefArray(constantTable, constantIndex, &paramTable[usedCount]);
     return usedCount;
 }
+#endif
 
 int __cdecl Material_CompareShaderArgumentsForCombining(uint16_t *e0, uint16_t *e1)
 {
@@ -3618,6 +3648,7 @@ char __cdecl Material_ParseShaderArguments(
     return 0;
 }
 
+#ifndef KISAK_VITA
 uint8_t __cdecl Material_GetStreamDestForSemantic(const _D3DXSEMANTIC *semantic)
 {
     switch (semantic->Usage)
@@ -3667,7 +3698,28 @@ void __cdecl Material_SetVaryingParameterDef(const _D3DXSEMANTIC *semantic, Shad
     paramDef->name = Material_NameForStreamDest(paramDef->streamDest);
     paramDef->isAssigned = 0;
 }
+#endif
 
+#ifdef KISAK_VITA
+char __cdecl Material_SetPassShaderArguments_DX(
+    const char **text,
+    const char *shaderName,
+    MaterialShaderType shaderType,
+    uint32_t *program,
+    uint16_t *techFlags,
+    ShaderParameterSet *paramSet,
+    uint32_t argLimit,
+    uint32_t *argCount,
+    MaterialShaderArgument *args)
+{
+    // binding names to registers needs the D3DX constant table baked into the bytecode
+    (void)text; (void)shaderType; (void)program; (void)techFlags;
+    (void)paramSet; (void)argLimit; (void)argCount; (void)args;
+    Com_Error(ERR_DROP, "Can't reflect shader '%s': loose-file materials need fast files on Vita\n",
+              shaderName);
+    return 0;
+}
+#else
 char __cdecl Material_SetPassShaderArguments_DX(
     const char **text,
     const char *shaderName,
@@ -3747,6 +3799,7 @@ char __cdecl Material_SetPassShaderArguments_DX(
         return 0;
     }
 }
+#endif
 
 char __cdecl Material_LoadPassPixelShader(
     const char **text,

@@ -251,6 +251,10 @@ int __cdecl R_BeginMaterial(GfxCmdBufState *state, const Material *material, Mat
 void __cdecl R_ClearAllStreamSources(GfxCmdBufPrimState *state);
 void __cdecl R_DrawIndexedPrimitive(GfxCmdBufPrimState *state, const GfxDrawPrimArgs *args);
 void __cdecl R_ChangeState_0(GfxCmdBufState *state, uint32_t stateBits0);
+void __cdecl R_ChangeState_1(GfxCmdBufState *state, uint32_t stateBits1);
+// GxmPipeline_SetStateBits takes the whole state vector at once, so the Vita arm has no
+// per-state entry points, no fixed-function alpha test and no D3D-shaped polygon offset
+#ifndef KISAK_VITA
 void __cdecl R_HW_SetAlphaTestEnable(IDirect3DDevice9 *device, __int16 stateBits0);
 void __cdecl R_HW_SetColorMask(IDirect3DDevice9 *device, uint32_t stateBits0);
 void __cdecl R_HW_SetCullFace(IDirect3DDevice9 *device, __int16 stateBits0);
@@ -262,7 +266,6 @@ void __cdecl R_HW_SetBlend(
     uint32_t changedBits,
     uint32_t stateBits0);
 void __cdecl R_SetAlphaTestFunction(GfxCmdBufState *state, __int16 stateBits0);
-void __cdecl R_ChangeState_1(GfxCmdBufState *state, uint32_t stateBits1);
 void __cdecl R_HW_SetDepthWriteEnable(IDirect3DDevice9 *device, char stateBits1);
 void __cdecl R_HW_SetDepthTestEnable(IDirect3DDevice9 *device, char stateBits1);
 void __cdecl R_HW_SetDepthTestFunction(IDirect3DDevice9 *device, char stateBits1);
@@ -280,6 +283,13 @@ void __cdecl R_HW_SetBackStencilOp(
     uint32_t stencilOpZFail);
 void __cdecl R_HW_SetFrontStencilFunc(IDirect3DDevice9 *device, uint32_t stencilFunc);
 void __cdecl R_HW_SetBackStencilFunc(IDirect3DDevice9 *device, uint32_t stencilFunc);
+void __cdecl R_ForceSetBlendState(IDirect3DDevice9 *device, uint32_t stateBits0);
+void __cdecl R_ForceSetStencilState(IDirect3DDevice9 *device, uint32_t stateBits1);
+void __cdecl R_ForceSetPolygonOffset(IDirect3DDevice9 *device, char stateBits1);
+void __cdecl R_HW_SetPolygonOffset(IDirect3DDevice9 *device, float scale, float bias);
+// alpha to coverage has no GXM counterpart
+void __cdecl R_SetAlphaAntiAliasingState(IDirect3DDevice9 *device, __int16 stateBits0);
+#endif
 void __cdecl R_SetSampler(
     GfxCmdBufContext context,
     uint32_t samplerIndex,
@@ -292,8 +302,6 @@ uint32_t __cdecl R_HW_SetSamplerState(
     uint32_t oldSamplerState);
 uint32_t __cdecl R_DecodeSamplerState(uint8_t samplerState);
 void __cdecl R_SetSamplerState(GfxCmdBufState *state, uint32_t samplerIndex, uint8_t samplerState);
-void __cdecl R_ForceSetBlendState(IDirect3DDevice9 *device, uint32_t stateBits0);
-void __cdecl R_ForceSetStencilState(IDirect3DDevice9 *device, uint32_t stateBits1);
 void __cdecl R_GetViewport(GfxCmdBufSourceState *source, GfxViewport *outViewport);
 void __cdecl R_SetViewport(GfxCmdBufState *state, const GfxViewport *viewport);
 void __cdecl R_SetViewportStruct(GfxCmdBufSourceState *source, const GfxViewport *viewport);
@@ -321,8 +329,6 @@ void __cdecl R_ClearScreen(
     float depth,
     uint8_t stencil,
     const GfxViewport *viewport);
-void __cdecl R_ForceSetPolygonOffset(IDirect3DDevice9 *device, char stateBits1);
-void __cdecl R_HW_SetPolygonOffset(IDirect3DDevice9 *device, float scale, float bias);
 void __cdecl R_SetMeshStream(GfxCmdBufState *state, GfxMeshData *mesh);
 void __cdecl R_SetCompleteState(IDirect3DDevice9 *device, uint32_t *stateBits);
 
@@ -347,11 +353,6 @@ void __cdecl R_UpdateCodeConstant(
     float w);
 void __cdecl R_DirtyCodeConstant(GfxCmdBufSourceState *source, CodeConstant constant);
 void __cdecl R_SetCodeConstantFromVec4(GfxCmdBufSourceState *source, CodeConstant constant, float *value);
-
-
-
-void __cdecl R_SetAlphaAntiAliasingState(IDirect3DDevice9 *device, __int16 stateBits0);
-
 
 inline bool R_IsMatrixConstantUpToDate(GfxCmdBufSourceState *source, int version)
 {

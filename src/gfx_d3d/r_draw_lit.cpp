@@ -6,9 +6,26 @@
 #include "r_utils.h"
 #include "r_state.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_scissor.h>
+#endif
+
 
 void __cdecl R_DrawLitCallback(const void *userData, GfxCmdBufContext context, GfxCmdBufContext prepassContext)
 {
+#ifdef KISAK_VITA
+    const GfxViewInfo *viewInfo = (const GfxViewInfo *)userData;
+
+    R_SetRenderTarget(context, R_RENDERTARGET_SCENE);
+    if (prepassContext.state)
+        R_SetRenderTarget(prepassContext, R_RENDERTARGET_SCENE);
+
+    GxmScissor_Set(viewInfo->scissorViewport.x, viewInfo->scissorViewport.y,
+                   viewInfo->scissorViewport.width, viewInfo->scissorViewport.height);
+    R_DrawSurfs(context, prepassContext.state, &viewInfo->litInfo);
+    GxmScissor_Set(context.state->viewport.x, context.state->viewport.y,
+                   context.state->viewport.width, context.state->viewport.height);
+#else
     int height; // [esp+4h] [ebp-28h]
     int width; // [esp+8h] [ebp-24h]
     int y; // [esp+Ch] [ebp-20h]
@@ -32,6 +49,7 @@ void __cdecl R_DrawLitCallback(const void *userData, GfxCmdBufContext context, G
     device->SetScissorRect(&v7);
     R_DrawSurfs(context, prepassContext.state, &viewInfo->litInfo);
     context.state->prim.device->SetRenderState(D3DRS_SCISSORTESTENABLE, 0);
+#endif
 }
 
 void R_DrawLit(const GfxViewInfo *viewInfo, GfxCmdBuf *cmdBuf, GfxCmdBuf *prepassCmdBuf)
@@ -54,6 +72,19 @@ void R_DrawLit(const GfxViewInfo *viewInfo, GfxCmdBuf *cmdBuf, GfxCmdBuf *prepas
 
 void __cdecl R_DrawDecalCallback(const void *userdata, GfxCmdBufContext context, GfxCmdBufContext prepassContext)
 {
+#ifdef KISAK_VITA
+    const GfxViewInfo *viewInfo = (const GfxViewInfo *)userdata;
+
+    R_SetRenderTarget(context, R_RENDERTARGET_SCENE);
+    if (prepassContext.state)
+        R_SetRenderTarget(prepassContext, R_RENDERTARGET_SCENE);
+
+    GxmScissor_Set(viewInfo->scissorViewport.x, viewInfo->scissorViewport.y,
+                   viewInfo->scissorViewport.width, viewInfo->scissorViewport.height);
+    R_DrawSurfs(context, prepassContext.state, &viewInfo->decalInfo);
+    GxmScissor_Set(context.state->viewport.x, context.state->viewport.y,
+                   context.state->viewport.width, context.state->viewport.height);
+#else
     int height; // [esp+4h] [ebp-28h]
     int width; // [esp+8h] [ebp-24h]
     int y; // [esp+Ch] [ebp-20h]
@@ -77,6 +108,7 @@ void __cdecl R_DrawDecalCallback(const void *userdata, GfxCmdBufContext context,
     device->SetScissorRect(&v7);
     R_DrawSurfs(context, prepassContext.state, &viewInfo->decalInfo);
     context.state->prim.device->SetRenderState(D3DRS_SCISSORTESTENABLE, 0);
+#endif
 }
 
 void R_DrawDecal(const GfxViewInfo *viewInfo, GfxCmdBuf *cmdBuf, GfxCmdBuf *prepassCmdBuf)

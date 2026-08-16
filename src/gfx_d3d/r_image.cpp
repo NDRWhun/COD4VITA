@@ -18,6 +18,10 @@
 #include "r_state.h"
 #include "r_outdoor.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_image.h>
+#endif
+
 #include <algorithm>
 
 static const char *g_imageProgNames[14] =
@@ -99,9 +103,14 @@ void __cdecl R_DelayLoadImage(XAssetHeader header)
                 Image_AssignDefaultTexture(image);
             if (!image->texture.basemap)
             {
+#ifdef KISAK_VITA
+                // GXM has no device loss, so there is no lost-device excuse for a missing texture
+                Com_Error(ERR_DROP, "Couldn't load image '%s'\n", image->name);
+#else
                 HRESULT hr = dx.device->TestCooperativeLevel();
                 if (hr != 0x88760868 && hr != 0x88760869)
                     Com_Error(ERR_DROP, "Couldn't load image '%s'\n", image->name);
+#endif
             }
         }
         DB_LoadedExternalData(externalDataSize);
@@ -182,6 +191,16 @@ void __cdecl Image_Release(GfxImage *image)
         for (platform = 0; platform < 2; ++platform)
             imageGlobals.totalMemory.platform[platform] -= image->cardMemory.platform[platform];
     }
+#ifdef KISAK_VITA
+    // a prog image borrows the texture of the render target that owns its memory
+    if (image->texture.basemap && !Image_IsProg(image))
+    {
+        GxmImage_Release((GxmImage *)image->texture.basemap);
+        image->texture.basemap = 0;
+        image->cardMemory.platform[0] = 0;
+        image->cardMemory.platform[1] = 0;
+    }
+#else
     if (image->texture.basemap)
     {
         //image->texture.basemap->Release(image->texture.basemap);
@@ -190,6 +209,7 @@ void __cdecl Image_Release(GfxImage *image)
         image->cardMemory.platform[0] = 0;
         image->cardMemory.platform[1] = 0;
     }
+#endif
     else if (r_loadForRenderer->current.enabled)
     {
         iassert( !image->cardMemory.platform[PICMIP_PLATFORM_USED] );
@@ -640,6 +660,13 @@ void __cdecl Image_Free(GfxImage *image)
 
 IDirect3DSurface9 *__cdecl Image_GetSurface(GfxImage *image)
 {
+#ifdef KISAK_VITA
+    // GXM has no surface object: a render target is a GxmRenderTarget, a texture a GxmTexture,
+    // and nothing converts between them
+    (void)image;
+    Com_Error(ERR_FATAL, "Image_GetSurface has no GXM equivalent\n");
+    return 0;
+#else
     const char *v1; // eax
     int hr; // [esp+0h] [ebp-8h]
     IDirect3DSurface9 *surface; // [esp+4h] [ebp-4h] BYREF
@@ -671,6 +698,7 @@ IDirect3DSurface9 *__cdecl Image_GetSurface(GfxImage *image)
         }
     } while (alwaysfails);
     return surface;
+#endif
 }
 
 void __cdecl R_SetPicmip()
@@ -1041,8 +1069,12 @@ char __cdecl R_DuplicateTexture(GfxImage *dstImage, const GfxImage *srcImage)
     if (!srcImage || !srcImage->texture.basemap)
         return 0;
     dstImage->texture.basemap = srcImage->texture.basemap;
+#ifdef KISAK_VITA
+    GxmImage_AddRef((GxmImage *)dstImage->texture.basemap);
+#else
     //dstImage->texture.basemap->AddRef(dstImage->texture.basemap);
     dstImage->texture.basemap->AddRef();
+#endif
     return 1;
 }
 
@@ -1139,6 +1171,10 @@ void __cdecl R_ReleaseLostImages()
 
 _D3DFORMAT __cdecl R_ImagePixelFormat(const GfxImage *image)
 {
+#ifdef KISAK_VITA
+    iassert( image->texture.basemap );
+    return (_D3DFORMAT)GxmImage_FormatOf((const GxmTexture *)image->texture.basemap);
+#else
     MapType mapType; // [esp+0h] [ebp-40h]
     _D3DSURFACE_DESC surfaceDesc; // [esp+4h] [ebp-3Ch] BYREF
     _D3DVOLUME_DESC volumeDesc; // [esp+24h] [ebp-1Ch] BYREF
@@ -1172,6 +1208,7 @@ _D3DFORMAT __cdecl R_ImagePixelFormat(const GfxImage *image)
     }
 
     return (_D3DFORMAT)0;
+#endif
 }
 
 
@@ -1181,11 +1218,6 @@ void __cdecl Image_CreateCubeTexture_PC(
     uint32_t mipmapCount,
     _D3DFORMAT imageFormat)
 {
-    const char *v4; // eax
-    const char *v5; // eax
-    const char *v6; // eax
-    int hr; // [esp+0h] [ebp-4h]
-
     iassert( image );
     iassert( !image->texture.basemap );
     image->width = edgeLen;
@@ -1194,6 +1226,24 @@ void __cdecl Image_CreateCubeTexture_PC(
     image->mapType = MAPTYPE_CUBE;
     if (!gfxMetrics.canMipCubemaps)
         mipmapCount = 1;
+
+#ifdef KISAK_VITA
+    image->texture.basemap =
+        (IDirect3DBaseTexture9 *)GxmImage_CreateCube(imageFormat, edgeLen, mipmapCount);
+    if (!image->texture.basemap)
+        Com_Error(
+            ERR_DROP,
+            "CreateCubeTexture ( %s, %i, %i, %i ) failed",
+            image->name,
+            image->width,
+            mipmapCount,
+            imageFormat);
+#else
+    const char *v4; // eax
+    const char *v5; // eax
+    const char *v6; // eax
+    int hr; // [esp+0h] [ebp-4h]
+
     hr = dx.device->CreateCubeTexture(edgeLen, mipmapCount, 0, imageFormat, D3DPOOL_MANAGED, (IDirect3DCubeTexture9 **)&image->texture, 0);
     if (hr < 0)
     {
@@ -1221,6 +1271,7 @@ void __cdecl Image_CreateCubeTexture_PC(
             v5);
         MyAssertHandler(".\\r_image.cpp", 621, 0, "%s\n\t%s", "hr == D3DERR_DEVICELOST || image->texture.map", v6);
     }
+#endif
 }
 
 
@@ -1233,6 +1284,30 @@ void __cdecl Image_Create3DTexture_PC(
     int imageFlags,
     _D3DFORMAT imageFormat)
 {
+    iassert( image );
+    iassert( !image->texture.basemap );
+    image->width = width;
+    image->height = height;
+    image->depth = depth;
+    image->mapType = MAPTYPE_3D;
+
+#ifdef KISAK_VITA
+    // gxm_texture.cpp lays a volume out as a vertical strip of slices, which has no mip chain
+    (void)mipmapCount;
+    (void)imageFlags;
+    image->texture.basemap =
+        (IDirect3DBaseTexture9 *)GxmImage_Create3D(imageFormat, width, height, depth);
+    if (!image->texture.basemap)
+        Com_Error(
+            ERR_DROP,
+            "Create3DTexture( %s, %i, %i, %i, %i, %i ) failed",
+            image->name,
+            image->width,
+            image->height,
+            image->depth,
+            0,
+            imageFormat);
+#else
     HRESULT v7; // eax
     const char *v8; // eax
     const char *v9; // eax
@@ -1240,12 +1315,6 @@ void __cdecl Image_Create3DTexture_PC(
     HRESULT hr; // [esp+0h] [ebp-Ch]
     uint32_t usage; // [esp+4h] [ebp-8h]
 
-    iassert( image );
-    iassert( !image->texture.basemap );
-    image->width = width;
-    image->height = height;
-    image->depth = depth;
-    image->mapType = MAPTYPE_3D;
     usage = Image_GetUsage(imageFlags, imageFormat);
     if ((imageFlags & 0x40000) != 0)
     {
@@ -1285,6 +1354,7 @@ void __cdecl Image_Create3DTexture_PC(
             v9);
         MyAssertHandler(".\\r_image.cpp", 594, 0, "%s\n\t%s", "hr == D3DERR_DEVICELOST || image->texture.map", v10);
     }
+#endif
 }
 
 void __cdecl RB_UnbindAllImages()
@@ -1327,6 +1397,27 @@ void __cdecl Image_Create2DTexture_PC(
     int imageFlags,
     _D3DFORMAT imageFormat)
 {
+    iassert( image );
+    iassert( !image->texture.basemap );
+    image->width = width;
+    image->height = height;
+    image->depth = 1;
+    image->mapType = MAPTYPE_2D;
+
+#ifdef KISAK_VITA
+    (void)imageFlags;
+    image->texture.basemap =
+        (IDirect3DBaseTexture9 *)GxmImage_Create2D(imageFormat, width, height, mipmapCount);
+    if (!image->texture.basemap)
+        Com_Error(
+            ERR_DROP,
+            "Create2DTexture( %s, %i, %i, %i, %i ) failed",
+            image->name,
+            image->width,
+            image->height,
+            mipmapCount,
+            imageFormat);
+#else
     HRESULT v6; // eax
     const char *v7; // eax
     const char *v8; // eax
@@ -1334,12 +1425,6 @@ void __cdecl Image_Create2DTexture_PC(
     HRESULT hr; // [esp+0h] [ebp-Ch]
     uint32_t usage; // [esp+4h] [ebp-8h]
 
-    iassert( image );
-    iassert( !image->texture.basemap );
-    image->width = width;
-    image->height = height;
-    image->depth = 1;
-    image->mapType = MAPTYPE_2D;
     usage = Image_GetUsage(imageFlags, imageFormat);
     if ((imageFlags & 0x40000) != 0)
         v6 = dx.device->CreateTexture(
@@ -1389,6 +1474,7 @@ void __cdecl Image_Create2DTexture_PC(
             v8);
         MyAssertHandler(".\\r_image.cpp", 562, 0, "%s\n\t%s", "hr == D3DERR_DEVICELOST || image->texture.map", v9);
     }
+#endif
 }
 
 void __cdecl Image_Setup(GfxImage *image, int width, int height, int depth, int imageFlags, _D3DFORMAT imageFormat)

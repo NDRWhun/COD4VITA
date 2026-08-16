@@ -51,6 +51,11 @@ void __cdecl R_ShutdownStaticModelCache()
     R_FlushStaticModelCache();
     if (gfxBuf.smodelCacheVb)
     {
+#ifdef KISAK_VITA
+        varCopy = gfxBuf.smodelCacheVb;
+        gfxBuf.smodelCacheVb = 0;
+        R_FreeStaticVertexBuffer(varCopy);
+#else
         do
         {
             if (r_logFile)
@@ -66,6 +71,7 @@ void __cdecl R_ShutdownStaticModelCache()
                 ".\\r_staticmodelcache.cpp",
                 753);
         } while (alwaysfails);
+#endif
     }
 }
 

@@ -9,6 +9,11 @@
 #include "rb_tess.h"
 #include "r_pretess.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_pipeline.h>
+#include <vita/gxm/gxm_texture.h>
+#endif
+
 const int g_layerDataStride[16] = { 0, 0, 0, 8, 12, 16, 20, 24, 24, 28, 32, 32, 36, 40, 0, 0 }; // idb
 
 void __cdecl R_SetStreamSource(
@@ -29,6 +34,13 @@ void __cdecl R_SetStreamSource(
 
 void __cdecl R_HW_SetSamplerTexture(IDirect3DDevice9 *device, uint32_t samplerIndex, const GfxTexture *texture)
 {
+#ifdef KISAK_VITA
+    (void)device;
+    iassert(texture);
+    iassert(texture->basemap);
+
+    GxmPipeline_SetTexture(samplerIndex, &((const GxmTexture *)texture->basemap)->texture);
+#else
     int hr; // [esp+0h] [ebp-4h]
 
     iassert(texture);
@@ -53,6 +65,7 @@ void __cdecl R_HW_SetSamplerTexture(IDirect3DDevice9 *device, uint32_t samplerIn
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_SetStreamsForBspSurface(GfxCmdBufPrimState *state, const srfTriangles_t *tris)

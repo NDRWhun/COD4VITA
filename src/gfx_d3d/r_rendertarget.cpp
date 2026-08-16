@@ -6,6 +6,56 @@
 #include "rb_backend.h"
 #include "rb_logfile.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_device.h>
+#include <vita/gxm/gxm_rendertarget.h>
+#include <vita/gxm/gxm_texture.h>
+
+// the GXM objects behind GfxRenderTargetSurface, indexed by GfxRenderTargetId
+static GxmRenderTarget s_gxmColor[R_RENDERTARGET_COUNT];
+static GxmDepthStencil s_gxmDepth[R_RENDERTARGET_COUNT];
+static bool s_gxmColorOwned[R_RENDERTARGET_COUNT];
+static bool s_gxmDepthOwned[R_RENDERTARGET_COUNT];
+
+// the colour surface handed to the render target's GfxImage; the payload stays with s_gxmColor
+static GxmTexture s_gxmImageView[R_RENDERTARGET_COUNT];
+
+static GxmDepthStencil s_gxmSharedDepth;
+static bool s_gxmSharedDepthOwned;
+static GxmDepthStencil s_gxmCookieDepth;
+static bool s_gxmCookieDepthOwned;
+
+static bool R_GxmRenderTargetFormat(_D3DFORMAT format, SceGxmColorFormat *colorFormat,
+                                    SceGxmTextureFormat *textureFormat)
+{
+    switch (format)
+    {
+    case D3DFMT_A8R8G8B8:
+    case D3DFMT_X8R8G8B8:
+        *colorFormat = SCE_GXM_COLOR_FORMAT_A8R8G8B8;
+        *textureFormat = SCE_GXM_TEXTURE_FORMAT_A8R8G8B8;
+        return true;
+    case D3DFMT_A8B8G8R8:
+        *colorFormat = SCE_GXM_COLOR_FORMAT_A8B8G8R8;
+        *textureFormat = SCE_GXM_TEXTURE_FORMAT_A8B8G8R8;
+        return true;
+    case D3DFMT_R5G6B5:
+        *colorFormat = SCE_GXM_COLOR_FORMAT_R5G6B5;
+        *textureFormat = SCE_GXM_TEXTURE_FORMAT_R5G6B5;
+        return true;
+    case D3DFMT_R32F:
+        *colorFormat = SCE_GXM_COLOR_FORMAT_F32_R;
+        *textureFormat = SCE_GXM_TEXTURE_FORMAT_F32_R;
+        return true;
+    case D3DFMT_G16R16F:
+        *colorFormat = SCE_GXM_COLOR_FORMAT_F16F16_GR;
+        *textureFormat = SCE_GXM_TEXTURE_FORMAT_F16F16_GR;
+        return true;
+    default:
+        return false;
+    }
+}
+#endif
 
 //GfxRenderTarget *gfxRenderTargets 85b5db38     gfx_d3d : r_rendertarget.obj
 
@@ -19,6 +69,7 @@ void __cdecl AssertUninitializedRenderTarget(const GfxRenderTarget *renderTarget
     iassert(renderTarget->height == 0);
 }
 
+#ifndef KISAK_VITA
 bool __cdecl R_IsDepthStencilFormatOk(_D3DFORMAT renderTargetFormat, _D3DFORMAT depthStencilFormat)
 {
     return dx.d3d9->CheckDeviceFormat(
@@ -44,6 +95,14 @@ int __cdecl R_GetDepthStencilFormat(_D3DFORMAT renderTargetFormat)
     else
         return 75;
 }
+#else
+// GXM depth-stencil surfaces are S8D24 and nothing else is offered
+int __cdecl R_GetDepthStencilFormat(_D3DFORMAT renderTargetFormat)
+{
+    (void)renderTargetFormat;
+    return D3DFMT_D24S8;
+}
+#endif
 
 void __cdecl R_InitRenderTargets()
 {
@@ -122,10 +181,12 @@ void __cdecl R_ShareRenderTarget(GfxRenderTargetId idFrom, GfxRenderTargetId idT
     v3->surface.depthStencil = v2->surface.depthStencil;
     v3->width = v2->width;
     v3->height = v2->height;
+#ifndef KISAK_VITA
     if (gfxRenderTargets[idTo].surface.color)
         gfxRenderTargets[idTo].surface.color->AddRef();
     if (gfxRenderTargets[idTo].surface.depthStencil)
         gfxRenderTargets[idTo].surface.depthStencil->AddRef();
+#endif
 }
 
 void __cdecl R_InitFullscreenRenderTargetImage(
@@ -214,6 +275,29 @@ void __cdecl R_GetFrameBufferDepthStencilRes(int *depthStencilWidth, int *depthS
 #endif
 }
 
+#ifdef KISAK_VITA
+IDirect3DSurface9 *__cdecl R_AssignSingleSampleDepthStencilSurface()
+{
+    int depthStencilWidth; // [esp+4h] [ebp-8h] BYREF
+    int depthStencilHeight; // [esp+8h] [ebp-4h] BYREF
+
+    if (!dx.singleSampleDepthStencilSurface && dx.multiSampleType == D3DMULTISAMPLE_NONE)
+        dx.singleSampleDepthStencilSurface = gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.depthStencil;
+    if (dx.singleSampleDepthStencilSurface)
+        return dx.singleSampleDepthStencilSurface;
+
+    R_GetFrameBufferDepthStencilRes(&depthStencilWidth, &depthStencilHeight);
+    if (!GxmDepthStencil_Create(&s_gxmSharedDepth, depthStencilWidth, depthStencilHeight))
+        Com_Error(
+            ERR_FATAL,
+            "Couldn't create a %i x %i depth-stencil surface\n",
+            depthStencilWidth,
+            depthStencilHeight);
+    s_gxmSharedDepthOwned = true;
+    dx.singleSampleDepthStencilSurface = (IDirect3DSurface9 *)&s_gxmSharedDepth;
+    return dx.singleSampleDepthStencilSurface;
+}
+#else
 IDirect3DSurface9 *__cdecl R_AssignSingleSampleDepthStencilSurface()
 {
     const char *v1; // eax
@@ -254,10 +338,18 @@ IDirect3DSurface9 *__cdecl R_AssignSingleSampleDepthStencilSurface()
         return dx.singleSampleDepthStencilSurface;
     }
 }
+#endif
 
 void __cdecl R_AssignImageToRenderTargetDepthStencil(GfxRenderTargetSurface *surface, GfxImage *image)
 {
+#ifdef KISAK_VITA
+    // GXM cannot expose a depth-stencil surface as a texture, so the depth shadowmap path is out
+    (void)surface;
+    (void)image;
+    Com_Error(ERR_FATAL, "Depth-texture render targets are unsupported on GXM\n");
+#else
     surface->depthStencil = Image_GetSurface(image);
+#endif
 }
 
 void __cdecl R_InitRenderTargetImage(
@@ -284,18 +376,51 @@ void __cdecl R_InitRenderTargetImage(
             15);
     renderTarget->image = Image_AllocProg(imageProgType, 6u, 0);
     iassert( renderTarget->image );
+#ifdef KISAK_VITA
+    if (!usage)
+        R_AssignImageToRenderTargetDepthStencil(&renderTarget->surface, renderTarget->image);
+
+    SceGxmColorFormat colorFormat;
+    SceGxmTextureFormat textureFormat;
+    if (!R_GxmRenderTargetFormat(format, &colorFormat, &textureFormat))
+        Com_Error(ERR_FATAL, "No GXM render target format for D3D format 0x%08x\n", format);
+    if (!GxmRenderTarget_Create(&s_gxmColor[renderTargetId], width, height, colorFormat, textureFormat))
+        Com_Error(ERR_FATAL, "Couldn't create a %i x %i render target\n", width, height);
+    s_gxmColorOwned[renderTargetId] = true;
+    renderTarget->surface.color = (IDirect3DSurface9 *)&s_gxmColor[renderTargetId];
+
+    // the image samples the render target's colour memory, so the view owns nothing
+    s_gxmImageView[renderTargetId].texture = *GxmRenderTarget_Texture(&s_gxmColor[renderTargetId]);
+    s_gxmImageView[renderTargetId].width = width;
+    s_gxmImageView[renderTargetId].height = height;
+    s_gxmImageView[renderTargetId].depth = 1;
+    s_gxmImageView[renderTargetId].mipCount = 1;
+    renderTarget->image->mapType = MAPTYPE_2D;
+    renderTarget->image->width = width;
+    renderTarget->image->height = height;
+    renderTarget->image->depth = 1;
+    renderTarget->image->texture.basemap = (IDirect3DBaseTexture9 *)&s_gxmImageView[renderTargetId];
+#else
     Image_SetupRenderTarget(renderTarget->image, width, height, format);
     if (usage)
         R_AssignImageToRenderTargetColor(&renderTarget->surface, renderTarget->image);
     else
         R_AssignImageToRenderTargetDepthStencil(&renderTarget->surface, renderTarget->image);
+#endif
     renderTarget->width = width;
     renderTarget->height = height;
 }
 
 void __cdecl R_AssignImageToRenderTargetColor(GfxRenderTargetSurface *surface, GfxImage *image)
 {
+#ifdef KISAK_VITA
+    // the colour surface and the image's texture are created together in R_InitRenderTargetImage
+    (void)surface;
+    (void)image;
+    Com_Error(ERR_FATAL, "R_AssignImageToRenderTargetColor has no GXM equivalent\n");
+#else
     surface->color = Image_GetSurface(image);
+#endif
 }
 
 void __cdecl R_InitShadowmapRenderTarget(
@@ -337,6 +462,20 @@ void __cdecl R_InitShadowmapRenderTarget(
         gfxMetrics.shadowmapFormatPrimary,
         usage,
         renderTarget);
+#ifdef KISAK_VITA
+    (void)v4;
+    (void)v5;
+    (void)hr;
+    (void)hra;
+    if (!usage)
+        Com_Error(ERR_FATAL, "Depth-texture shadowmaps are unsupported on GXM\n");
+
+    const uint32_t shadowmapId = renderTarget - gfxRenderTargets;
+    if (!GxmDepthStencil_Create(&s_gxmDepth[shadowmapId], tileRes, totalHeight))
+        Com_Error(ERR_FATAL, "Couldn't create a %i x %i depth-stencil surface\n", tileRes, totalHeight);
+    s_gxmDepthOwned[shadowmapId] = true;
+    renderTarget->surface.depthStencil = (IDirect3DSurface9 *)&s_gxmDepth[shadowmapId];
+#else
     if (usage)
     {
         hra = dx.device->CreateDepthStencilSurface(
@@ -371,6 +510,7 @@ void __cdecl R_InitShadowmapRenderTarget(
             Com_Error(ERR_FATAL, "Couldn't create a %i x %i render target surface: %s\n", tileRes, totalHeight, v4);
         }
     }
+#endif
 }
 
 void __cdecl R_InitAndTrackRenderTargetImage(
@@ -409,10 +549,21 @@ void __cdecl R_AssignShadowCookieDepthStencilSurface(GfxRenderTargetSurface *sur
     if (gfxRenderTargets[R_RENDERTARGET_SHADOWCOOKIE].surface.depthStencil)
     {
         surface->depthStencil = gfxRenderTargets[R_RENDERTARGET_SHADOWCOOKIE].surface.depthStencil;
+#ifndef KISAK_VITA
         surface->depthStencil->AddRef();
+#endif
     }
     else
     {
+#ifdef KISAK_VITA
+        (void)v1;
+        (void)hr;
+        (void)depthStencilFormat;
+        if (!GxmDepthStencil_Create(&s_gxmCookieDepth, 128, 128))
+            Com_Error(ERR_FATAL, "Couldn't create a %i x %i depth-stencil surface\n", 128, 128);
+        s_gxmCookieDepthOwned = true;
+        surface->depthStencil = (IDirect3DSurface9 *)&s_gxmCookieDepth;
+#else
         depthStencilFormat = (_D3DFORMAT)R_GetDepthStencilFormat(D3DFMT_A8R8G8B8);
         hr = dx.device->CreateDepthStencilSurface(
             128u,
@@ -428,6 +579,7 @@ void __cdecl R_AssignShadowCookieDepthStencilSurface(GfxRenderTargetSurface *sur
             v1 = R_ErrorDescription(hr);
             Com_Error(ERR_FATAL, "Couldn't create a %i x %i depth-stencil surface: %s\n", 128, 128, v1);
         }
+#endif
     }
 }
 
@@ -467,6 +619,22 @@ const char *__cdecl R_DescribeFormat(_D3DFORMAT format)
     return result;
 }
 
+#ifdef KISAK_VITA
+void __cdecl R_InitFrameBufferRenderTarget_Win32(GfxRenderTarget *renderTarget)
+{
+    iassert( renderTarget );
+    renderTarget->width = vidConfig.displayWidth;
+    renderTarget->height = vidConfig.displayHeight;
+
+    // the display target rebinds the rotating back buffer on every scene entry
+    renderTarget->surface.color = (IDirect3DSurface9 *)GxmRenderTarget_Display();
+    iassert( renderTarget->surface.color );
+    if (g_allocateMinimalResources)
+        renderTarget->surface.depthStencil = 0;
+    else
+        renderTarget->surface.depthStencil = (IDirect3DSurface9 *)GxmRenderTarget_DisplayDepth();
+}
+#else
 void __cdecl R_InitFrameBufferRenderTarget_Win32(GfxRenderTarget *renderTarget)
 {
     const char *v1; // eax
@@ -539,6 +707,7 @@ void __cdecl R_InitFrameBufferRenderTarget_Win32(GfxRenderTarget *renderTarget)
         }
     }
 }
+#endif
 
 _D3DFORMAT __cdecl R_InitFrameBufferRenderTarget()
 {
@@ -550,7 +719,16 @@ _D3DFORMAT __cdecl R_InitFrameBufferRenderTarget()
     R_ShareRenderTarget(R_RENDERTARGET_FRAME_BUFFER, R_RENDERTARGET_SCENE);
     v0 = R_DescribeFormat(D3DFMT_A8R8G8B8);
     Com_Printf(8, "Requested frame buffer to be %s\n", v0);
+#ifdef KISAK_VITA
+    // the display buffers are created SCE_GXM_COLOR_FORMAT_A8B8G8R8 in gxm_device.cpp
+    const GxmRenderTarget *frameBuffer =
+        (const GxmRenderTarget *)gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color;
+    surfaceDesc.Format = D3DFMT_A8B8G8R8;
+    surfaceDesc.Width = frameBuffer->width;
+    surfaceDesc.Height = frameBuffer->height;
+#else
     gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color->GetDesc(&surfaceDesc);
+#endif
     iassert( surfaceDesc.Format != D3DFMT_UNKNOWN );
     v1 = R_DescribeFormat(surfaceDesc.Format);
     Com_Printf(8, "DirectX returned a frame buffer that is %s\n", v1);
@@ -571,13 +749,32 @@ void __cdecl R_ShutdownRenderTargets()
 
     for (renderTargetId = 0; renderTargetId < 15; ++renderTargetId)
     {
+#ifdef KISAK_VITA
+        // only the id that created a surface frees it; shared ids just drop the pointer
+        if (s_gxmColorOwned[renderTargetId])
+            GxmRenderTarget_Free(&s_gxmColor[renderTargetId]);
+        if (s_gxmDepthOwned[renderTargetId])
+            GxmDepthStencil_Free(&s_gxmDepth[renderTargetId]);
+        s_gxmColorOwned[renderTargetId] = false;
+        s_gxmDepthOwned[renderTargetId] = false;
+        memset(&s_gxmImageView[renderTargetId], 0, sizeof(s_gxmImageView[renderTargetId]));
+#else
         if (gfxRenderTargets[renderTargetId].surface.color)
             gfxRenderTargets[renderTargetId].surface.color->Release();
         if (gfxRenderTargets[renderTargetId].surface.depthStencil)
             gfxRenderTargets[renderTargetId].surface.depthStencil->Release();
+#endif
         if (gfxRenderTargets[renderTargetId].image)
             Image_Release(gfxRenderTargets[renderTargetId].image);
     }
+#ifdef KISAK_VITA
+    if (s_gxmSharedDepthOwned)
+        GxmDepthStencil_Free(&s_gxmSharedDepth);
+    if (s_gxmCookieDepthOwned)
+        GxmDepthStencil_Free(&s_gxmCookieDepth);
+    s_gxmSharedDepthOwned = false;
+    s_gxmCookieDepthOwned = false;
+#endif
     memset(gfxRenderTargets, 0, sizeof(gfxRenderTargets));
     dx.singleSampleDepthStencilSurface = 0;
 }

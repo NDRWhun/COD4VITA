@@ -13,6 +13,10 @@
 #include <cgame/cg_local.h>
 #endif
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_pipeline.h>
+#endif
+
 void __cdecl R_DeriveNearPlaneConstantsForView(GfxCmdBufSourceState *source)
 {
     const GfxViewParms *viewParms = &source->viewParms;
@@ -318,6 +322,9 @@ void __cdecl R_InitCmdBufSourceState(GfxCmdBufSourceState *source, const GfxCmdB
     source->cameraView = cameraView;
 }
 
+// the alpha test is compiled into each fragment program variant, so there is no reference
+// value to reset; state->alphaRef is dead on Vita along with R_SetAlphaTestFunction
+#ifndef KISAK_VITA
 void __cdecl R_SetDefaultAlphaTestFunction(GfxCmdBufState *state)
 {
     const char *v1; // eax
@@ -347,6 +354,7 @@ void __cdecl R_SetDefaultAlphaTestFunction(GfxCmdBufState *state)
     } while (alwaysfails);
     state->alphaRef = 0;
 }
+#endif
 
 void __cdecl R_SetDefaultStateBits(uint32_t *stateBits)
 {
@@ -363,6 +371,10 @@ void __cdecl R_SetDefaultStateBits(uint32_t *stateBits)
 
 void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, uint32_t samplerIndex, uint32_t samplerState)
 {
+#ifdef KISAK_VITA
+    (void)device;
+    GxmPipeline_SetSamplerState(samplerIndex, samplerState);
+#else
     const char *v3; // eax
     const char *v4; // eax
     const char *v5; // eax
@@ -549,6 +561,7 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, uint32_t samplerIn
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_InitCmdBufState(GfxCmdBufState *state)
@@ -568,7 +581,9 @@ void __cdecl R_InitCmdBufState(GfxCmdBufState *state)
     R_SetDefaultStateBits(state->activeStateBits);
     R_SetDefaultStateBits(state->refStateBits);
     R_SetCompleteState(device, state->activeStateBits);
+#ifndef KISAK_VITA
     R_SetDefaultAlphaTestFunction(state);
+#endif
     forceSamplerState = R_DecodeSamplerState(1);
     for (samplerIndex = 0; samplerIndex < 0x10; ++samplerIndex)
     {

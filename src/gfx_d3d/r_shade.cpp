@@ -9,6 +9,10 @@
 #include "r_utils.h"
 #include "r_water.h"
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_draw.h>
+#endif
+
 
 int __cdecl R_ReserveIndexData(GfxCmdBufPrimState *state, int triCount)
 {
@@ -87,6 +91,10 @@ void __cdecl R_HW_SetVertexShaderConstant(
     const float *data,
     uint32_t rowCount)
 {
+#ifdef KISAK_VITA
+    (void)device;
+    GxmDraw_SetVertexConstants(dest, data, rowCount);
+#else
     const char *v4; // eax
     const char *v5; // eax
     int hr; // [esp+30h] [ebp-4h]
@@ -121,6 +129,7 @@ void __cdecl R_HW_SetVertexShaderConstant(
             --rowCount;
         }
     }
+#endif
 }
 
 void __cdecl R_SetVertexShaderConstantFromCode(GfxCmdBufContext context, const MaterialShaderArgument *routingData)
@@ -245,6 +254,10 @@ void __cdecl R_HW_SetPixelShaderConstant(
     const float *data,
     uint32_t rowCount)
 {
+#ifdef KISAK_VITA
+    (void)device;
+    GxmDraw_SetFragmentConstants(dest, data, rowCount);
+#else
     const char *v4; // eax
     int hr; // [esp+0h] [ebp-4h]
 
@@ -267,6 +280,7 @@ void __cdecl R_HW_SetPixelShaderConstant(
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 int __cdecl R_IsPixelShaderConstantUpToDate(GfxCmdBufContext context, const MaterialShaderArgument *routingData)

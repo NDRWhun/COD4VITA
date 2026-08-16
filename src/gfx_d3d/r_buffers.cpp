@@ -8,6 +8,37 @@
 #include "r_utils.h"
 #include <universal/profile.h>
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_buffer.h>
+
+#include <stdlib.h>
+
+// the engine's IDirect3DVertexBuffer9 * and IDirect3DIndexBuffer9 * are GxmBuffer * on Vita
+static GxmBuffer *R_GxmCreateBuffer(int sizeInBytes, const char *what)
+{
+    GxmBuffer *buffer = (GxmBuffer *)malloc(sizeof(GxmBuffer));
+    if (!buffer)
+        R_FatalInitError(va("Out of memory for a %i-byte %s\n", sizeInBytes, what));
+
+    // uncached: the CPU streams writes into these and never reads them back
+    if (!GxmBuffer_Create(buffer, (uint32_t)sizeInBytes, false))
+    {
+        free(buffer);
+        R_FatalInitError(va("GXM didn't create a %i-byte %s\n", sizeInBytes, what));
+    }
+    return buffer;
+}
+
+static void R_GxmFreeBuffer(void *handle)
+{
+    GxmBuffer *buffer = (GxmBuffer *)handle;
+    if (!buffer)
+        return;
+
+    GxmBuffer_Free(buffer);
+    free(buffer);
+}
+#endif
 
 //struct GfxBuffers gfxBuf   85b3aa20     gfx_d3d : r_buffers.obj
 GfxBuffers gfxBuf;
@@ -19,13 +50,17 @@ void __cdecl TRACK_r_buffers()
 
 void *__cdecl R_AllocDynamicVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeInBytes)
 {
-    int hr; // [esp+0h] [ebp-4h]
-
     iassert(vb);
     iassert(sizeInBytes > 0);
 
     if (!r_loadForRenderer->current.enabled)
         return 0;
+
+#ifdef KISAK_VITA
+    *vb = (IDirect3DVertexBuffer9 *)R_GxmCreateBuffer(sizeInBytes, "dynamic vertex buffer");
+    return 0;
+#else
+    int hr; // [esp+0h] [ebp-4h]
 
     hr = dx.device->CreateVertexBuffer(sizeInBytes, 520, 0, D3DPOOL_DEFAULT, vb, 0);
     if (hr < 0)
@@ -33,10 +68,23 @@ void *__cdecl R_AllocDynamicVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeIn
         R_FatalInitError(va("DirectX didn't create a %i-byte dynamic vertex buffer: %s\n", sizeInBytes, R_ErrorDescription(hr)));
     }
     return 0;
+#endif
 }
 
 void *__cdecl R_AllocStaticVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeInBytes)
 {
+    iassert( vb );
+    iassert( (sizeInBytes > 0) );
+    if (!r_loadForRenderer->current.enabled)
+        return 0;
+
+#ifdef KISAK_VITA
+    // the D3D path leaves the buffer locked until R_FinishStaticVertexBuffer; GXM memory is
+    // always mapped, so the lock is just its address
+    GxmBuffer *buffer = R_GxmCreateBuffer(sizeInBytes, "vertex buffer");
+    *vb = (IDirect3DVertexBuffer9 *)buffer;
+    return buffer->memory.base;
+#else
     const char *v3; // eax
     const char *v4; // eax
     const char *v5; // eax
@@ -45,10 +93,6 @@ void *__cdecl R_AllocStaticVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeInB
     int hra; // [esp+0h] [ebp-8h]
     void *vertexBufferData; // [esp+4h] [ebp-4h] BYREF
 
-    iassert( vb );
-    iassert( (sizeInBytes > 0) );
-    if (!r_loadForRenderer->current.enabled)
-        return 0;
     hr = dx.device->CreateVertexBuffer(sizeInBytes, 8, 0, D3DPOOL_DEFAULT, vb, 0);
     if (hr < 0)
     {
@@ -65,16 +109,22 @@ void *__cdecl R_AllocStaticVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeInB
         R_FatalInitError(v6);
     }
     return vertexBufferData;
+#endif
 }
 
 void *__cdecl R_AllocDynamicIndexBuffer(IDirect3DIndexBuffer9 **ib, uint32_t sizeInBytes)
 {
+    if (!r_loadForRenderer->current.enabled)
+        return 0;
+
+#ifdef KISAK_VITA
+    *ib = (IDirect3DIndexBuffer9 *)R_GxmCreateBuffer((int)sizeInBytes, "dynamic index buffer");
+    return 0;
+#else
     const char *v3; // eax
     const char *v4; // eax
     int hr; // [esp+0h] [ebp-4h]
 
-    if (!r_loadForRenderer->current.enabled)
-        return 0;
     //hr = dx.device->CreateIndexBuffer(dx.device, sizeInBytes, 520u, D3DFMT_INDEX16, D3DPOOL_DEFAULT, ib, 0);
     hr = dx.device->CreateIndexBuffer(sizeInBytes, 520, D3DFMT_INDEX16, D3DPOOL_DEFAULT, ib, 0);
     if (hr < 0)
@@ -84,16 +134,23 @@ void *__cdecl R_AllocDynamicIndexBuffer(IDirect3DIndexBuffer9 **ib, uint32_t siz
         R_FatalInitError(v4);
     }
     return 0;
+#endif
 }
 
 void *__cdecl R_AllocStaticIndexBuffer(IDirect3DIndexBuffer9 **ib, int sizeInBytes)
 {
-    void *indexBufferData; // [esp+4h] [ebp-4h] BYREF
-
     iassert( ib );
     iassert( (sizeInBytes > 0) );
     if (!r_loadForRenderer->current.enabled)
         return 0;
+
+#ifdef KISAK_VITA
+    GxmBuffer *buffer = R_GxmCreateBuffer(sizeInBytes, "index buffer");
+    *ib = (IDirect3DIndexBuffer9 *)buffer;
+    return buffer->memory.base;
+#else
+    void *indexBufferData; // [esp+4h] [ebp-4h] BYREF
+
     //if (((int(__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, int, int, uint32_t, IDirect3DIndexBuffer9 **, uint32_t))dx.device->CreateIndexBuffer)(
     //    dx.device,
     //    dx.device,
@@ -117,6 +174,7 @@ void *__cdecl R_AllocStaticIndexBuffer(IDirect3DIndexBuffer9 **ib, int sizeInByt
     }
     (*ib)->Release();
     return 0;
+#endif
 }
 
 void __cdecl Load_VertexBuffer(IDirect3DVertexBuffer9 **vb, uint8_t *bufferData, int sizeInBytes)
@@ -211,6 +269,11 @@ void __cdecl R_CreateDynamicBuffers()
 
 void __cdecl R_FinishStaticIndexBuffer(IDirect3DIndexBuffer9 *ib)
 {
+#ifdef KISAK_VITA
+    // nothing to unmap: the buffer stays visible to both the CPU and the GPU for its lifetime
+    iassert( ib );
+    (void)ib;
+#else
     const char *v1; // eax
     int hr; // [esp+0h] [ebp-4h]
 
@@ -230,6 +293,7 @@ void __cdecl R_FinishStaticIndexBuffer(IDirect3DIndexBuffer9 *ib)
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_CreateParticleCloudBuffer()
@@ -313,6 +377,10 @@ void __cdecl R_CreateParticleCloudBuffer()
 
 void __cdecl R_FinishStaticVertexBuffer(IDirect3DVertexBuffer9 *vb)
 {
+#ifdef KISAK_VITA
+    iassert( vb );
+    (void)vb;
+#else
     const char *v1; // eax
     int hr; // [esp+0h] [ebp-4h]
 
@@ -332,21 +400,32 @@ void __cdecl R_FinishStaticVertexBuffer(IDirect3DVertexBuffer9 *vb)
             } while (alwaysfails);
         }
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_UnlockVertexBuffer(IDirect3DVertexBuffer9* handle)
 {
     iassert( handle );
+#ifdef KISAK_VITA
+    (void)handle;
+#else
     handle->Unlock();
+#endif
 }
 
 void *__cdecl R_LockVertexBuffer(IDirect3DVertexBuffer9 *handle, int offset, int bytes, int lockFlags)
 {
+    iassert( handle );
+    iassert( !dx.deviceLost );
+
+#ifdef KISAK_VITA
+    (void)bytes;
+    (void)lockFlags;
+    return (uint8_t *)((GxmBuffer *)handle)->memory.base + offset;
+#else
     int hr; // [esp+0h] [ebp-8h]
     void *bufferData; // [esp+4h] [ebp-4h] BYREF
 
-    iassert( handle );
-    iassert( !dx.deviceLost );
     //hr = ((int(__thiscall *)(IDirect3DVertexBuffer9 *, IDirect3DVertexBuffer9 *, int, int, void **, int))handle->Lock)(
     //    handle,
     //    handle,
@@ -358,6 +437,7 @@ void *__cdecl R_LockVertexBuffer(IDirect3DVertexBuffer9 *handle, int offset, int
     if (hr < 0)
         R_FatalLockError(hr);
     return bufferData;
+#endif
 }
 
 void __cdecl R_ShutdownTempSkinBuf()
@@ -379,6 +459,9 @@ void __cdecl R_ShutdownTempSkinBuf()
 
 void __cdecl R_FreeStaticVertexBuffer(IDirect3DVertexBuffer9 *vb)
 {
+#ifdef KISAK_VITA
+    R_GxmFreeBuffer(vb);
+#else
     IDirect3DVertexBuffer9 *varCopy; // [esp+0h] [ebp-4h]
 
     do
@@ -392,10 +475,14 @@ void __cdecl R_FreeStaticVertexBuffer(IDirect3DVertexBuffer9 *vb)
         vb = 0;
         R_ReleaseAndSetNULL<IDirect3DSurface9>((IDirect3DSurface9 *)varCopy, "vb", ".\\r_buffers.cpp", 213);
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_FreeStaticIndexBuffer(IDirect3DIndexBuffer9 *ib)
 {
+#ifdef KISAK_VITA
+    R_GxmFreeBuffer(ib);
+#else
     IDirect3DIndexBuffer9 *varCopy; // [esp+0h] [ebp-4h]
 
     do
@@ -409,6 +496,7 @@ void __cdecl R_FreeStaticIndexBuffer(IDirect3DIndexBuffer9 *ib)
         ib = 0;
         R_ReleaseAndSetNULL<IDirect3DDevice9>((IDirect3DSurface9 *)varCopy, "ib", ".\\r_buffers.cpp", 272);
     } while (alwaysfails);
+#endif
 }
 
 void __cdecl R_DestroyParticleCloudBuffer()
@@ -427,6 +515,29 @@ void __cdecl R_DestroyParticleCloudBuffer()
 
 void __cdecl R_DestroyDynamicBuffers()
 {
+#ifdef KISAK_VITA
+    for (int bufferIter = 0; bufferIter != 2; ++bufferIter)
+    {
+        R_FreeStaticIndexBuffer(gfxBuf.preTessIndexBufferPool[bufferIter].buffer);
+        gfxBuf.preTessIndexBufferPool[bufferIter].buffer = 0;
+    }
+    for (int bufferIter = 0; bufferIter != 1; ++bufferIter)
+    {
+        R_FreeStaticIndexBuffer(gfxBuf.dynamicIndexBufferPool[bufferIter].buffer);
+        gfxBuf.dynamicIndexBufferPool[bufferIter].buffer = 0;
+    }
+    for (int bufferIter = 0; bufferIter != 2; ++bufferIter)
+    {
+        R_FreeStaticVertexBuffer(gfxBuf.skinnedCacheVbPool[bufferIter].buffer);
+        gfxBuf.skinnedCacheVbPool[bufferIter].buffer = 0;
+    }
+    for (int bufferIter = 0; bufferIter != 1; ++bufferIter)
+    {
+        R_FreeStaticVertexBuffer(gfxBuf.dynamicVertexBufferPool[bufferIter].buffer);
+        gfxBuf.dynamicVertexBufferPool[bufferIter].buffer = 0;
+    }
+    R_ShutdownTempSkinBuf();
+#else
     IDirect3DSurface9 *v0; // [esp+0h] [ebp-14h]
     IDirect3DSurface9 *buffer; // [esp+4h] [ebp-10h]
     IDirect3DSurface9 *var; // [esp+8h] [ebp-Ch]
@@ -512,15 +623,22 @@ void __cdecl R_DestroyDynamicBuffers()
         }
     }
     R_ShutdownTempSkinBuf();
+#endif
 }
 
 void *__cdecl R_LockIndexBuffer(IDirect3DIndexBuffer9 *handle, int offset, int bytes, int lockFlags)
 {
+    iassert( handle );
+    iassert( !dx.deviceLost );
+
+#ifdef KISAK_VITA
+    (void)bytes;
+    (void)lockFlags;
+    return (uint8_t *)((GxmBuffer *)handle)->memory.base + offset;
+#else
     int hr; // [esp+0h] [ebp-8h]
     void *bufferData; // [esp+4h] [ebp-4h] BYREF
 
-    iassert( handle );
-    iassert( !dx.deviceLost );
     //hr = ((int(__thiscall *)(IDirect3DIndexBuffer9 *, IDirect3DIndexBuffer9 *, int, int, void **, int))handle->Lock)(
     //    handle,
     //    handle,
@@ -532,12 +650,17 @@ void *__cdecl R_LockIndexBuffer(IDirect3DIndexBuffer9 *handle, int offset, int b
     if (hr < 0)
         R_FatalLockError(hr);
     return bufferData;
+#endif
 }
 
 void __cdecl R_UnlockIndexBuffer(IDirect3DIndexBuffer9 *handle)
 {
     iassert( handle );
+#ifdef KISAK_VITA
+    (void)handle;
+#else
     handle->Unlock();
+#endif
 }
 
 void __cdecl R_CreateWorldVertexBuffer(IDirect3DVertexBuffer9 **vb, int *srcData, uint32_t sizeInBytes)

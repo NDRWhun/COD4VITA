@@ -24,6 +24,7 @@ void __cdecl TRACK_rb_sky()
 
 uint32_t __cdecl RB_CalcSunSpriteSamples()
 {
+#ifndef KISAK_VITA
     const char *v1; // eax
     const char *v2; // eax
     const char *v3; // eax
@@ -35,6 +36,7 @@ uint32_t __cdecl RB_CalcSunSpriteSamples()
     IDirect3DQuery9 *occlusionQuery; // [esp+48h] [ebp-Ch]
     HRESULT hr; // [esp+4Ch] [ebp-8h]
     uint32_t sampleCount; // [esp+50h] [ebp-4h] BYREF
+#endif
 
     if (vidConfig.displayWidth < 0x10)
         MyAssertHandler(
@@ -52,6 +54,11 @@ uint32_t __cdecl RB_CalcSunSpriteSamples()
             "%s\n\t(vidConfig.displayHeight) = %i",
             "(vidConfig.displayHeight >= 16)",
             vidConfig.displayHeight);
+#ifdef KISAK_VITA
+    // no GXM counterpart for a query around an arbitrary run of draws, so the queries are
+    // never created; 0 is the engine's own signal to fall back to the CPU sight trace
+    return 0;
+#else
     occlusionQuery = sunFlareArray[0].sunQuery[0];
     if (!sunFlareArray[0].sunQuery[0])
         return 0;
@@ -134,6 +141,7 @@ uint32_t __cdecl RB_CalcSunSpriteSamples()
     if (hr)
         return 256;
     return sampleCount;
+#endif
 }
 
 void __cdecl RB_DrawSun(uint32_t localClientNum)
@@ -162,6 +170,7 @@ void __cdecl RB_DrawSun(uint32_t localClientNum)
 
 void __cdecl RB_DrawSunQuerySprite(SunFlareDynamic *sunFlare)
 {
+#ifndef KISAK_VITA
     float v2; // [esp+10h] [ebp-74h]
     float v3; // [esp+14h] [ebp-70h]
     float widthInClipSpace; // [esp+28h] [ebp-5Ch]
@@ -171,8 +180,14 @@ void __cdecl RB_DrawSunQuerySprite(SunFlareDynamic *sunFlare)
     float lastVisibilitya; // [esp+7Ch] [ebp-8h]
     float lastVisibility; // [esp+7Ch] [ebp-8h]
     int queryIndex; // [esp+80h] [ebp-4h]
+#endif
 
     iassert( sunFlare );
+#ifdef KISAK_VITA
+    // with the queries excised the engine's own no-query path is the only one left, and the
+    // billboard it skips is pure black on an additive material, so nothing visible is lost
+    RB_UpdateSunVisibilityWithoutQuery(sunFlare);
+#else
     queryIndex = r_glob.backEndFrameCount % 2;
     if ((uint32_t)(r_glob.backEndFrameCount % 2) >= 2)
         MyAssertHandler(
@@ -231,8 +246,10 @@ void __cdecl RB_DrawSunQuerySprite(SunFlareDynamic *sunFlare)
     {
         RB_UpdateSunVisibilityWithoutQuery(sunFlare);
     }
+#endif
 }
 
+#ifndef KISAK_VITA
 void __cdecl RB_HW_BeginOcclusionQuery(IDirect3DQuery9 *query)
 {
     iassert(query);
@@ -256,6 +273,7 @@ uint32_t __cdecl RB_HW_ReadOcclusionQuery(IDirect3DQuery9 *query)
     else
         return -1;
 }
+#endif
 
 void __cdecl RB_TessSunBillboard(float widthInClipSpace, float heightInClipSpace, GfxColor color)
 {
@@ -434,6 +452,7 @@ void __cdecl RB_AddSunEffects(SunFlareDynamic *sunFlare)
 
 void __cdecl RB_FreeSunSpriteQueries()
 {
+#ifndef KISAK_VITA
     IDirect3DQuery9 *varCopy; // [esp+0h] [ebp-Ch]
     uint32_t viewIndex; // [esp+4h] [ebp-8h]
     uint32_t queryIndex; // [esp+8h] [ebp-4h]
@@ -462,6 +481,7 @@ void __cdecl RB_FreeSunSpriteQueries()
             }
         }
     }
+#endif
 }
 
 void RB_DrawSunSprite()

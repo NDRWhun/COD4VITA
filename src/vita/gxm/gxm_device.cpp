@@ -1,5 +1,6 @@
 #include "gxm_device.h"
 #include "gxm_memory.h"
+#include "gxm_rendertarget.h"
 #include "../platform/vita_memory.h"
 
 #include <psp2/display.h>
@@ -42,6 +43,9 @@ struct GxmDevice
     GxmAlloc patcherBuffer;
     GxmAlloc patcherVertexUsse;
     GxmAlloc patcherFragmentUsse;
+
+    SceGxmNotification sceneNotification;
+    uint32_t fenceValue;
 
     uint32_t frameIndex;
     bool initialized;
@@ -135,7 +139,7 @@ static bool GxmDevice_CreateRenderTarget(void)
     memset(&params, 0, sizeof(params));
     params.width = GXM_SCREEN_WIDTH;
     params.height = GXM_SCREEN_HEIGHT;
-    params.scenesPerFrame = 1;
+    params.scenesPerFrame = GXM_SCENES_PER_FRAME;
     params.multisampleMode = SCE_GXM_MULTISAMPLE_NONE;
     params.driverMemBlock = -1;
 
@@ -241,29 +245,25 @@ bool GxmDevice_Init(void)
 
     gxmDev.backBufferIndex = 0;
     gxmDev.frontBufferIndex = GXM_DISPLAY_BUFFERS - 1;
+    gxmDev.sceneNotification.address = sceGxmGetNotificationRegion();
+    gxmDev.sceneNotification.value = 0;
     gxmDev.initialized = true;
     return true;
 }
 
 void GxmDevice_BeginFrame(void)
 {
-    GxmDisplayBuffer *back = &gxmDev.display[gxmDev.backBufferIndex];
-
-    sceGxmBeginScene(gxmDev.context,
-                     0,
-                     gxmDev.renderTarget,
-                     NULL,
-                     NULL,
-                     back->sync,
-                     &back->surface,
-                     &gxmDev.depthSurface);
+    GxmRenderTarget_ResetCounters();
+    GxmRenderTarget_Begin(GxmRenderTarget_Display());
 }
 
 void GxmDevice_EndFrame(void)
 {
     GxmDisplayBuffer *back = &gxmDev.display[gxmDev.backBufferIndex];
 
-    sceGxmEndScene(gxmDev.context, NULL, NULL);
+    // the frame must land on the back buffer however many targets the scene switcher visited
+    GxmRenderTarget_Begin(GxmRenderTarget_Display());
+    GxmRenderTarget_End();
     sceGxmPadHeartbeat(&back->surface, back->sync);
 
     GxmDisplayData data;
@@ -281,6 +281,23 @@ void GxmDevice_Finish(void)
 {
     if (gxmDev.context)
         sceGxmFinish(gxmDev.context);
+}
+
+const void *GxmDevice_FrontBuffer(uint32_t *width, uint32_t *height, uint32_t *pitchInPixels)
+{
+    if (!gxmDev.initialized)
+        return NULL;
+
+    GxmDevice_Finish();
+
+    if (width)
+        *width = GXM_SCREEN_WIDTH;
+    if (height)
+        *height = GXM_SCREEN_HEIGHT;
+    if (pitchInPixels)
+        *pitchInPixels = GXM_SCREEN_WIDTH;
+
+    return gxmDev.display[gxmDev.frontBufferIndex].mem.base;
 }
 
 void GxmDevice_Shutdown(void)
@@ -325,6 +342,56 @@ SceGxmContext *GxmDevice_Context(void)
 SceGxmShaderPatcher *GxmDevice_ShaderPatcher(void)
 {
     return gxmDev.shaderPatcher;
+}
+
+SceGxmRenderTarget *GxmDevice_DisplayTarget(void)
+{
+    return gxmDev.renderTarget;
+}
+
+const SceGxmColorSurface *GxmDevice_BackBufferSurface(void)
+{
+    return &gxmDev.display[gxmDev.backBufferIndex].surface;
+}
+
+const SceGxmDepthStencilSurface *GxmDevice_DisplayDepthSurface(void)
+{
+    return &gxmDev.depthSurface;
+}
+
+SceGxmSyncObject *GxmDevice_BackBufferSync(void)
+{
+    return gxmDev.display[gxmDev.backBufferIndex].sync;
+}
+
+const SceGxmNotification *GxmDevice_SceneNotification(void)
+{
+    ++gxmDev.sceneNotification.value;
+    return &gxmDev.sceneNotification;
+}
+
+void GxmDevice_IssueFence(void)
+{
+    gxmDev.fenceValue = gxmDev.sceneNotification.value;
+}
+
+bool GxmDevice_FenceReached(void)
+{
+    if (!gxmDev.sceneNotification.address)
+        return true;
+
+    // the value rises by one per scene, so a signed difference survives the wrap
+    return (int32_t)(*gxmDev.sceneNotification.address - gxmDev.fenceValue) >= 0;
+}
+
+uint32_t GxmDevice_ScenesSubmitted(void)
+{
+    return gxmDev.sceneNotification.value;
+}
+
+uint32_t GxmDevice_ScenesRetired(void)
+{
+    return gxmDev.sceneNotification.address ? *gxmDev.sceneNotification.address : 0;
 }
 
 uint32_t GxmDevice_FrameIndex(void)

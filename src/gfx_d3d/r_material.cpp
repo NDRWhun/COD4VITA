@@ -16,6 +16,10 @@
 #include <universal/com_files.h>
 #include <universal/profile.h>
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_material.h>
+#endif
+
 //MaterialGlobals materialGlobals; // LWSS: moved to db_registry for DEDICATED
 
 const stream_source_info_t s_streamSourceInfo[16][STREAM_SRC_COUNT] =
@@ -291,7 +295,15 @@ void __cdecl Load_CreateMaterialPixelShader(GfxPixelShaderLoadDef *loadDef, Mate
     if (r_loadForRenderer->current.enabled && loadDef->loadForRenderer == r_rendererInUse->current.integer)
     {
         ProfLoad_Begin("Create pixel shader");
+#ifdef KISAK_VITA
+        mtlShader->prog.ps = (IDirect3DPixelShader9 *)GxmMaterial_CreateShader(
+            loadDef->program, loadDef->programSize * 4u, GXM_STAGE_FRAGMENT);
+        if (!mtlShader->prog.ps)
+            Com_Error(ERR_DROP, "No GXM fragment program for pixel shader '%s'\n",
+                      mtlShader->name);
+#else
         dx.device->CreatePixelShader((DWORD*)loadDef->program, (IDirect3DPixelShader9 **)&mtlShader->prog);
+#endif
         ProfLoad_End();
     }
     else
@@ -306,7 +318,15 @@ void __cdecl Load_CreateMaterialVertexShader(GfxVertexShaderLoadDef *loadDef, Ma
     if (r_loadForRenderer->current.enabled && loadDef->loadForRenderer == r_rendererInUse->current.integer)
     {
         ProfLoad_Begin("Create vertex shader");
+#ifdef KISAK_VITA
+        mtlShader->prog.vs = (IDirect3DVertexShader9 *)GxmMaterial_CreateShader(
+            loadDef->program, loadDef->programSize * 4u, GXM_STAGE_VERTEX);
+        if (!mtlShader->prog.vs)
+            Com_Error(ERR_DROP, "No GXM vertex program for vertex shader '%s'\n",
+                      mtlShader->name);
+#else
         dx.device->CreateVertexShader((DWORD*)loadDef->program, (IDirect3DVertexShader9 **)&mtlShader->prog);
+#endif
         ProfLoad_End();
     }
     else
@@ -376,6 +396,39 @@ IDirect3DVertexDeclaration9 *__cdecl Material_BuildVertexDecl(
     int streamCount,
     const stream_source_info_t *sourceTable)
 {
+#ifdef KISAK_VITA
+    AssertValidVertexDeclOffsets(sourceTable);
+
+    GxmStreamSource sources[STREAM_SRC_COUNT];
+    for (int i = 0; i < STREAM_SRC_COUNT; ++i)
+    {
+        sources[i].stream = sourceTable[i].Stream;
+        sources[i].offset = sourceTable[i].Offset;
+        sources[i].type = sourceTable[i].Type;
+    }
+
+    GxmStreamRouting routing[GXM_MATERIAL_MAX_ROUTING];
+    if (streamCount > GXM_MATERIAL_MAX_ROUTING)
+        return NULL;
+
+    for (int i = 0; i < streamCount; ++i)
+    {
+        bcassert(routingData[i].source, STREAM_SRC_COUNT);
+
+        // an absent source means this vertex-decl type cannot feed the pass at all
+        if (sourceTable[routingData[i].source].Stream == 255)
+            return NULL;
+
+        bcassert(routingData[i].dest, ARRAY_COUNT(s_streamDestInfo));
+        routing[i].source = routingData[i].source;
+        routing[i].dest = routingData[i].dest;
+    }
+
+    IDirect3DVertexDeclaration9 *decl = (IDirect3DVertexDeclaration9 *)GxmMaterial_CreateVertexDecl(
+        sources, STREAM_SRC_COUNT, routing, (uint32_t)streamCount);
+    iassert(decl);
+    return decl;
+#else
     int hr; // [esp+0h] [ebp-824h]
     int elemIndexInsert; // [esp+4h] [ebp-820h]
     const stream_source_info_t *sourceInfo; // [esp+8h] [ebp-81Ch]
@@ -450,6 +503,7 @@ IDirect3DVertexDeclaration9 *__cdecl Material_BuildVertexDecl(
 
     iassert(decl);
     return decl;
+#endif
 }
 
 MaterialTechniqueSet *__cdecl Material_FindTechniqueSet(const char *name, MtlTechSetNotFoundBehavior notFoundBehavior)
@@ -732,6 +786,26 @@ bool __cdecl Material_CastsStencilShadow(Material *handle)
 
 void __cdecl Material_ReleasePassResources(MaterialPass *pass)
 {
+#ifdef KISAK_VITA
+    iassert( pass->pixelShader );
+    GxmMaterial_FreeShader((GxmMaterialShader *)pass->pixelShader->prog.ps);
+    pass->pixelShader->prog.ps = 0;
+
+    iassert( pass->vertexShader );
+    GxmMaterial_FreeShader((GxmMaterialShader *)pass->vertexShader->prog.vs);
+    pass->vertexShader->prog.vs = 0;
+
+    iassert( pass->vertexDecl );
+    if (pass->vertexDecl->isLoaded)
+    {
+        pass->vertexDecl->isLoaded = 0;
+        for (int declIndex = 0; declIndex < 16; ++declIndex)
+        {
+            GxmMaterial_FreeVertexDecl((GxmVertexDecl *)pass->vertexDecl->routing.decl[declIndex]);
+            pass->vertexDecl->routing.decl[declIndex] = 0;
+        }
+    }
+#else
     IDirect3DSurface9 *v1; // [esp+0h] [ebp-10h]
     IDirect3DSurface9 *var; // [esp+4h] [ebp-Ch]
     IDirect3DPixelShader9 *varCopy; // [esp+8h] [ebp-8h]
@@ -791,6 +865,7 @@ void __cdecl Material_ReleasePassResources(MaterialPass *pass)
             }
         }
     }
+#endif
 }
 
 void __cdecl Material_ReleaseTechniqueSetResources(MaterialTechniqueSet *techniqueSet)
