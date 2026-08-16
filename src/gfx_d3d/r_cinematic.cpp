@@ -5,7 +5,8 @@
 #include <qcommon/threads.h>
 #include <universal/com_memory.h>
 #include "r_init.h"
-#include <msslib/mss.h>
+#ifndef KISAK_VITA
+#endif
 #include <sound/snd_local.h>
 #include <win32/win_local.h>
 #include "rb_state.h"

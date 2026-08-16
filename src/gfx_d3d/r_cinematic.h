@@ -1,8 +1,14 @@
 #pragma once
 
+#ifdef KISAK_VITA
+#include "d3d9_shim.h"
+#else
 #include <d3d9.h>
+#endif
+#ifndef KISAK_VITA
 #include <binklib/bink.h>
 #include <binklib/binktextures.h>
+#endif
 #include "r_material.h"
 
 #define CINEMATIC_INVALID_IMAGE_FRAME -1

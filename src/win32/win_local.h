@@ -11,12 +11,15 @@
 #pragma warning( pop )
 #endif
 
-#ifndef _XBOX
+#if !defined(_XBOX) && !defined(KISAK_VITA)
 #define DIRECTINPUT_VERSION 0x0800  //[ 0x0300 | 0x0500 | 0x0700 | 0x0800 ]
 #include <dinput.h>
 //#include <dsound.h>
 #include <winsock.h>
 #include <wsipx.h>
+#endif
+#ifdef KISAK_VITA
+#include <qcommon/sys_types.h>
 #endif
 #include <qcommon/qcommon.h>
 #ifdef KISAK_MP

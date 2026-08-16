@@ -11,7 +11,11 @@
 #include "r_water.h"
 #include <universal/q_parse.h>
 
+#ifdef KISAK_VITA
+#include "d3d9_shim.h"
+#else
 #include <d3d9.h>
+#endif
 #include <d3dx9shader.h>
 
 #include "r_image.h"

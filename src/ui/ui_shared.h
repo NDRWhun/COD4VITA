@@ -1409,14 +1409,15 @@ struct KeywordHashEntry
     }
     int KeywordHash_PickSeed(int count)
     {
-        for (int seed = 0; !IsValidSeed(count, HASH_SEED); seed++)
+        // dependent names, so the unfinished bodies are only looked up if ever instantiated
+        for (int seed = 0; !this->KeywordHash_IsValidSeed(count, HASH_SEED); seed++)
         {
             iassert(seed != 65536);
         }
     }
     void KeywordHash_Validate()
     {
-        if (!KeywordHash_IsValidSeed())
+        if (!this->KeywordHash_IsValidSeed(0, HASH_SEED))
         {
             // MyAssertHandler(
             //     ".\\ui\\ui_shared_obj.cpp",

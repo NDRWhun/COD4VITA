@@ -1,6 +1,10 @@
 #pragma once
 
+#ifdef KISAK_VITA
+#include <qcommon/sys_types.h>
+#else
 #include <Windows.h> // literally just for some of the extern types at the bottom
+#endif
 #include <gfx_d3d/rb_backend.h> // THREAD_CONTEXT_COUNT
 
 enum ThreadOwner : __int32

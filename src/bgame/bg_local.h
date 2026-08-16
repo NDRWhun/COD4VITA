@@ -345,7 +345,7 @@ struct shellshock_parms_t_movement // sizeof=0x1
 };
 static_assert(sizeof(shellshock_parms_t_movement) == 0x1);
 
-const struct shellshock_parms_t // sizeof=0x268
+struct shellshock_parms_t // sizeof=0x268
 {                                       // ...
     shellshock_parms_t_screenblend screenBlend;
     shellshock_parms_t_view view;

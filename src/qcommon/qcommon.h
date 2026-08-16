@@ -1590,8 +1590,10 @@ inline T Buf_Read(unsigned char **pos)
     return value;
 }
 
+#ifndef KISAK_VITA
 #include <xmmintrin.h>  // SSE
 #include <intrin.h>
+#endif
 
 // (https://github.com/SwagSoftware/KisakCOD/issues/52)
 // 
@@ -1613,6 +1615,10 @@ inline int SnapFloatToInt(float x)
     return i;
 #endif
 
+#ifdef KISAK_VITA
+    // lrintf follows the current rounding mode, which is nearest-even as cvtss_si32 is
+    return (int)lrintf(x);
+#else
     int retval = _mm_cvtss_si32(_mm_set_ss(x));
 
 #if defined(_DEBUG) && defined(_WIN32)
@@ -1626,6 +1632,7 @@ inline int SnapFloatToInt(float x)
 #endif
 
     return retval;
+#endif
 }
 
 // Float-returning snap-to-grid (Sys_SnapVector, SnapPointToIntersectingPlanes).

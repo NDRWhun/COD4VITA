@@ -1,7 +1,8 @@
 #pragma once
 
 #ifndef KISAK_OPENAL
-#include <msslib/mss.h>
+#ifndef KISAK_VITA
+#endif
 #else
 #include <AL/al.h>
 #include <AL/alc.h>

@@ -1,6 +1,10 @@
 #pragma once
 
+#ifdef KISAK_VITA
+#include "d3d9_shim.h"
+#else
 #include <d3d9.h>
+#endif
 
 #include "r_gfx.h"
 

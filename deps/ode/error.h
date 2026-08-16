@@ -27,7 +27,11 @@
 
 #include <ode/config.h>
 
+#ifdef _MSC_VER
 #include <vadefs.h>
+#else
+#include <stdarg.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {

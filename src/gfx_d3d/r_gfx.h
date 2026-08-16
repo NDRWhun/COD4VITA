@@ -1,6 +1,10 @@
 #pragma once
 
+#ifdef KISAK_VITA
+#include "d3d9_shim.h"
+#else
 #include <d3d9.h>
+#endif
 
 #include <universal/com_math.h>
 #include <qcommon/com_pack.h>
