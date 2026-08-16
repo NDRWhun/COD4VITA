@@ -8,6 +8,7 @@
 
 #include <sys/stat.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -56,11 +57,8 @@ void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect)
     if (!(type & (MEM_RESERVE | MEM_COMMIT)))
         return NULL;
 
-    // Win32 zero-fills committed pages and the engine relies on it
-    void *memory = VitaMem_Alloc(VITA_MEM_MAIN, (uint32_t)size, 16);
-    if (memory)
-        memset(memory, 0, (size_t)size);
-    return memory;
+    // calloc, not the arena: Win32 zero-fills committed pages and the engine relies on it
+    return calloc(1, (size_t)size);
 }
 
 BOOL VirtualFree(void *address, SIZE_T size, DWORD type)
@@ -71,7 +69,7 @@ BOOL VirtualFree(void *address, SIZE_T size, DWORD type)
     if (!(type & MEM_RELEASE))
         return 1;
 
-    VitaMem_Free(address);
+    free(address);
     return 1;
 }
 
