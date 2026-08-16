@@ -138,7 +138,7 @@ static DWORD TestWorker(void *parameter)
     {
         if (WaitForSingleObject(s_ping, 2000) != WAIT_OBJECT_0)
             break;
-        ++s_counter;
+        s_counter = s_counter + 1;
         SetEvent(s_pong);
     }
     return 0;

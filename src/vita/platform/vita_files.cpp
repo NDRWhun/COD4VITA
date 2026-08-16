@@ -14,7 +14,7 @@ struct VitaSearch
 {
     DIR *directory;
     char path[VITA_PATH_MAX];
-    char pattern[128];
+    char pattern[VITA_PATH_MAX];
     bool inUse;
 };
 
@@ -67,7 +67,7 @@ static bool VitaFiles_Fill(VitaSearch *search, _finddata64i32_t *data)
         memset(data, 0, sizeof(*data));
         strncpy(data->name, entry->d_name, sizeof(data->name) - 1);
 
-        char full[VITA_PATH_MAX];
+        char full[VITA_PATH_MAX + sizeof(data->name) + 1];
         snprintf(full, sizeof(full), "%s/%s", search->path, entry->d_name);
 
         struct stat info;
@@ -102,13 +102,13 @@ intptr_t _findfirst64i32(const char *specification, _finddata64i32_t *data)
         if (slash)
         {
             *slash = 0;
-            strncpy(search->path, normalized, sizeof(search->path) - 1);
-            strncpy(search->pattern, slash + 1, sizeof(search->pattern) - 1);
+            snprintf(search->path, sizeof(search->path), "%s", normalized);
+            snprintf(search->pattern, sizeof(search->pattern), "%s", slash + 1);
         }
         else
         {
             strcpy(search->path, ".");
-            strncpy(search->pattern, normalized, sizeof(search->pattern) - 1);
+            snprintf(search->pattern, sizeof(search->pattern), "%s", normalized);
         }
         if (!search->pattern[0])
             strcpy(search->pattern, "*");
