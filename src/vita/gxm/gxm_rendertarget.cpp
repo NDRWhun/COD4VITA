@@ -132,7 +132,9 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     params.driverMemBlock = -1;
 
     VitaSys_LogPrintf("[rt]   createRenderTarget scenes=%u\n", (unsigned)params.scenesPerFrame);
-    if (sceGxmCreateRenderTarget(&params, &rt->target) < 0)
+    const int created = sceGxmCreateRenderTarget(&params, &rt->target);
+    VitaSys_LogPrintf("[rt]   createRenderTarget returned 0x%08x\n", (unsigned)created);
+    if (created < 0)
     {
         GxmMem_Free(&rt->colorMem);
         return false;
