@@ -29,6 +29,19 @@ const VitaInputState *VitaInput_State(void);
 void VitaInput_SetLookSensitivity(float sensitivity);
 void VitaInput_SetDeadZone(float deadZone);
 
+// the pad emits gameplay binds or menu navigation keys depending on the context
+enum VitaInputContext
+{
+    VITA_INPUT_GAME,
+    VITA_INPUT_MENU
+};
+
+// releases everything held under the outgoing map before switching
+void VitaInput_SetContext(VitaInputContext context);
+
+// left-stick deflection that counts as a movement key press
+void VitaInput_SetMoveThreshold(float threshold);
+
 // --- on-screen keyboard, for text fields ---
 
 enum VitaKeyboardStatus

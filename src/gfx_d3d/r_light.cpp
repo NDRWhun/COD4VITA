@@ -1,5 +1,6 @@
 #include <universal/q_shared.h>
 #include "r_light.h"
+#include "r_shadowcookie.h"
 #include <qcommon/qcommon.h>
 #include <universal/com_files.h>
 #include <universal/com_memory.h>
@@ -261,10 +262,6 @@ void __cdecl R_GetBspLightSurfs(const GfxLight **visibleLights, int visibleCount
     }
 }
 
-BOOL __cdecl R_SortBspShadowReceiverSurfaces(GfxSurface *surface0, GfxSurface *surface1)
-{
-    return surface0 < surface1;
-}
 
 void __cdecl R_GetBspOmniLightSurfs(const GfxLight *light, int lightIndex, GfxBspDrawSurfData *surfData)
 {

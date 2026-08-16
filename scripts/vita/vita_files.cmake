@@ -1,15 +1,34 @@
 set(VITA_PLATFORM
+    "${SRC_DIR}/vita/platform/vita_errorscreen.cpp"
+    "${SRC_DIR}/vita/platform/vita_errorscreen.h"
     "${SRC_DIR}/vita/platform/vita_files.cpp"
     "${SRC_DIR}/vita/platform/vita_files.h"
+    "${SRC_DIR}/vita/platform/vita_globals.cpp"
+    "${SRC_DIR}/vita/platform/vita_main.cpp"
     "${SRC_DIR}/vita/platform/vita_memory.cpp"
     "${SRC_DIR}/vita/platform/vita_memory.h"
+    "${SRC_DIR}/vita/platform/vita_net.cpp"
     "${SRC_DIR}/vita/platform/vita_prefix.h"
     "${SRC_DIR}/vita/platform/vita_selftest.cpp"
     "${SRC_DIR}/vita/platform/vita_selftest.h"
     "${SRC_DIR}/vita/platform/vita_sys.cpp"
     "${SRC_DIR}/vita/platform/vita_sys.h"
+    "${SRC_DIR}/vita/platform/vita_system.cpp"
+    "${SRC_DIR}/vita/platform/vita_system.h"
     "${SRC_DIR}/vita/platform/vita_threads.cpp"
     "${SRC_DIR}/vita/platform/vita_threads.h"
+)
+
+# the Miles and OpenAL backends stay out; snd_vita/snd_driver_vita replace both halves
+set(VITA_SOUND
+    "${SRC_DIR}/sound/snd.cpp"
+    "${SRC_DIR}/sound/snd_driver_load_obj.cpp"
+    "${SRC_DIR}/sound/snd_driver_vita.cpp"
+    "${SRC_DIR}/sound/snd_local.h"
+    "${SRC_DIR}/sound/snd_public.h"
+    "${SRC_DIR}/sound/snd_utils.cpp"
+    "${SRC_DIR}/sound/snd_vita.cpp"
+    "${SRC_DIR}/sound/snd_vita.h"
 )
 
 set(VITA_GXM
@@ -54,6 +73,8 @@ set(VITA_GXM
 set(VITA_INPUT
     "${SRC_DIR}/vita/input/vita_input.cpp"
     "${SRC_DIR}/vita/input/vita_input.h"
+    "${SRC_DIR}/vita/input/vita_input_engine.cpp"
+    "${SRC_DIR}/vita/input/vita_livestorage.cpp"
 )
 
 # maketree.c defines main(), which collides with newlib's crt0

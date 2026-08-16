@@ -16,6 +16,7 @@ include(${PLATFORM_DIR}/${KISAK_PLATFORM}/platform.cmake)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 # excluded: WIN32_SRC, SOUND, SOUND_BACKEND, BINKLIB, MSSLIB, SPEEX, STEAM_HEADERS, src/radiant
+# src/sound comes in through VITA_SOUND instead, minus the Miles and OpenAL backends
 add_executable(${PROJECT_NAME}
     ${SRCROOT}
     ${AIM_ASSIST}
@@ -44,6 +45,7 @@ add_executable(${PROJECT_NAME}
     ${VITA_PLATFORM}
     ${VITA_GXM}
     ${VITA_INPUT}
+    ${VITA_SOUND}
 )
 
 # CINEMA stays off: deps/binklib is not linked here
@@ -56,7 +58,11 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:-include;${SRC_DIR}/vita/platform/vita_prefix.h>"
 )
 
-target_link_libraries(${PROJECT_NAME} ${VITA_STUB_LIBS})
+# dr_wav/dr_mp3 generate their implementations in this one translation unit
+set_source_files_properties(${SRC_DIR}/sound/snd_driver_load_obj.cpp PROPERTIES
+    COMPILE_DEFINITIONS "DR_WAV_IMPLEMENTATION;DR_MP3_IMPLEMENTATION")
+
+target_link_libraries(${PROJECT_NAME} ${VITA_STUB_LIBS} SceAudio_stub)
 
 add_dependencies(${PROJECT_NAME} update_build_number)
 

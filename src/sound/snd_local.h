@@ -50,7 +50,7 @@ struct snd_save_stream_t // sizeof=0x20
     float org[3];                       // ...
 };
 
-#ifndef KISAK_OPENAL
+#if !defined(KISAK_OPENAL) && !defined(KISAK_VITA)
 // Miles' file-callback bridge (see MSS_File*Callback in snd_mss.cpp). The OpenAL path reads
 // directly via FS_Read when refilling stream buffers, so it has no equivalent bookkeeping.
 struct MssFileHandle // sizeof=0x9C
@@ -99,7 +99,20 @@ typedef uintptr_t UINTa;
 #define FAR
 #endif
 
-#ifndef KISAK_OPENAL
+#if defined(KISAK_VITA)
+// sceAudio has no driver-side voice objects at all: snd_vita.cpp owns the software mixer and
+// keys every voice by the same 0-52 channel index g_snd.chaninfo[] uses, so nothing but the
+// shared EQ band data needs storing here.
+struct VitaLocal
+{
+    MssEqInfo eq[2];
+    uint32_t eqFilter;
+#ifndef KISAK_XBOX
+    float eqLerp;
+#endif
+    bool isMultiChannel;
+};
+#elif !defined(KISAK_OPENAL)
 typedef struct _SAMPLE FAR *HSAMPLE;           // Handle to sample
 
 struct MssLocal // sizeof=0x26D0
@@ -236,7 +249,7 @@ void SND_SetEqLerp(float lerp);
 // Function names keep their historical MSS_ prefix even on the OpenAL side, so that shared
 // callers (snd.cpp, snd_driver.cpp) can call them without their own #ifdef KISAK_OPENAL -
 // only one of snd_mss.cpp/snd_al.cpp is compiled for a given build, and it provides the body.
-#ifndef KISAK_OPENAL
+#if !defined(KISAK_OPENAL) && !defined(KISAK_VITA)
 // Miles routes all its file I/O (including stream reads) through these callbacks, bridged
 // to FS_* in snd_mss.cpp. OpenAL has no equivalent hook; its streaming path (added in a later
 // phase) calls FS_Read directly when refilling buffers, so these have no OpenAL counterpart.
@@ -255,13 +268,15 @@ bool __cdecl MSS_Startup();
 void MSS_ShutdownCleanup();
 float MSS_GetDryLevel();
 float MSS_GetWetLevel(const snd_alias_t *pAlias);
-#ifndef KISAK_OPENAL
+#if defined(KISAK_VITA)
+void __cdecl MSS_ApplyEqFilter(int index, int entchannel);
+#elif !defined(KISAK_OPENAL)
 void __cdecl MSS_ApplyEqFilter(_SAMPLE *s, int entchannel);
 #else
 void __cdecl MSS_ApplyEqFilter(ALuint source, int entchannel);
 #endif
 void __cdecl MSS_ResumeSample(int i, int frametime);
-#ifndef KISAK_OPENAL
+#if !defined(KISAK_OPENAL) && !defined(KISAK_VITA)
 _DIG_DRIVER *__cdecl MSS_GetDriver();
 #endif
 int __cdecl MSS_DigitalFormatType(int waveFormat, int bits, int channels);
@@ -270,7 +285,9 @@ uint8_t *__cdecl MSS_Alloc_LoadObj(uint32_t bytes, uint32_t rate);
 uint32_t *__cdecl MSS_Alloc_FastFile(int bytes);
 
 
-#ifndef KISAK_OPENAL
+#if defined(KISAK_VITA)
+extern VitaLocal vitaGlob;
+#elif !defined(KISAK_OPENAL)
 extern MssLocal milesGlob;
 #else
 extern AlLocal alGlob;
