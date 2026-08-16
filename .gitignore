@@ -443,3 +443,8 @@ sce_sys/livearea/contents/startup.png
 
 # generated from the DirectX SDK headers by scripts/vita/gen_d3d9_shim.py
 src/gfx_d3d/d3d9_shim.h
+
+# out-of-source vita build trees
+build-vita/
+build-ci/
+build-verify/
