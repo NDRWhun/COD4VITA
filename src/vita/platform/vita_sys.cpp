@@ -58,11 +58,8 @@ void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect)
     if (!(type & (MEM_RESERVE | MEM_COMMIT)))
         return NULL;
 
-    // the arena rather than malloc; the hunk is larger than the heap
-    void *memory = VitaMem_Alloc(VITA_MEM_MAIN, (uint32_t)size, 16);
-    if (memory)
-        memset(memory, 0, (size_t)size);   // Win32 zero-fills committed pages
-    return memory;
+    // calloc, as the vitaGL build did: Win32 zero-fills committed pages
+    return calloc(1, (size_t)size);
 }
 
 BOOL VirtualFree(void *address, SIZE_T size, DWORD type)
@@ -73,7 +70,7 @@ BOOL VirtualFree(void *address, SIZE_T size, DWORD type)
     if (!(type & MEM_RELEASE))
         return 1;
 
-    VitaMem_Free(address);
+    free(address);
     return 1;
 }
 

@@ -3,9 +3,9 @@
 #include <gfx_d3d/r_cinematic.h>
 #include <gfx_d3d/r_dvars.h>
 
-// malloc here serves only stdio and the GXM host allocations
+// the engine hunk comes from this heap, as it did in the vitaGL build
 extern "C" {
-unsigned int _newlib_heap_size_user = 48 * 1024 * 1024;
+unsigned int _newlib_heap_size_user = 256 * 1024 * 1024;
 }
 
 // storage only; R_RegisterDvars in r_dvars.cpp still assigns all three
