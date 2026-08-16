@@ -16,6 +16,8 @@ int lastAssertType;
 
 void(__cdecl* AssertCallback)(const char*);
 
+// the clipboard dialog, PE .map symbolication and x86 ebp stack walk have no ARM equivalent
+#ifndef KISAK_VITA
 BOOL CopyMessageToClipboard()
 {
     HWND DesktopWindow; // eax
@@ -643,6 +645,7 @@ void __cdecl FixWindowsDesktop()
     SetDeviceGammaRamp(hdc, ramp);
     ReleaseDC(hwndDesktop, hdc);
 }
+#endif
 
 bool __cdecl QuitOnError();
 void MyAssertHandler(const char *filename, int line, int type, const char *fmt, ...)

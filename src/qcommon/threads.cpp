@@ -122,7 +122,13 @@ void __cdecl Sys_InitMainThread()
     threadId[THREAD_CONTEXT_MAIN] = Sys_GetCurrentThreadId();
     process = GetCurrentProcess();
     pseudoHandle = GetCurrentThread();
+#ifdef KISAK_VITA
+    // GetCurrentThread already yields a real handle here
+    (void)process;
+    threadHandle[THREAD_CONTEXT_MAIN] = pseudoHandle;
+#else
     DuplicateHandle(process, pseudoHandle, process, threadHandle, 0, 0, 2);
+#endif
     Win_InitThreads();
     //*(uint32_t*)(*((uint32_t*)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 4) = g_threadValues;
     g_threadLocals = g_threadValues[THREAD_CONTEXT_MAIN];
@@ -207,11 +213,16 @@ void __cdecl SetThreadName(uint32_t threadId, const char* threadName)
     TracyCSetThreadName(threadName);
 #endif
 
+#ifdef KISAK_VITA
+    // the MS_VC_EXCEPTION naming protocol is a Visual Studio debugger convention
+    (void)info;
+#else
     __try {
         RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
     }
+#endif
 }
 
 uint32_t __stdcall Sys_ThreadMain(ThreadContext_t threadContext)
