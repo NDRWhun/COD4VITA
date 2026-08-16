@@ -88,14 +88,6 @@ void(__cdecl *DB_XAssetSetNameHandler[33])(XAssetHeader *, const char *) =
 };
 
 // KISAKTODO: make these non-fixed
-// --- file-local forward declarations (moved out of database.h) ---
-static void __cdecl DB_StringTableSetName(XAssetHeader *header, const char *name);
-static const char*__cdecl DB_ImageGetName(const XAssetHeader *header);
-static void __cdecl DB_ImageSetName(XAssetHeader *header, const char *name);
-static const char *__cdecl DB_StringTableGetName(const XAssetHeader *header);
-static const char *__cdecl DB_LocalizeEntryGetName(const XAssetHeader *header);
-static void __cdecl DB_LocalizeEntrySetName(XAssetHeader *header, const char *name);
-
 int32_t __cdecl DB_SizeofXAsset_RawFile_()
 {
     return sizeof(RawFile);
