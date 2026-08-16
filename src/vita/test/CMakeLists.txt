@@ -63,6 +63,9 @@ configure_file(
   ${CMAKE_BINARY_DIR}/generated/livearea/template.xml
   @ONLY)
 
+# without ATTRIBUTE2 the system ignores the livearea files and shows the default gate
+set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
+
 set(LIVEAREA_FILES
   FILE ${SCE_SYS}/icon0.png sce_sys/icon0.png
   FILE ${SCE_SYS}/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
