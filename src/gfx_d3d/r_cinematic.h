@@ -72,8 +72,10 @@ struct CinematicGlob // sizeof=0x7AC
     // padding byte
     // padding byte
     // padding byte
+#ifndef KISAK_VITA
     BINK *bink;                         // ...
     BINKTEXTURESET binkTextureSet;      // ...
+#endif
     CinematicHunk masterHunk;           // ...
     CinematicHunk binkHunk;             // ...
     CinematicHunk residentHunk;         // ...
@@ -112,7 +114,9 @@ void __cdecl CinematicHunk_Close(CinematicHunk *hunk);
 char __cdecl R_Cinematic_Advance();
 uint32_t __cdecl R_Cinematic_GetPercentageFull();
 void R_Cinematic_SeizeIO();
+#ifndef KISAK_VITA
 void __cdecl R_Cinematic_UpdateTimeInMsec(const BINKREALTIME *binkRealtime);
+#endif
 void R_Cinematic_StopPlayback_Now();
 void __cdecl CinematicHunk_Reset(CinematicHunk *hunk);
 char __cdecl R_Cinematic_StartPlayback_Now(const char *filename, uint32_t playbackFlags);
