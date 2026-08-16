@@ -1,4 +1,5 @@
 #include "gxm_memory.h"
+#include <vita/platform/vita_system.h>
 
 #include <psp2/kernel/sysmem.h>
 
@@ -35,7 +36,9 @@ static bool GxmMem_Reserve(GxmAlloc *out, uint32_t size, GxmMemDomain domain)
 
     memset(out, 0, sizeof(*out));
 
+    VitaSys_Breadcrumb("GxmMem: AllocMemBlock domain=%d size=%u", (int)domain, aligned);
     SceUID uid = sceKernelAllocMemBlock("gxm", GxmMem_BlockType(domain), aligned, NULL);
+    VitaSys_Breadcrumb("GxmMem: AllocMemBlock uid=0x%08x", (unsigned)uid);
     if (uid < 0)
         return false;
 
@@ -45,6 +48,7 @@ static bool GxmMem_Reserve(GxmAlloc *out, uint32_t size, GxmMemDomain domain)
         sceKernelFreeMemBlock(uid);
         return false;
     }
+    VitaSys_Breadcrumb("GxmMem: base=%p, mapping", base);
 
     out->uid = uid;
     out->base = base;
@@ -70,6 +74,7 @@ bool GxmMem_Alloc(GxmAlloc *out, uint32_t size, GxmMemDomain domain, uint32_t gp
         return false;
 
     // the ORed attribute flags are an int in C++; libgxm declares the parameter as the enum
+    VitaSys_Breadcrumb("GxmMem: sceGxmMapMemory %u", out->size);
     if (sceGxmMapMemory(out->base, out->size, (SceGxmMemoryAttribFlags)gpuAttr) < 0)
     {
         GxmMem_Release(out);

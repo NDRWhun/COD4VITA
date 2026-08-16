@@ -3,9 +3,10 @@
 #include <gfx_d3d/r_cinematic.h>
 #include <gfx_d3d/r_dvars.h>
 
-// the engine heap; without this the app gets VitaSDK's small default and every malloc path starves
+// malloc only serves stdio and the GXM host allocations here; the engine hunk comes from memblocks,
+// so the heap stays small and leaves the rest of user memory for sceKernelAllocMemBlock
 extern "C" {
-unsigned int _newlib_heap_size_user = 192 * 1024 * 1024;
+unsigned int _newlib_heap_size_user = 48 * 1024 * 1024;
 }
 
 // storage only; R_RegisterDvars in r_dvars.cpp still assigns all three

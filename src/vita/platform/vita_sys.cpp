@@ -57,8 +57,11 @@ void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect)
     if (!(type & (MEM_RESERVE | MEM_COMMIT)))
         return NULL;
 
-    // calloc, not the arena: Win32 zero-fills committed pages and the engine relies on it
-    return calloc(1, (size_t)size);
+    // the arena, so the engine hunk comes from memblocks rather than the small malloc heap
+    void *memory = VitaMem_Alloc(VITA_MEM_MAIN, (uint32_t)size, 16);
+    if (memory)
+        memset(memory, 0, (size_t)size);   // Win32 zero-fills committed pages
+    return memory;
 }
 
 BOOL VirtualFree(void *address, SIZE_T size, DWORD type)
@@ -69,7 +72,7 @@ BOOL VirtualFree(void *address, SIZE_T size, DWORD type)
     if (!(type & MEM_RELEASE))
         return 1;
 
-    free(address);
+    VitaMem_Free(address);
     return 1;
 }
 
