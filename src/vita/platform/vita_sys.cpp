@@ -56,7 +56,11 @@ void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect)
     if (!(type & (MEM_RESERVE | MEM_COMMIT)))
         return NULL;
 
-    return VitaMem_Alloc(VITA_MEM_MAIN, (uint32_t)size, 16);
+    // Win32 zero-fills committed pages and the engine relies on it
+    void *memory = VitaMem_Alloc(VITA_MEM_MAIN, (uint32_t)size, 16);
+    if (memory)
+        memset(memory, 0, (size_t)size);
+    return memory;
 }
 
 BOOL VirtualFree(void *address, SIZE_T size, DWORD type)
