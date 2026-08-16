@@ -9,7 +9,7 @@
 #ifdef KISAK_VITA
 #include <vita/gxm/gxm_device.h>
 #include <vita/gxm/gxm_rendertarget.h>
-#include <vita/platform/vita_system.h>
+#include <vita/platform/vita_breadcrumb.h>
 #include <vita/gxm/gxm_texture.h>
 
 // the GXM objects behind GfxRenderTargetSurface, indexed by GfxRenderTargetId

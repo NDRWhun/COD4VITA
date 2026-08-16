@@ -10,6 +10,7 @@
 #include "../gxm/gxm_device.h"
 #include "../gxm/gxm_draw.h"
 #include "../gxm/gxm_program.h"
+#include "../gxm/gxm_rendertarget.h"
 #include "../gxm/gxm_shader_archive.h"
 #include "../gxm/gxm_state.h"
 #include "../gxm/gxm_texture.h"
@@ -314,6 +315,19 @@ int main(void)
     else
     {
         SmokeLog("shader archive absent, drawing with the built-in shaders only\n");
+    }
+
+    // the engine dies creating its second render target; this reproduces that without the engine
+    {
+        GxmRenderTarget offscreen;
+        SmokeLog("offscreen: creating 960x544 A8B8G8R8\n");
+        const bool made = GxmRenderTarget_Create(&offscreen, 960, 544,
+                                                 SCE_GXM_COLOR_FORMAT_A8B8G8R8,
+                                                 SCE_GXM_TEXTURE_FORMAT_A8B8G8R8);
+        SmokeLog("offscreen: %s\n", made ? "created" : "FAILED");
+        if (made)
+            GxmRenderTarget_Free(&offscreen);
+        SmokeLog("offscreen: freed\n");
     }
 
     if (!SmokeInitResources())

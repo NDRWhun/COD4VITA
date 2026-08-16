@@ -1,5 +1,5 @@
 #include "gxm_memory.h"
-#include <vita/platform/vita_system.h>
+#include <vita/platform/vita_breadcrumb.h>
 
 #include <psp2/kernel/sysmem.h>
 

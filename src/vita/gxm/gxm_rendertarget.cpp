@@ -2,7 +2,7 @@
 #include "gxm_device.h"
 #include <psp2/kernel/sysmem.h>
 #include <vita/platform/vita_memory.h>
-#include <vita/platform/vita_system.h>
+#include <vita/platform/vita_breadcrumb.h>
 
 #include <string.h>
 
@@ -98,17 +98,13 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     VitaMemStats cd;
     VitaMem_GetStats(VITA_MEM_CDRAM, &cd);
     VitaSys_Breadcrumb("RT stats read, about to alloc %u", stride * height * 4);
-    VitaSys_LogPrintf("[rt] create %ux%u stride=%u need=%u budget=%u cdram reserved=%u used=%u largestfree=%u\n", width, height, stride, stride * height * 4, (unsigned)GXM_SCENES_PER_TARGET, cd.reserved, cd.used, cd.largestFreeRun);
     if (!GxmMem_Alloc(&rt->colorMem, stride * height * 4, GXM_MEM_CDRAM,
                       SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE))
     {
-        VitaSys_LogPrintf("[rt]   colour alloc FAILED\n");
         return false;
     }
     VitaSys_Breadcrumb("RT colour base=%p", rt->colorMem.base);
-    VitaSys_LogPrintf("[rt]   colour base=%p\n", rt->colorMem.base);
 
-    VitaSys_LogPrintf("[rt]   colorSurfaceInit\n");
     if (sceGxmColorSurfaceInit(&rt->color, colorFormat,
                                SCE_GXM_COLOR_SURFACE_LINEAR,
                                SCE_GXM_COLOR_SURFACE_SCALE_NONE,
@@ -120,7 +116,6 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     }
 
     VitaSys_Breadcrumb("RT colorSurfaceInit done");
-    VitaSys_LogPrintf("[rt]   textureInitLinearStrided\n");
     if (sceGxmTextureInitLinearStrided(&rt->texture, rt->colorMem.base, textureFormat,
                                        width, height, stride * 4) < 0)
     {
@@ -142,8 +137,6 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     unsigned int driverMemSize = 0;
     const int sized = sceGxmGetRenderTargetMemSize(&params, &driverMemSize);
     VitaSys_Breadcrumb("memSize rc=0x%08x size=%u", (unsigned)sized, driverMemSize);
-    VitaSys_LogPrintf("[rt]   memSize rc=0x%08x size=%u\n", (unsigned)sized, driverMemSize);
-    VitaSys_LogFlush();
     if (sized < 0)
     {
         GxmMem_Free(&rt->colorMem);
@@ -159,17 +152,11 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     VitaSys_Breadcrumb("free rc=0x%08x main=%u cdram=%u phycont=%u asking=%u",
                        (unsigned)freeRc, (unsigned)freeInfo.size_user,
                        (unsigned)freeInfo.size_cdram, (unsigned)freeInfo.size_phycont, aligned);
-    VitaSys_LogPrintf("[rt]   free rc=0x%08x main=%u cdram=%u phycont=%u, asking %u\n",
-                      (unsigned)freeRc, (unsigned)freeInfo.size_user,
-                      (unsigned)freeInfo.size_cdram, (unsigned)freeInfo.size_phycont, aligned);
-    VitaSys_LogFlush();
 
     VitaSys_Breadcrumb("before sceKernelAllocMemBlock %u", aligned);
     rt->driverMem = sceKernelAllocMemBlock("gxm_rendertarget",
                                            SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE, aligned, NULL);
     VitaSys_Breadcrumb("driverMem uid=0x%08x", (unsigned)rt->driverMem);
-    VitaSys_LogPrintf("[rt]   driverMem uid=0x%08x\n", (unsigned)rt->driverMem);
-    VitaSys_LogFlush();
     if (rt->driverMem < 0)
     {
         GxmMem_Free(&rt->colorMem);
@@ -180,8 +167,6 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     VitaSys_Breadcrumb("before sceGxmCreateRenderTarget");
     const int created = sceGxmCreateRenderTarget(&params, &rt->target);
     VitaSys_Breadcrumb("createRenderTarget rc=0x%08x", (unsigned)created);
-    VitaSys_LogPrintf("[rt]   createRenderTarget returned 0x%08x\n", (unsigned)created);
-    VitaSys_LogFlush();
     if (created < 0)
     {
         GxmMem_Free(&rt->colorMem);
@@ -192,7 +177,6 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     rt->height = height;
     rt->strideInPixels = stride;
     rt->sceneBudget = GXM_SCENES_PER_TARGET;
-    VitaSys_LogPrintf("[rt]   ok target=%p\n", rt->target);
     GxmRenderTarget_Register(rt);
     return true;
 }

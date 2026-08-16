@@ -30,6 +30,7 @@ add_executable(gxm_smoke
   ${VITA_ROOT}/vita/gxm/gxm_device.cpp
   ${VITA_ROOT}/vita/gxm/gxm_state.cpp
   ${VITA_ROOT}/vita/gxm/gxm_program.cpp
+  ${VITA_ROOT}/vita/gxm/gxm_rendertarget.cpp
   ${VITA_ROOT}/vita/gxm/gxm_vertex.cpp
   ${VITA_ROOT}/vita/gxm/gxm_draw.cpp
   ${VITA_ROOT}/vita/gxm/gxm_texture.cpp
@@ -39,6 +40,7 @@ add_executable(gxm_smoke
   ${VITA_ROOT}/vita/input/vita_input.cpp
   ${VITA_ROOT}/vita/platform/vita_memory.cpp
   ${VITA_ROOT}/vita/platform/vita_threads.cpp
+  ${VITA_ROOT}/vita/platform/vita_breadcrumb.cpp
   ${VITA_ROOT}/vita/platform/vita_files.cpp
   ${VITA_ROOT}/vita/platform/vita_sys.cpp
   ${VITA_ROOT}/vita/platform/vita_selftest.cpp

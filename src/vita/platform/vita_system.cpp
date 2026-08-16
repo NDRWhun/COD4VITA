@@ -30,6 +30,7 @@ extern "C" int fileno(FILE *);
 #include <universal/q_parse.h>
 #include <universal/timing.h>
 
+#include "vita_breadcrumb.h"
 #include "vita_errorscreen.h"
 #include "vita_memory.h"
 #include "../input/vita_input.h"
@@ -119,35 +120,6 @@ void VitaSys_LogPrintf(const char *format, ...)
     vsnprintf(text, sizeof(text), format, arguments);
     va_end(arguments);
     VitaSys_LogPrint(text);
-}
-
-void VitaSys_Breadcrumb(const char *format, ...)
-{
-    char text[512];
-    va_list arguments;
-
-    va_start(arguments, format);
-    const int length = vsnprintf(text, sizeof(text), format, arguments);
-    va_end(arguments);
-    if (length <= 0)
-        return;
-
-    // open/write/close per call; a buffered stream loses its tail on an abnormal exit
-    VitaSys_LogLock();
-    const SceUID file = sceIoOpen("ux0:data/kisakcod/step.txt",
-                                  SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
-    if (file >= 0)
-    {
-        sceIoWrite(file, text, (SceSize)length);
-        sceIoClose(file);
-    }
-    else if (s_log)
-    {
-        // an open failure is itself a finding
-        fprintf(s_log, "[breadcrumb] sceIoOpen failed 0x%08x for: %s\n", (unsigned)file, text);
-        fflush(s_log);
-    }
-    VitaSys_LogUnlock();
 }
 
 void VitaSys_LogFlush(void)
