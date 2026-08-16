@@ -223,9 +223,13 @@ void __cdecl R_InitFullscreenRenderTargetImage(
     }
     else if (usage == RENDERTARGET_USAGE_RENDER)
     {
+    Com_Printf(8, "  assigning shared depth-stencil\n");
         renderTarget->surface.depthStencil = R_AssignSingleSampleDepthStencilSurface();
+    Com_Printf(8, "  depth-stencil assigned\n");
     }
+    Com_Printf(8, "  tracking fullscreen texture\n");
     Image_TrackFullscreenTexture(renderTarget->image, fullscreenWidth, fullscreenHeight, picmip, format);
+    Com_Printf(8, "  render target image done\n");
 }
 
 void __cdecl R_GetFullScreenRes(FullscreenType screenType, int *fullscreenWidth, int *fullscreenHeight)
@@ -374,21 +378,25 @@ void __cdecl R_InitRenderTargetImage(
             "renderTargetId doesn't index R_RENDERTARGET_COUNT\n\t%i not in [0, %i)",
             renderTargetId,
             15);
+    Com_Printf(8, "  RT[%i] %ix%i fmt=0x%08x usage=%i: alloc image\n", renderTargetId, width, height, format, usage);
     renderTarget->image = Image_AllocProg(imageProgType, 6u, 0);
     iassert( renderTarget->image );
 #ifdef KISAK_VITA
     if (!usage)
         R_AssignImageToRenderTargetDepthStencil(&renderTarget->surface, renderTarget->image);
 
+    Com_Printf(8, "  RT[%i] image=%p, mapping format\n", renderTargetId, renderTarget->image);
     SceGxmColorFormat colorFormat;
     SceGxmTextureFormat textureFormat;
     if (!R_GxmRenderTargetFormat(format, &colorFormat, &textureFormat))
         Com_Error(ERR_FATAL, "No GXM render target format for D3D format 0x%08x\n", format);
+    Com_Printf(8, "  RT[%i] creating gxm target\n", renderTargetId);
     if (!GxmRenderTarget_Create(&s_gxmColor[renderTargetId], width, height, colorFormat, textureFormat))
         Com_Error(ERR_FATAL, "Couldn't create a %i x %i render target\n", width, height);
     s_gxmColorOwned[renderTargetId] = true;
     renderTarget->surface.color = (IDirect3DSurface9 *)&s_gxmColor[renderTargetId];
 
+    Com_Printf(8, "  RT[%i] gxm target ok, building image view\n", renderTargetId);
     // the image samples the render target's colour memory, so the view owns nothing
     s_gxmImageView[renderTargetId].texture = *GxmRenderTarget_Texture(&s_gxmColor[renderTargetId]);
     s_gxmImageView[renderTargetId].width = width;
