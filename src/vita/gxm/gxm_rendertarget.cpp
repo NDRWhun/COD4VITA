@@ -143,6 +143,14 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
         return false;
     }
 
+    // three bare writes: if these stop mid-run the logging is the failure, not the calls
+    VitaSys_LogPrintf("[rt]   probe A\n");
+    VitaSys_LogFlush();
+    VitaSys_LogPrintf("[rt]   probe B\n");
+    VitaSys_LogFlush();
+    VitaSys_LogPrintf("[rt]   probe C\n");
+    VitaSys_LogFlush();
+
     SceKernelFreeMemorySizeInfo freeInfo;
     memset(&freeInfo, 0, sizeof(freeInfo));
     freeInfo.size = sizeof(freeInfo);
