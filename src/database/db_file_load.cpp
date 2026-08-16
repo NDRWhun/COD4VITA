@@ -40,6 +40,11 @@ int32_t g_trackLoadProgress;
 
 XAssetList g_varXAssetList;
 
+#ifdef KISAK_VITA
+// DB_ReadData records a real read error here
+static int32_t g_readFailed;
+#endif
+
 // --- file-local forward declarations (moved out of database.h) ---
 static void __cdecl DB_CancelLoadXFile();
 static int32_t DB_WaitXFileStage();
@@ -70,7 +75,11 @@ int32_t DB_WaitXFileStage()
     if (g_load.outstandingReads <= 0)
         MyAssertHandler(".\\database\\db_file_load.cpp", 280, 0, "%s", "g_load.outstandingReads > 0");
     --g_load.outstandingReads;
+#ifdef KISAK_VITA
+    // the transfer already completed in DB_ReadData
+#else
     SleepEx(0xFFFFFFFF, 1);
+#endif
     result = InterlockedIncrement(&g_loadedSize);
     g_load.stream.avail_in += 0x40000;
     return result;
@@ -156,8 +165,13 @@ void DB_ReadXFileStage()
     {
         if (g_load.outstandingReads)
             MyAssertHandler(".\\database\\db_file_load.cpp", 254, 0, "%s", "!g_load.outstandingReads");
+#ifdef KISAK_VITA
+        if (!DB_ReadData() && g_readFailed)
+            Com_Error(ERR_DROP, "Read error of file '%s'", g_load.filename);
+#else
         if (!DB_ReadData() && GetLastError() != 38)
             Com_Error(ERR_DROP, "Read error of file '%s'", g_load.filename);
+#endif
     }
 }
 
@@ -173,8 +187,22 @@ int32_t __cdecl DB_ReadData()
         g_load.interrupt();
     fileBuffer = &g_load.compressBufferStart[g_load.overlapped.Offset % 0x80000];
     Sys_WaitDatabaseThread();
+#ifdef KISAK_VITA
+    DWORD transferred = 0;
+    g_readFailed = 0;
+    if (!VitaSys_ReadAt(g_load.f, fileBuffer, 0x40000u, g_load.overlapped.Offset, &transferred))
+    {
+        g_readFailed = 1;
+        return 0;
+    }
+    if (!transferred)
+        return 0;                           // past the end, which ReadFileEx reports as ERROR_HANDLE_EOF
+    // avail_in counts the whole block, so the unread tail must be zeroed
+    memset(fileBuffer + transferred, 0, 0x40000u - transferred);
+#else
     if (!ReadFileEx(g_load.f, fileBuffer, 0x40000u, &g_load.overlapped, (LPOVERLAPPED_COMPLETION_ROUTINE)DB_FileReadCompletion))
         return 0;
+#endif
     ++g_load.outstandingReads;
     g_load.overlapped.Offset += 0x40000;
     return 1;
