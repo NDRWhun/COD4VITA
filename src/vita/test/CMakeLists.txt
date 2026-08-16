@@ -11,8 +11,9 @@ endif()
 project(gxm_smoke CXX)
 include("$ENV{VITASDK}/share/vita.cmake" REQUIRED)
 
-set(VITA_APP_NAME "KisakCOD GXM smoke")
-set(VITA_TITLEID  "KCOD00001")
+set(VITA_APP_NAME "Call of Duty 4 Vita")
+# the system caches livearea per title id, so a changed layout needs a new one
+set(VITA_TITLEID  "KCOD00002")
 set(VITA_VERSION  "01.00")
 
 set(CMAKE_CXX_STANDARD 20)
