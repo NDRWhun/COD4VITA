@@ -3,6 +3,11 @@
 #include <gfx_d3d/r_cinematic.h>
 #include <gfx_d3d/r_dvars.h>
 
+// the engine heap; without this the app gets VitaSDK's small default and every malloc path starves
+extern "C" {
+unsigned int _newlib_heap_size_user = 192 * 1024 * 1024;
+}
+
 // storage only; R_RegisterDvars in r_dvars.cpp still assigns all three
 const dvar_t *vid_xpos;
 const dvar_t *vid_ypos;
