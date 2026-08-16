@@ -9,6 +9,7 @@
 #include <qcommon/qcommon.h>
 #include <universal/com_files.h>
 #include <universal/com_memory.h>
+#include <psp2/io/fcntl.h>
 #include <vita/platform/vita_memory.h>
 
 #include <dr_libs/dr_wav.h>
@@ -556,6 +557,15 @@ static int VitaSnd_StreamThreadEntry(SceSize args, void *argp)
 
 bool VitaSnd_Init(void)
 {
+    // ux0:data/kisakcod/nosound skips audio without a rebuild
+    const SceUID probe = sceIoOpen("ux0:data/kisakcod/nosound", SCE_O_RDONLY, 0);
+    if (probe >= 0)
+    {
+        sceIoClose(probe);
+        Com_Printf(9, "sound: disabled by ux0:data/kisakcod/nosound\n");
+        return false;
+    }
+
     if (s_active)
         return true;
 
