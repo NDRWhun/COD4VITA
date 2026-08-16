@@ -1,8 +1,4 @@
-// smoke test: transform a quad and pass through uv and colour
-//
-// the matrix arrives in the same c[] array the translated game shaders use, so this
-// exercises the engine's constant path rather than a special case
-
+// the matrix arrives in the same c[] array the translated game shaders use
 void main(
 	float3 position : POSITION,
 	float2 uv : TEXCOORD0,

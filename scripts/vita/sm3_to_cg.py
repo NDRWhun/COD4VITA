@@ -46,9 +46,7 @@ VOLUME_HELPER = """float4 sampleVolume(sampler2D tex, float3 uvw, float2 layout)
 """
 
 
-# GXM has no fixed-function alpha test, so each mode becomes a discard baked into a
-# variant. The engine compares 8-bit alpha against D3DRS_ALPHAREF: 0 for GT_0 and
-# 128 for the others (R_SetAlphaTestFunction).
+# alpha ref is 0 for GT_0 and 128 for the others (R_SetAlphaTestFunction)
 ALPHA_TEST_NONE, ALPHA_TEST_GT_0, ALPHA_TEST_LT_128, ALPHA_TEST_GE_128 = range(4)
 
 ALPHA_TEST_DISCARD = {

@@ -448,3 +448,10 @@ src/gfx_d3d/d3d9_shim.h
 build-vita/
 build-ci/
 build-verify/
+
+# extracted from the game and compiled from it; never redistributable
+shaders.kgxp
+*.kgxp
+*.gxp
+/corpus/
+/gxp/
