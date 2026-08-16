@@ -52,6 +52,7 @@ target_link_libraries(gxm_smoke
   SceCommonDialog_stub
   SceIme_stub
   SceKernelDmacMgr_stub
+  ScePower_stub
 )
 
 vita_create_self(gxm_smoke.self gxm_smoke UNSAFE)

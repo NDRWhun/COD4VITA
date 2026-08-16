@@ -31,4 +31,5 @@ set(VITA_STUB_LIBS
     SceCommonDialog_stub
     SceIme_stub
     SceKernelDmacMgr_stub
+    ScePower_stub
 )

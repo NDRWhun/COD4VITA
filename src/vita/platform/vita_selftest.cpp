@@ -7,6 +7,7 @@
 #include "vita_threads.h"
 
 #include <psp2/kernel/threadmgr.h>
+#include <psp2/power.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -294,4 +295,42 @@ bool VitaSelfTest_Files(char *report, uint32_t reportSize)
              (pass && clockSane) ? "PASS" : "FAIL", fastfiles, everything, directories,
              seen, clockSane ? "ok" : "BAD", elapsed);
     return pass && clockSane;
+}
+
+// highest rate the kernel accepts and reads back, walking down from the fastest
+static int ProbeClock(int (*set)(int), int (*get)(void), const int *rates, uint32_t count)
+{
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        if (set(rates[i]) >= 0 && get() == rates[i])
+            return rates[i];
+    }
+    return get();
+}
+
+bool VitaSelfTest_Clocks(char *report, uint32_t reportSize)
+{
+    const int arm[] = { 500, 444, 400, 333, 266, 222 };
+    const int bus[] = { 222, 166, 111 };
+    const int gpu[] = { 222, 166, 111 };
+    const int xbar[] = { 166, 111 };
+
+    const int wasArm = scePowerGetArmClockFrequency();
+    const int wasBus = scePowerGetBusClockFrequency();
+    const int wasGpu = scePowerGetGpuClockFrequency();
+    const int wasXbar = scePowerGetGpuXbarClockFrequency();
+
+    const int maxArm = ProbeClock(scePowerSetArmClockFrequency, scePowerGetArmClockFrequency,
+                                  arm, sizeof(arm) / sizeof(arm[0]));
+    const int maxBus = ProbeClock(scePowerSetBusClockFrequency, scePowerGetBusClockFrequency,
+                                  bus, sizeof(bus) / sizeof(bus[0]));
+    const int maxGpu = ProbeClock(scePowerSetGpuClockFrequency, scePowerGetGpuClockFrequency,
+                                  gpu, sizeof(gpu) / sizeof(gpu[0]));
+    const int maxXbar = ProbeClock(scePowerSetGpuXbarClockFrequency, scePowerGetGpuXbarClockFrequency,
+                                   xbar, sizeof(xbar) / sizeof(xbar[0]));
+
+    snprintf(report, reportSize,
+             "clocks: default arm %d bus %d gpu %d xbar %d MHz; ceiling arm %d bus %d gpu %d xbar %d MHz\n",
+             wasArm, wasBus, wasGpu, wasXbar, maxArm, maxBus, maxGpu, maxXbar);
+    return maxArm > 0;
 }

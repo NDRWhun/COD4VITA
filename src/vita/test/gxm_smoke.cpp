@@ -282,6 +282,8 @@ int main(void)
         SmokeLog("%s", report);
         VitaSelfTest_Files(report, sizeof(report));
         SmokeLog("%s", report);
+        VitaSelfTest_Clocks(report, sizeof(report));
+        SmokeLog("%s", report);
     }
     else
     {
