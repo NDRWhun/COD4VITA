@@ -37,6 +37,6 @@ void VitaSys_Breadcrumb(const char *format, ...)
     length += stamp;
     text[length++] = '\n';
 
+    // no sync here: a per-call card flush blocks long enough for the system to kill the app
     sceIoWrite(s_file, text, (SceSize)length);
-    sceIoSyncByFd(s_file, 0);
 }
