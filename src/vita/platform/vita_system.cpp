@@ -130,10 +130,18 @@ void VitaSys_LogFlush(void)
     fflush(s_log);
 }
 
+// the card is busy streaming fastfiles during boot, so a flush per line blocks long enough
+// for the system to kill the app
 static void VitaSys_LogFlushLine(void)
 {
     if (!s_log)
         return;
+
+    static uint64_t lastFlush;
+    const uint64_t now = sceKernelGetProcessTimeWide();
+    if (lastFlush && now - lastFlush < 500000ull)
+        return;
+    lastFlush = now;
     fflush(s_log);
 }
 
@@ -163,6 +171,7 @@ void VitaSys_Fatal(const char *title, const char *message)
 {
     VitaSys_LogSetLineFlush(true);
     VitaSys_LogPrintf("\n======== %s ========\n%s\n", title, message);
+    VitaSys_LogFlush();
 
     if (!VitaErrorScreen_Show(title, message, "Log: " VITA_LOG_PATH "  -  press X to quit"))
         VitaSys_LogPrint("the error screen could not take a framebuffer\n");
