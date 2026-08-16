@@ -127,7 +127,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     memset(&params, 0, sizeof(params));
     params.width = (uint16_t)width;
     params.height = (uint16_t)height;
-    params.scenesPerFrame = GXM_SCENES_PER_FRAME;
+    params.scenesPerFrame = GXM_SCENES_PER_TARGET;
     params.multisampleMode = SCE_GXM_MULTISAMPLE_NONE;
     params.driverMemBlock = -1;
 
@@ -141,6 +141,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     rt->width = width;
     rt->height = height;
     rt->strideInPixels = stride;
+    rt->sceneBudget = GXM_SCENES_PER_TARGET;
     VitaSys_LogPrintf("[rt]   ok target=%p\n", rt->target);
     GxmRenderTarget_Register(rt);
     return true;
@@ -228,7 +229,7 @@ bool GxmRenderTarget_Begin(GxmRenderTarget *rt)
     if (!rt->target)
         return false;
 
-    if (++rt->sceneCount > GXM_SCENES_PER_FRAME)
+    if (++rt->sceneCount > (rt->sceneBudget ? rt->sceneBudget : GXM_SCENES_PER_FRAME))
         ++s_overflowedScenes;
 
     SceGxmSyncObject *sync = rt->isDisplay ? GxmDevice_BackBufferSync() : NULL;
