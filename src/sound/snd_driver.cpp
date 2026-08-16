@@ -5,7 +5,8 @@
 #include "snd_public.h"
 #include <qcommon/mem_track.h>
 #ifndef KISAK_VITA
-#endif
+#include <msslib/mss.h>
+#endif
 #include <qcommon/qcommon.h>
 #include <universal/com_files.h>
 #include <gfx_d3d/r_cinematic.h>

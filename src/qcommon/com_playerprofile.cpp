@@ -25,7 +25,7 @@ int __cdecl Com_BuildPlayerProfilePath_Internal(
     int pathSize,
     const char *playerName,
     const char *format,
-    char *vargs)
+    va_list vargs)
 {
     int totalLength; // [esp+0h] [ebp-Ch]
     int totalLengtha; // [esp+0h] [ebp-Ch]

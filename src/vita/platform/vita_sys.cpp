@@ -66,6 +66,24 @@ BOOL VirtualFree(void *address, SIZE_T size, DWORD type)
 
 }
 
+extern "C" {
+
+HWND GetActiveWindow(void)
+{
+    return (HWND)1;         // non-null, since the engine only tests it for focus
+}
+
+BOOL MessageBoxA(HWND owner, const char *text, const char *caption, unsigned int type)
+{
+    (void)owner;
+    (void)text;
+    (void)caption;
+    (void)type;
+    return 0;
+}
+
+}
+
 unsigned int VitaSys_Milliseconds(void)
 {
     static unsigned long long base;

@@ -15,6 +15,10 @@ BOOL QueryPerformanceFrequency(LARGE_INTEGER *frequency);
 void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect);
 BOOL VirtualFree(void *address, SIZE_T size, DWORD type);
 
+// there is one window and it is always active
+HWND GetActiveWindow(void);
+BOOL MessageBoxA(HWND owner, const char *text, const char *caption, unsigned int type);
+
 }
 
 unsigned int VitaSys_Milliseconds(void);

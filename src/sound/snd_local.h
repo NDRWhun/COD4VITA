@@ -2,7 +2,8 @@
 
 #ifndef KISAK_OPENAL
 #ifndef KISAK_VITA
-#endif
+#include <msslib/mss.h>
+#endif
 #else
 #ifndef KISAK_VITA
 #include <AL/al.h>
