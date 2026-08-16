@@ -8,6 +8,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+// newlib hides fileno under -std=c++20, but the symbol is in the library
+extern "C" int fileno(FILE *);
 #include <sys/stat.h>
 
 #include <universal/q_shared.h>
@@ -94,8 +97,6 @@ void VitaSys_LogFlush(void)
     if (!s_log)
         return;
     fflush(s_log);
-    // newlib hides fileno under -std=c++20, but the symbol is there
-    extern "C" int fileno(FILE *);
     // fflush only leaves libc; the filesystem cache still loses the tail on an abnormal exit
     const int descriptor = fileno(s_log);
     if (descriptor >= 0)
