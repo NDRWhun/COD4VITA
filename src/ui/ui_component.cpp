@@ -1304,7 +1304,9 @@ void __thiscall Scr_ScriptWatch::SortHitBreakpointsTop()
     if (Sys_IsRemoteDebugClient())
     {
         scrDebuggerGlob.gainFocusTime = Sys_Milliseconds() + 500;
+#ifndef KISAK_VITA
         SetForegroundWindow(g_wv.hWnd);
+#endif
     }
     scrDebuggerGlob.atBreakpoint = 1;
     hitBreakpoint = 0;

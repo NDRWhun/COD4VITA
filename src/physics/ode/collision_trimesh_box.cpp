@@ -41,7 +41,9 @@
 #include <universal/q_shared.h> // va()
 #include "collision_trimesh_KISAK.h"
 
+#ifndef KISAK_VITA
 #include <Windows.h>
+#endif
 #include <universal/com_math.h>
 #include "collision_kernel.h"
 

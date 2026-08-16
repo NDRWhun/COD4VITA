@@ -1020,7 +1020,7 @@ static void __cdecl FX_EmitMarkTri(
         index.value[0] = *indices + baseVertex;
         index.value[1] = indices[1] + baseVertex;
         pIndex = (r_double_index_t *)&outSurf->indices[outSurf->indexCount];
-        if (((uint8_t)pIndex & 3) != 0)
+        if (((uintptr_t)pIndex & 3) != 0)
             MyAssertHandler(".\\EffectsCore\\fx_marks.cpp", 1255, 0, "%s", "!((uint)pIndex & 3)");
         *pIndex = index;
         marksSystem->hasCarryIndex = 1;

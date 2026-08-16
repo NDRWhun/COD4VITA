@@ -382,8 +382,13 @@ char **__cdecl Sys_ListFiles(
 char cwd[256];
 char *__cdecl Sys_Cwd()
 {
+#ifdef KISAK_VITA
+    // the Vita has no working directory, and this value seeds fs_basepath
+    I_strncpyz(cwd, "ux0:data/kisakcod", sizeof(cwd));
+#else
     _getcwd(cwd, 255);
     cwd[255] = 0;
+#endif
     return cwd;
 }
 
@@ -401,6 +406,9 @@ char *__cdecl Sys_DefaultInstallPath()
 
     if (!exePath[0])
     {
+#ifdef KISAK_VITA
+        I_strncpyz(exePath, Sys_Cwd(), 256);
+#else
         if (IsDebuggerPresent())
         {
             v0 = Sys_Cwd();
@@ -416,6 +424,7 @@ char *__cdecl Sys_DefaultInstallPath()
                 --len;
             exePath[len] = 0;
         }
+#endif
     }
     return exePath;
 }

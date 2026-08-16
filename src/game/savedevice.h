@@ -8,6 +8,9 @@
 static const char *CONSOLE_DEFAULT_SAVE_NAME = "savegame.svg";
 #endif
 
+// server.h gives the enum a fixed underlying type, so an opaque declaration is legal here
+enum SaveType : __int32;
+
 void __cdecl Memcard_InitializeSystem(void);
 void __cdecl SaveDevice_Init(void);
 void __cdecl SV_DisplaySaveErrorUI(void);

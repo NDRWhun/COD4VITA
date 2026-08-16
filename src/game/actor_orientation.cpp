@@ -250,7 +250,7 @@ void __cdecl Actor_SetAnglesToLikelyEnemyPath(actor_s *self)
     }
 }
 
-const pathnode_t *__cdecl Actor_GetAnglesToLikelyEnemyPath(actor_s *self)
+bool __cdecl Actor_GetAnglesToLikelyEnemyPath(actor_s *self)
 {
     sentient_s *sentient; // r11
     const pathnode_t *result; // r3
@@ -358,7 +358,7 @@ void __cdecl Actor_FaceLikelyEnemyPath(actor_s *self, ai_orient_t *pOrient)
 
     if (self->faceLikelyEnemyPathNeedCheckTime <= level.time)
     {
-        if ((unsigned __int8)Actor_GetAnglesToLikelyEnemyPath(self))
+        if (Actor_GetAnglesToLikelyEnemyPath(self))
         {
             Actor_SetDesiredAngles(pOrient, self->anglesToLikelyEnemyPath[0], self->anglesToLikelyEnemyPath[1]);
         }

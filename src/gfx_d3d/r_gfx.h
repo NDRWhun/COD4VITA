@@ -386,7 +386,7 @@ struct GfxWorldDpvsStatic // sizeof=0x68
 };
 static_assert(sizeof(GfxWorldDpvsStatic) == 0x68);
 
-using EntVisData = byte *[3];
+using EntVisData = uint8_t *[3];
 
 struct GfxWorldDpvsDynamic // sizeof=0x30
 {                                       // ...

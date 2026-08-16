@@ -43,6 +43,7 @@ BOOL DeleteFileA(const char *path);
 
 DWORD GetLastError(void);
 HANDLE GetCurrentProcess(void);
+BOOL GetProcessAffinityMask(HANDLE process, DWORD_PTR *processMask, DWORD_PTR *systemMask);
 HANDLE GetCurrentThread(void);
 HWND GetDesktopWindow(void);
 

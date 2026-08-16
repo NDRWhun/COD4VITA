@@ -207,6 +207,18 @@ DWORD GetFileSize(HANDLE file, DWORD *sizeHigh)
     return (DWORD)size.QuadPart;
 }
 
+BOOL GetProcessAffinityMask(HANDLE process, DWORD_PTR *processMask, DWORD_PTR *systemMask)
+{
+    (void)process;
+    // one bit per user CPU, which is what the caller walks to build its per-thread masks
+    const DWORD_PTR mask = (DWORD_PTR)((1u << VitaThreads_CpuCount()) - 1u);
+    if (processMask)
+        *processMask = mask;
+    if (systemMask)
+        *systemMask = mask;
+    return 1;
+}
+
 DWORD GetLastError(void)
 {
     return (DWORD)errno;

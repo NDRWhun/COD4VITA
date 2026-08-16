@@ -1880,7 +1880,7 @@ int __cdecl G_SaveFreeEntities(unsigned __int8 *buf)
         {
             if (buf)
             {
-                *v4 = (unsigned __int8)firstFreeEnt->nextFree;
+                *v4 = LOBYTE(firstFreeEnt->nextFree);
                 v4[1] = BYTE1(firstFreeEnt->nextFree);
                 v4[2] = BYTE2(firstFreeEnt->nextFree);
                 v4[3] = HIBYTE(firstFreeEnt->nextFree);

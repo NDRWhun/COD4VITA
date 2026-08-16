@@ -1124,7 +1124,6 @@ int __cdecl PC_ExpandBuiltinDefine(
         strncat(token->string, curtime + 4, 7u);
         strncat(&token->string[7], curtime + 20, 4u);
         strcat(token->string, "\"");
-        free(curtime);
         token->type = 4;
         goto LABEL_8;
     case 4:
@@ -1133,7 +1132,6 @@ int __cdecl PC_ExpandBuiltinDefine(
         strcpy(token->string, "\"");
         strncat(token->string, curtime + 11, 8u);
         strcat(token->string, "\"");
-        free(curtime);
         token->type = 4;
     LABEL_8:
         token->subtype = strlen(token->string);

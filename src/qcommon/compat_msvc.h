@@ -20,6 +20,7 @@
 // deps/ode/common.h routes alloca through _alloca
 #define _alloca __builtin_alloca
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,8 +40,16 @@
 static inline long long _time64(long long *t) { const time_t v = time(0); if (t) *t = v; return v; }
 static inline struct tm *_localtime64(const long long *t) { time_t v = (time_t)*t; return localtime(&v); }
 
+static inline char *_ctime64(const long long *t) { time_t v = (time_t)*t; return ctime(&v); }
+
 // newlib hides strdup under -std=c++20
 static inline char *_strdup(const char *s) { const size_t n = strlen(s) + 1; char *p = (char *)malloc(n); if (p) memcpy(p, s, n); return p; }
+
+#define _isnan(x) isnan(x)
+
+// the bound comes from the destination array, as the MSVC template overload deduced it
+#define strcpy_s(destination, source) ((void)snprintf((destination), sizeof(destination), "%s", (source)))
+#define sprintf_s(destination, count, ...) snprintf((destination), (count), __VA_ARGS__)
 
 #define _itoa(value, buffer, radix) \
     ((void)(radix), sprintf((buffer), "%d", (int)(value)), (buffer))

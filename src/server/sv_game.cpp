@@ -521,10 +521,6 @@ void __cdecl SV_CheckLoadLevel(SaveGame *save)
     Hunk_CheckTempMemoryHighClear();
 }
 
-static void SV_FreeReliableCommandsForClient(client_t *cl)
-{
-    Com_Memset(&cl->reliableCommands, 0, 12);
-}
 static void SV_ShutdownGameVM(int clearScripts)
 {
     iassert(Sys_IsMainThread());
