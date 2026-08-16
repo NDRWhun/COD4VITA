@@ -102,6 +102,10 @@ struct Image_MemUsage // sizeof=0xC
 // for the editor and overflows the table -> the linear probe spins forever while scrolling.
 #define IMAGE_HASH_TABLE_SIZE 0x8000   // 32768 (idb & 0x7FFF)
 #define IMAGE_HASH_TABLE_MASK 0x7FFF
+#elif defined(KISAK_VITA)
+// the common fastfile alone registers more images than 2048, and the probe below is unbounded
+#define IMAGE_HASH_TABLE_SIZE 0x8000
+#define IMAGE_HASH_TABLE_MASK 0x7FFF
 #else
 #define IMAGE_HASH_TABLE_SIZE 2048 // lwss add
 #define IMAGE_HASH_TABLE_MASK 0x7FF

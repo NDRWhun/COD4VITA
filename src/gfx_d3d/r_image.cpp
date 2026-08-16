@@ -627,12 +627,25 @@ int __cdecl Image_GetAvailableHashLocation(const char *name)
     int hashIndex; // [esp+0h] [ebp-4h]
 
     // idb Image_Alloc @0x5128b0: `& 0x7FFF` (editor 32768-slot table). See IMAGE_HASH_TABLE_MASK.
+#ifdef KISAK_VITA
+    // a full table would otherwise spin here forever, which reads as a hang rather than an error
+    int probes = 0;
+    for (hashIndex = R_HashAssetName(name) & IMAGE_HASH_TABLE_MASK;
+        imageGlobals.imageHashTable[hashIndex];
+        hashIndex = ((_WORD)hashIndex + 1) & IMAGE_HASH_TABLE_MASK)
+    {
+        if (++probes >= IMAGE_HASH_TABLE_SIZE)
+            Com_Error(ERR_FATAL, "Image hash table full at %i entries, adding '%s'\n",
+                      IMAGE_HASH_TABLE_SIZE, name);
+    }
+#else
     for (hashIndex = R_HashAssetName(name) & IMAGE_HASH_TABLE_MASK;
         imageGlobals.imageHashTable[hashIndex];
         hashIndex = ((_WORD)hashIndex + 1) & IMAGE_HASH_TABLE_MASK)
     {
         ;
     }
+#endif
     return hashIndex;
 }
 GfxImage *__cdecl Image_Alloc(
