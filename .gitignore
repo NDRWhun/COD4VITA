@@ -435,3 +435,11 @@ radiant_artifacts/
 
 # vita smoke test build output
 src/vita/test/build*/
+
+# generated from the user's own artwork; not redistributable
+sce_sys/icon0.png
+sce_sys/livearea/contents/bg.png
+sce_sys/livearea/contents/startup.png
+
+# generated from the DirectX SDK headers by scripts/vita/gen_d3d9_shim.py
+src/gfx_d3d/d3d9_shim.h
