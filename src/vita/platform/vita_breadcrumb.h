@@ -2,3 +2,6 @@
 #pragma once
 
 void VitaSys_Breadcrumb(const char *format, ...);
+
+// truncates the trail, so each run leaves only its own
+void VitaSys_BreadcrumbReset(void);

@@ -15,6 +15,7 @@
 
 #include "vita_memory.h"
 #include "vita_selftest.h"
+#include "vita_breadcrumb.h"
 #include "vita_system.h"
 #include "vita_threads.h"
 
@@ -58,6 +59,7 @@ static void VitaMain_RunSelfTests(void)
 int main(void)
 {
     VitaSys_LogOpen(VITA_LOG_PATH);
+    VitaSys_BreadcrumbReset();
     VitaSys_LogPrintf("KisakCOD single player, Vita, built %s %s\n", __DATE__, __TIME__);
 
     if (!VitaMem_Init())
