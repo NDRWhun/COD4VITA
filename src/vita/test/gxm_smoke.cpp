@@ -329,6 +329,9 @@ int main(void)
              GxmTexture_BytesResident(), cdram.reserved / 1024, cdram.used / 1024,
              cdram.liveAllocations);
 
+    // two seconds at vsync, so even a brief run leaves a timing sample
+    const uint32_t REPORT_FRAMES = 120;
+
     float spin = 0.0f;
     bool firstDrawLogged = false;
 
@@ -361,12 +364,12 @@ int main(void)
             SmokeLog("first frame: draw %s\n", drew ? "submitted" : "REJECTED");
             firstDrawLogged = true;
         }
-        else if ((GxmDevice_FrameIndex() % 600) == 0)
+        else if ((GxmDevice_FrameIndex() % REPORT_FRAMES) == 0)
         {
             // the display callback waits on vsync, so 16667 us average means locked not saturated
             const uint32_t windowUs = (uint32_t)(now - windowStart);
             SmokeLog("frame %u, %u draws, avg %u us, best %u us, worst %u us over %u ms\n",
-                     GxmDevice_FrameIndex(), GxmDraw_DrawCount(), windowUs / 600,
+                     GxmDevice_FrameIndex(), GxmDraw_DrawCount(), windowUs / REPORT_FRAMES,
                      bestUs, worstUs, windowUs / 1000);
             windowStart = now;
             worstUs = 0;
