@@ -1,5 +1,7 @@
 #include "gxm_rendertarget.h"
 #include "gxm_device.h"
+#include <vita/platform/vita_memory.h>
+#include <vita/platform/vita_system.h>
 
 #include <string.h>
 
@@ -90,10 +92,19 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     // colour surfaces stride in multiples of 8 pixels
     const uint32_t stride = (width + 7) & ~7u;
 
+    VitaMemStats cd;
+    VitaMem_GetStats(VITA_MEM_CDRAM, &cd);
+    VitaSys_LogPrintf("[rt] create %ux%u stride=%u need=%u cdram reserved=%u used=%u largestfree=%u\n", width, height, stride, stride * height * 4, cd.reserved, cd.used, cd.largestFreeRun);
     if (!GxmMem_Alloc(&rt->colorMem, stride * height * 4, GXM_MEM_CDRAM,
                       SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE))
+    {
+    VitaSys_LogPrintf("[rt]   colour alloc FAILED\n");
         return false;
+    }
+    VitaSys_LogPrintf("[rt]   colour base=%p\n", rt->colorMem.base);
 
+
+    VitaSys_LogPrintf("[rt]   colorSurfaceInit\n");
     if (sceGxmColorSurfaceInit(&rt->color, colorFormat,
                                SCE_GXM_COLOR_SURFACE_LINEAR,
                                SCE_GXM_COLOR_SURFACE_SCALE_NONE,
@@ -104,6 +115,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
         return false;
     }
 
+    VitaSys_LogPrintf("[rt]   textureInitLinearStrided\n");
     if (sceGxmTextureInitLinearStrided(&rt->texture, rt->colorMem.base, textureFormat,
                                        width, height, stride * 4) < 0)
     {
@@ -119,6 +131,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     params.multisampleMode = SCE_GXM_MULTISAMPLE_NONE;
     params.driverMemBlock = -1;
 
+    VitaSys_LogPrintf("[rt]   createRenderTarget scenes=%u\n", (unsigned)params.scenesPerFrame);
     if (sceGxmCreateRenderTarget(&params, &rt->target) < 0)
     {
         GxmMem_Free(&rt->colorMem);
@@ -128,6 +141,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     rt->width = width;
     rt->height = height;
     rt->strideInPixels = stride;
+    VitaSys_LogPrintf("[rt]   ok target=%p\n", rt->target);
     GxmRenderTarget_Register(rt);
     return true;
 }
