@@ -38,6 +38,7 @@
 #include <vita/gxm/gxm_pipeline.h>
 #include <vita/gxm/gxm_program.h>
 #include <vita/gxm/gxm_rendertarget.h>
+#include <vita/gxm/gxm_shader_archive.h>
 #endif
 
 enum DxCapsResponse : __int32
@@ -4094,6 +4095,16 @@ char __cdecl R_CreateDevice(const GfxWindowParms *wndParms)
     if (!GxmPipeline_Init())
     {
         Com_Printf(8, "Couldn't initialize the GXM pipeline\n");
+        GxmProgram_Shutdown();
+        GxmDevice_Shutdown();
+        return 0;
+    }
+
+    // every draw resolves its program through this, so a missing archive renders nothing
+    if (!GxmShaderArchive_Load("ux0:data/kisakcod/shaders.kgxp"))
+    {
+        Com_Printf(8, "Couldn't load ux0:data/kisakcod/shaders.kgxp\n");
+        GxmPipeline_Shutdown();
         GxmProgram_Shutdown();
         GxmDevice_Shutdown();
         return 0;
