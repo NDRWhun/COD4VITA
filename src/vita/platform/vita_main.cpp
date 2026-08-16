@@ -59,6 +59,8 @@ static void VitaMain_RunSelfTests(void)
 int main(void)
 {
     VitaSys_LogOpen(VITA_LOG_PATH);
+    // boot streams fastfiles off the card, so the log stays in memory until Com_Init returns
+    VitaSys_LogSetLineFlush(false);
     VitaSys_BreadcrumbReset();
     VitaSys_LogPrintf("KisakCOD single player, Vita, built %s %s\n", __DATE__, __TIME__);
 
@@ -95,8 +97,9 @@ int main(void)
     Com_Printf(16, "Working directory: %s\n", Sys_Cwd());
     VitaSys_LogPrint("--- entering the frame loop ---\n");
 
-    // boot is over, so the log stops paying a write per line and buffers like a file
-    VitaSys_LogSetLineFlush(false);
+    // the card is free again once boot is done, so the whole trail reaches it here
+    VitaSys_LogFlush();
+    VitaSys_BreadcrumbFlush();
 
     for (;;)
         Com_Frame();

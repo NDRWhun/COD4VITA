@@ -63,10 +63,5 @@ void VitaSys_Breadcrumb(const char *format, ...)
         s_used += (uint32_t)length;
     }
 
-    // two seconds of trail is the most a kill can cost, for four writes across a boot
-    if (now - s_lastWrite >= 2000000ull)
-    {
-        s_lastWrite = now;
-        VitaSys_BreadcrumbFlush();
-    }
+    (void)s_lastWrite;
 }
