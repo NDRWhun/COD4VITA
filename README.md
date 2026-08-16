@@ -17,8 +17,10 @@ replacing Direct3D 9.
 | sceGxm renderer | draws on hardware — textures, blending, depth, state translation |
 | Shader pipeline | all 609 of the game's D3D9 shaders translate, compile and register on device |
 | Memory, threads, files, timing | implemented on the Vita kernel, checked by on-device self-tests |
-| Engine sources | 75 of 98 core translation units compile for ARM |
-| Boot | not reached; the engine has no Vita target yet and no fastfile has been loaded |
+| Engine build target | configures and builds; 376 of 437 translation units compile for ARM |
+| Remaining failures | 61, almost all the Direct3D 9 call sites still awaiting a GXM rewrite |
+| Link | fails — there is no Vita entry point yet, and the `src/win32` and `src/sound` exclusions leave gaps |
+| Boot | not reached; no fastfile has been loaded |
 
 There is nothing playable to install. Follow the commits if you want to watch it come together.
 
@@ -53,6 +55,14 @@ cmake --build build           # -> build/gxm_smoke.vpk
 That builds the renderer smoke test: it brings up the device, runs the memory, threading and
 filesystem self-tests, and draws a textured quad. It writes what it found to
 `ux0:data/kisakcod/smoke.log`.
+
+The engine target is separate, and does not link yet:
+
+```bash
+cmake -S . -B build-vita -G "Unix Makefiles" -DKISAK_PLATFORM=vita \
+      -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake
+cmake --build build-vita -j8
+```
 
 ### Generated files
 
