@@ -126,29 +126,16 @@ void VitaSys_LogFlush(void)
 {
     if (!s_log)
         return;
+    // fileno gives a newlib descriptor, not a SceUID, so there is no sceIo call to make here;
+    // VitaSys_Breadcrumb is the durable channel
     fflush(s_log);
-    // fflush only leaves libc; the filesystem cache still loses the tail on an abnormal exit
-    const int descriptor = fileno(s_log);
-    if (descriptor >= 0)
-        sceIoSyncByFd(descriptor, 0);
 }
 
-// the per-line path: a card sync costs milliseconds, so it runs at most ten times a second
 static void VitaSys_LogFlushLine(void)
 {
     if (!s_log)
         return;
     fflush(s_log);
-
-    static uint64_t lastSync;
-    const uint64_t now = sceKernelGetProcessTimeWide();
-    if (lastSync && now - lastSync < 100000)
-        return;
-    lastSync = now;
-
-    const int descriptor = fileno(s_log);
-    if (descriptor >= 0)
-        sceIoSyncByFd(descriptor, 0);
 }
 
 void VitaSys_LogSetLineFlush(bool enabled)
