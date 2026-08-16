@@ -93,7 +93,12 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     // colour surfaces stride in multiples of 8 pixels
     const uint32_t stride = (width + 7) & ~7u;
 
-    VitaSys_Breadcrumb("RT enter %ux%u", width, height);
+    SceKernelFreeMemorySizeInfo atEntry;
+    memset(&atEntry, 0, sizeof(atEntry));
+    atEntry.size = sizeof(atEntry);
+    sceKernelGetFreeMemorySize(&atEntry);
+    VitaSys_Breadcrumb("RT enter %ux%u free main=%u cdram=%u", width, height,
+                       (unsigned)atEntry.size_user, (unsigned)atEntry.size_cdram);
 
     VitaMemStats cd;
     VitaMem_GetStats(VITA_MEM_CDRAM, &cd);
