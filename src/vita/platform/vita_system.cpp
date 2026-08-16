@@ -1,5 +1,6 @@
 #include "vita_system.h"
 
+#include <psp2/io/fcntl.h>
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/sysmem.h>
 #include <psp2/power.h>
@@ -74,7 +75,7 @@ void VitaSys_LogPrint(const char *text)
         return;
     fputs(text, s_log);
     if (s_logLineFlush)
-        fflush(s_log);
+        VitaSys_LogFlush();
 }
 
 void VitaSys_LogPrintf(const char *format, ...)
@@ -90,8 +91,15 @@ void VitaSys_LogPrintf(const char *format, ...)
 
 void VitaSys_LogFlush(void)
 {
-    if (s_log)
-        fflush(s_log);
+    if (!s_log)
+        return;
+    fflush(s_log);
+    // newlib hides fileno under -std=c++20, but the symbol is there
+    extern "C" int fileno(FILE *);
+    // fflush only leaves libc; the filesystem cache still loses the tail on an abnormal exit
+    const int descriptor = fileno(s_log);
+    if (descriptor >= 0)
+        sceIoSyncByFd(descriptor, 0);
 }
 
 void VitaSys_LogSetLineFlush(bool enabled)
