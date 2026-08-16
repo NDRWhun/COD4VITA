@@ -1234,7 +1234,7 @@ void __cdecl DoSaveEntryInternal(unsigned int type, VariableUnion *u, MemoryFile
         case 3u:
             v19 = MemFile_GetUsedSize(memFile);
             //ProfMem_Begin("string", v19);
-            v20 = SL_ConvertToString((unsigned __int16)u);
+            v20 = SL_ConvertToString((unsigned __int16)(uintptr_t)u);
             MemFile_WriteCString(memFile, v20);
             v21 = MemFile_GetUsedSize(memFile);
             //ProfMem_End(v21);
@@ -1462,7 +1462,7 @@ void __cdecl AddSaveEntryInternal(unsigned int type, const VariableStackBuffer *
         if (u && !scrVarPub.saveIdMap[(unsigned int)u])
         {
             scrVarPub.saveIdMap[(unsigned int)u] = ++scrVarPub.savecount;
-            *(unsigned __int16 *)((char *)scrVarPub.saveIdMapRev + __ROL4__(scrVarPub.savecount, 1)) = (unsigned __int16)u;
+            *(unsigned __int16 *)((char *)scrVarPub.saveIdMapRev + __ROL4__(scrVarPub.savecount, 1)) = (unsigned __int16)(uintptr_t)u;
         }
     }
     else if (type == 10)
@@ -1517,7 +1517,7 @@ void __cdecl DoSaveEntry(VariableValue *value, VariableValue *name, bool isArray
                 "%s\n\t(name) = %i",
                 "(!(name & 0xFF000000))",
                 name);
-        v27[0] = (v27[0] & 0xFFFFFF00) | ((uint8_t)name);
+        v27[0] = (v27[0] & 0xFFFFFF00) | ((uint8_t)(uintptr_t)name);
         MemFile_WriteData(memFile, 1, v27);
         v27[0] = (v27[0] & 0xFFFFFF00) | (((uint32_t)name >> 8) & 0xFF);
         MemFile_WriteData(memFile, 1, v27);
