@@ -89,6 +89,15 @@ struct MssEqInfo // sizeof=0xF00
     SndEqParams params[3][64];
 };
 
+#ifdef KISAK_VITA
+// the sound sources are excluded from this target, but the headers still have to parse
+struct _DIG_DRIVER;
+struct _SAMPLE;
+struct _STREAM;
+typedef char MSS_FILE;
+typedef uintptr_t UINTa;
+#endif
+
 #ifndef KISAK_OPENAL
 typedef struct _SAMPLE FAR *HSAMPLE;           // Handle to sample
 

@@ -3,6 +3,9 @@
 #include <psp2/kernel/processmgr.h>
 
 #include "vita_memory.h"
+#include "vita_threads.h"
+
+#include <sys/stat.h>
 
 #define VITA_TICKS_PER_SECOND 1000000ull
 
@@ -71,6 +74,34 @@ extern "C" {
 HWND GetActiveWindow(void)
 {
     return (HWND)1;         // non-null, since the engine only tests it for focus
+}
+
+DWORD timeGetTime(void)
+{
+    return VitaSys_Milliseconds();
+}
+
+DWORD SleepEx(DWORD milliseconds, BOOL alertable)
+{
+    (void)alertable;        // nothing queues APCs on this target
+    Sleep(milliseconds);
+    return 0;
+}
+
+unsigned char _BitScanReverse(unsigned long *index, unsigned long mask)
+{
+    if (!mask)
+        return 0;
+    *index = 31 - (unsigned long)__builtin_clzl(mask);
+    return 1;
+}
+
+DWORD GetFileAttributesA(const char *path)
+{
+    struct stat info;
+    if (stat(path, &info) != 0)
+        return 0xFFFFFFFFu;                 // INVALID_FILE_ATTRIBUTES
+    return S_ISDIR(info.st_mode) ? 0x10u : 0x80u;
 }
 
 BOOL MessageBoxA(HWND owner, const char *text, const char *caption, unsigned int type)

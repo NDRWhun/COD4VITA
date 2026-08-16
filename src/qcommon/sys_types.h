@@ -33,6 +33,15 @@ typedef unsigned int UINT32;
 typedef unsigned long DWORD;    // as windef.h has it, not uint32_t
 typedef void *HANDLE;
 
+typedef struct _OVERLAPPED
+{
+    ULONG_PTR Internal;
+    ULONG_PTR InternalHigh;
+    DWORD Offset;
+    DWORD OffsetHigh;
+    HANDLE hEvent;
+} OVERLAPPED, *LPOVERLAPPED;
+
 typedef struct _OSVERSIONINFOA
 {
     DWORD dwOSVersionInfoSize;
@@ -43,6 +52,7 @@ typedef struct _OSVERSIONINFOA
     CHAR szCSDVersion[128];
 } OSVERSIONINFO;
 
+typedef void *PVOID, *LPVOID_ALIAS, *HGLOBAL, *HLOCAL;
 typedef unsigned int WPARAM;
 typedef long LPARAM;
 typedef long LRESULT;

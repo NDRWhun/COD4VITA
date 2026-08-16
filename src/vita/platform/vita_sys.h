@@ -19,6 +19,11 @@ BOOL VirtualFree(void *address, SIZE_T size, DWORD type);
 HWND GetActiveWindow(void);
 BOOL MessageBoxA(HWND owner, const char *text, const char *caption, unsigned int type);
 
+DWORD timeGetTime(void);
+DWORD SleepEx(DWORD milliseconds, BOOL alertable);
+unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);
+DWORD GetFileAttributesA(const char *path);
+
 }
 
 unsigned int VitaSys_Milliseconds(void);

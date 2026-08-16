@@ -26,6 +26,13 @@
 #define _stricmp   strcasecmp
 #define _strnicmp  strncasecmp
 
+#define _itoa(value, buffer, radix) \
+    ((void)(radix), sprintf((buffer), "%d", (int)(value)), (buffer))
+
+// the secure variants return an error code and take the handle by pointer
+#define fopen_s(handle, name, mode) \
+    ((*(handle) = fopen((name), (mode))) ? 0 : 1)
+
 // macros rather than typedefs, since the tree writes 'unsigned __int64'
 #define __int8  char
 #define __int16 short
