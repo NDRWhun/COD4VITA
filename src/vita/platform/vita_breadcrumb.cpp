@@ -54,6 +54,11 @@ void VitaSys_Breadcrumb(const char *format, ...)
     va_end(arguments);
     if (length <= 0)
         return;
+
+    // vsnprintf reports what it would have written, which can exceed the buffer
+    const int room = (int)sizeof(text) - stamp - 2;
+    if (length > room)
+        length = room;
     length += stamp;
     text[length++] = '\n';
 

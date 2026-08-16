@@ -3,6 +3,10 @@
 #include <win32/win_local.h>
 #include <cstdarg>
 
+#ifdef KISAK_VITA
+#include <vita/platform/vita_system.h>
+#endif
+
 enum AssertOccurance : __int32
 {
     FIRST_TIME = 0x0,
@@ -690,6 +694,15 @@ void MyAssertHandler(const char *filename, int line, int type, const char *fmt, 
     Sys_LeaveCriticalSection(CRITSECT_ASSERT);
     if (shouldBreak)
         DebugBreak();
+#elif defined(KISAK_VITA)
+    // without this the handler is empty, and a failed reservation reports nothing at all
+    char text[1024];
+    va_list va;
+    va_start(va, fmt);
+    vsnprintf(text, sizeof(text), fmt ? fmt : "", va);
+    va_end(va);
+    VitaSys_LogPrintf("ASSERT %s:%d (type %d): %s\n", filename ? filename : "?", line, type, text);
+    VitaSys_LogFlush();
 #else
 
 #ifdef KISAK_RADIANT

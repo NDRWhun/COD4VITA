@@ -1,8 +1,5 @@
 #include <universal/q_shared.h>
 #include "r_image.h"
-#ifdef KISAK_VITA
-#include <vita/platform/vita_breadcrumb.h>
-#endif
 #include <qcommon/mem_track.h>
 #include <qcommon/qcommon.h>
 #include <universal/com_memory.h>
@@ -224,21 +221,15 @@ GfxImage *__cdecl Image_AllocProg(int imageProgType, uint8_t category, uint8_t s
     GfxImage *image; // [esp+0h] [ebp-Ch]
     const char *name; // [esp+4h] [ebp-8h]
 
-    VitaSys_Breadcrumb("Image_AllocProg type=%d", imageProgType);
     image = &g_imageProgs[imageProgType];
     iassert(image);
     name = g_imageProgNames[imageProgType];
-    VitaSys_Breadcrumb("Image_AllocProg name=%s", name ? name : "(null)");
     image->name = name;
     iassert(category != IMG_CATEGORY_UNKNOWN);
     image->category = category;
     image->semantic = semantic;
     image->track = 0;
-    VitaSys_Breadcrumb("Image_AllocProg hashing");
-    const int slot = Image_GetAvailableHashLocation(name);
-    VitaSys_Breadcrumb("Image_AllocProg slot=%d", slot);
-    imageGlobals.imageHashTable[slot] = image;
-    VitaSys_Breadcrumb("Image_AllocProg done");
+    imageGlobals.imageHashTable[Image_GetAvailableHashLocation(name)] = image;
     return &g_imageProgs[imageProgType];
 }
 

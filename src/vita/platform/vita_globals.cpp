@@ -3,9 +3,9 @@
 #include <gfx_d3d/r_cinematic.h>
 #include <gfx_d3d/r_dvars.h>
 
-// the fastfile hunk is 10 MB; the rest of user memory stays available for memblocks
+// PMem reserves 128 MB, the hunks 26 MB and the skin buffers 9 MB, all through VirtualAlloc
 extern "C" {
-unsigned int _newlib_heap_size_user = 96 * 1024 * 1024;
+unsigned int _newlib_heap_size_user = 224 * 1024 * 1024;
 }
 
 // storage only; R_RegisterDvars in r_dvars.cpp still assigns all three

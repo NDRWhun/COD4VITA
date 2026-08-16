@@ -9,7 +9,6 @@
 #ifdef KISAK_VITA
 #include <vita/gxm/gxm_device.h>
 #include <vita/gxm/gxm_rendertarget.h>
-#include <vita/platform/vita_breadcrumb.h>
 #include <vita/gxm/gxm_texture.h>
 
 // the GXM objects behind GfxRenderTargetSurface, indexed by GfxRenderTargetId
@@ -114,9 +113,7 @@ void R_InitRenderTargets_PC()
 {
     _D3DFORMAT backBufferFormat; // [esp+0h] [ebp-4h]
 
-    VitaSys_Breadcrumb("R_InitRenderTargets_PC entered");
     backBufferFormat = R_InitFrameBufferRenderTarget();
-    VitaSys_Breadcrumb("frame buffer target done, format=0x%08x", (unsigned)backBufferFormat);
     if (!g_allocateMinimalResources)
     {
         if (r_floatz->current.enabled)
@@ -382,7 +379,6 @@ void __cdecl R_InitRenderTargetImage(
             renderTargetId,
             15);
     Com_Printf(8, "  RT[%i] %ix%i fmt=0x%08x usage=%i: alloc image\n", renderTargetId, width, height, format, usage);
-    VitaSys_Breadcrumb("R_InitRenderTargetImage id=%u %ux%u", renderTargetId, width, height);
     renderTarget->image = Image_AllocProg(imageProgType, 6u, 0);
     iassert( renderTarget->image );
 #ifdef KISAK_VITA
@@ -395,7 +391,6 @@ void __cdecl R_InitRenderTargetImage(
     if (!R_GxmRenderTargetFormat(format, &colorFormat, &textureFormat))
         Com_Error(ERR_FATAL, "No GXM render target format for D3D format 0x%08x\n", format);
     Com_Printf(8, "  RT[%i] creating gxm target\n", renderTargetId);
-    VitaSys_Breadcrumb("r_rendertarget: RT[%i] calling GxmRenderTarget_Create", renderTargetId);
     if (!GxmRenderTarget_Create(&s_gxmColor[renderTargetId], width, height, colorFormat, textureFormat))
         Com_Error(ERR_FATAL, "Couldn't create a %i x %i render target\n", width, height);
     s_gxmColorOwned[renderTargetId] = true;
