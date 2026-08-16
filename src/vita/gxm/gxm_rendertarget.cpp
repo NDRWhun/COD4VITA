@@ -93,12 +93,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     // colour surfaces stride in multiples of 8 pixels
     const uint32_t stride = (width + 7) & ~7u;
 
-    SceKernelFreeMemorySizeInfo atEntry;
-    memset(&atEntry, 0, sizeof(atEntry));
-    atEntry.size = sizeof(atEntry);
-    sceKernelGetFreeMemorySize(&atEntry);
-    VitaSys_Breadcrumb("RT enter %ux%u free main=%u cdram=%u", width, height,
-                       (unsigned)atEntry.size_user, (unsigned)atEntry.size_cdram);
+    VitaSys_Breadcrumb("RT enter %ux%u", width, height);
 
     VitaMemStats cd;
     VitaMem_GetStats(VITA_MEM_CDRAM, &cd);
@@ -148,16 +143,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
         return false;
     }
 
-    SceKernelFreeMemorySizeInfo freeInfo;
-    memset(&freeInfo, 0, sizeof(freeInfo));
-    freeInfo.size = sizeof(freeInfo);
-    VitaSys_Breadcrumb("before sceKernelGetFreeMemorySize");
-    const int freeRc = sceKernelGetFreeMemorySize(&freeInfo);
     const uint32_t aligned = (driverMemSize + 4095u) & ~4095u;
-    VitaSys_Breadcrumb("free rc=0x%08x main=%u cdram=%u phycont=%u asking=%u",
-                       (unsigned)freeRc, (unsigned)freeInfo.size_user,
-                       (unsigned)freeInfo.size_cdram, (unsigned)freeInfo.size_phycont, aligned);
-
     VitaSys_Breadcrumb("before sceKernelAllocMemBlock %u", aligned);
     rt->driverMem = sceKernelAllocMemBlock("gxm_rendertarget",
                                            SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE, aligned, NULL);

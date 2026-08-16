@@ -1,6 +1,7 @@
 #include "vita_breadcrumb.h"
 
 #include <psp2/io/fcntl.h>
+#include <psp2/kernel/processmgr.h>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -12,11 +13,14 @@ void VitaSys_Breadcrumb(const char *format, ...)
     char text[512];
     va_list arguments;
 
+    const int stamp = snprintf(text, sizeof(text), "[%8u] ",
+                               (unsigned)(sceKernelGetProcessTimeWide() / 1000));
     va_start(arguments, format);
-    int length = vsnprintf(text, sizeof(text) - 1, format, arguments);
+    int length = vsnprintf(text + stamp, sizeof(text) - stamp - 1, format, arguments);
     va_end(arguments);
     if (length <= 0)
         return;
+    length += stamp;
     text[length++] = '\n';
 
     // open/write/close per call; a buffered stream loses its tail on an abnormal exit
