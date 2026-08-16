@@ -96,7 +96,7 @@ else()
   set(LIVEAREA_FILES "")
 endif()
 
-vita_create_vpk(DOD4VITA.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
+vita_create_vpk(COD4VITA.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
     VERSION ${VITA_VERSION}
     NAME ${VITA_APP_NAME}
     ${LIVEAREA_FILES}
