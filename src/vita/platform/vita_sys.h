@@ -38,6 +38,8 @@ BOOL WriteFile(HANDLE file, const void *buffer, DWORD count, DWORD *written,
                OVERLAPPED *overlapped);
 BOOL SetFilePointerEx(HANDLE file, LARGE_INTEGER move, LARGE_INTEGER *newPosition, DWORD from);
 BOOL GetFileSizeEx(HANDLE file, LARGE_INTEGER *size);
+DWORD GetFileSize(HANDLE file, DWORD *sizeHigh);
+BOOL DeleteFileA(const char *path);
 
 DWORD GetLastError(void);
 HANDLE GetCurrentProcess(void);
@@ -54,3 +56,12 @@ HANDLE GetClipboardData(unsigned int format);
 }
 
 unsigned int VitaSys_Milliseconds(void);
+
+// a positional read, for the fastfile loader's own offset
+BOOL VitaSys_ReadAt(HANDLE file, void *buffer, DWORD count, unsigned long long offset, DWORD *read);
+BOOL VitaSys_IsFileHandle(HANDLE object);
+BOOL VitaSys_CloseFile(HANDLE object);
+
+// the engine's one prefetch hint, over the GCC builtin
+#define PF_NON_TEMPORAL_LEVEL_ALL 3
+#define PreFetchCacheLine(level, address) __builtin_prefetch((const void *)(address))

@@ -1,5 +1,7 @@
 #include "vita_threads.h"
 
+#include "vita_sys.h"
+
 #include <psp2/kernel/threadmgr.h>
 #include <string.h>
 
@@ -103,6 +105,11 @@ void **VitaThreads_LocalSlots(void)
     return orphan;
 }
 
+HANDLE VitaThreads_CurrentHandle(void)
+{
+    return (HANDLE)VitaThreads_Current();
+}
+
 uint32_t VitaThreads_CpuCount(void)
 {
     return VITA_USER_CPUS;
@@ -178,6 +185,9 @@ DWORD WaitForSingleObject(HANDLE object, DWORD milliseconds)
 
 BOOL CloseHandle(HANDLE object)
 {
+    if (VitaSys_IsFileHandle(object))
+        return VitaSys_CloseFile(object);
+
     VitaThreads_Enter();
     for (uint32_t i = 0; i < VITA_MAX_EVENTS; ++i)
     {

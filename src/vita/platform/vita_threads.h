@@ -18,6 +18,9 @@
 #define THREAD_PRIORITY_ABOVE_NORMAL    1
 #define THREAD_PRIORITY_HIGHEST         2
 
+// the engine casts its thread entry to this before handing it to CreateThread
+typedef DWORD (*LPTHREAD_START_ROUTINE)(void *);
+
 bool VitaThreads_Init(void);
 void VitaThreads_Shutdown(void);
 
@@ -46,5 +49,8 @@ void VitaThreads_CheckSuspend(void);
 
 // thread-local slots, keyed by thread rather than by compiler TLS
 void **VitaThreads_LocalSlots(void);
+
+// the registered handle for the calling thread
+HANDLE VitaThreads_CurrentHandle(void);
 
 uint32_t VitaThreads_CpuCount(void);

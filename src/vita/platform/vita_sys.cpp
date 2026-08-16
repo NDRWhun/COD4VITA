@@ -115,10 +115,12 @@ BOOL SetFileAttributesA(const char *path, DWORD attributes)
     return 1;
 }
 
-// a descriptor of 0 is valid, so handles carry it offset by one
+// a tag keeps file handles disjoint from the event handles CloseHandle also takes
+#define VITA_FILE_HANDLE_TAG 0x40000000u
+
 static int VitaSys_Descriptor(HANDLE file)
 {
-    return (int)(intptr_t)file - 1;
+    return (int)((uintptr_t)file & (uintptr_t)0xFFFF);
 }
 
 HANDLE CreateFileA(const char *path, DWORD access, DWORD share, void *security,
@@ -147,7 +149,7 @@ HANDLE CreateFileA(const char *path, DWORD access, DWORD share, void *security,
     const int descriptor = open(normalized, mode, 0777);
     if (descriptor < 0)
         return INVALID_HANDLE_VALUE;
-    return (HANDLE)(intptr_t)(descriptor + 1);
+    return (HANDLE)(uintptr_t)((unsigned int)descriptor | VITA_FILE_HANDLE_TAG);
 }
 
 BOOL ReadFile(HANDLE file, void *buffer, DWORD count, DWORD *read, OVERLAPPED *overlapped)
@@ -190,6 +192,21 @@ BOOL GetFileSizeEx(HANDLE file, LARGE_INTEGER *size)
     return 1;
 }
 
+BOOL DeleteFileA(const char *path)
+{
+    return unlink(path) == 0;
+}
+
+DWORD GetFileSize(HANDLE file, DWORD *sizeHigh)
+{
+    LARGE_INTEGER size;
+    if (!GetFileSizeEx(file, &size))
+        return 0xFFFFFFFFu;                 // INVALID_FILE_SIZE
+    if (sizeHigh)
+        *sizeHigh = (DWORD)((unsigned long long)size.QuadPart >> 32);
+    return (DWORD)size.QuadPart;
+}
+
 DWORD GetLastError(void)
 {
     return (DWORD)errno;
@@ -202,7 +219,8 @@ HANDLE GetCurrentProcess(void)
 
 HANDLE GetCurrentThread(void)
 {
-    return (HANDLE)(intptr_t)sceKernelGetThreadId();
+    // a thread handle here is the registered VitaThread, not a kernel uid
+    return VitaThreads_CurrentHandle();
 }
 
 BOOL OpenClipboard(HWND owner)
@@ -248,6 +266,27 @@ BOOL MessageBoxA(HWND owner, const char *text, const char *caption, unsigned int
     return 0;
 }
 
+}
+
+BOOL VitaSys_ReadAt(HANDLE file, void *buffer, DWORD count, unsigned long long offset, DWORD *read)
+{
+    const int descriptor = VitaSys_Descriptor(file);
+    if (lseek(descriptor, (off_t)offset, SEEK_SET) < 0)
+        return 0;
+    const ssize_t got = ::read(descriptor, buffer, count);
+    if (read)
+        *read = got < 0 ? 0 : (DWORD)got;
+    return got >= 0;
+}
+
+BOOL VitaSys_IsFileHandle(HANDLE object)
+{
+    return ((uintptr_t)object & ~(uintptr_t)0xFFFF) == VITA_FILE_HANDLE_TAG;
+}
+
+BOOL VitaSys_CloseFile(HANDLE object)
+{
+    return close(VitaSys_Descriptor(object)) == 0;
 }
 
 unsigned int VitaSys_Milliseconds(void)
