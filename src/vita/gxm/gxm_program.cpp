@@ -1,6 +1,8 @@
 #include "gxm_program.h"
 #include "gxm_device.h"
 
+#include <vita/platform/vita_memory.h>
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -49,20 +51,33 @@ bool GxmProgram_Init(void)
 int GxmProgram_Register(const void *gxp, uint32_t size)
 {
     // SceGxmProgram is opaque, so vet the blob tag and let the library check the rest
-    if (s_shaderCount >= GXM_MAX_SHADERS || !gxp || size < 16 || memcmp(gxp, "GXP\0", 4) != 0)
+    if (!gxp || size < 16 || memcmp(gxp, "GXP\0", 4) != 0)
         return -1;
 
     const SceGxmProgram *program = (const SceGxmProgram *)gxp;
     if (sceGxmProgramCheck(program) < 0)
         return -1;
 
+    // the patcher and the slot claim are one operation: the database thread registers materials
+    // while the render thread patches programs, and both suballocate from one patcher buffer
+    VitaMem_GpuLock();
+    if (s_shaderCount >= GXM_MAX_SHADERS)
+    {
+        VitaMem_GpuUnlock();
+        return -1;
+    }
+
     SceGxmShaderPatcherId id;
     if (sceGxmShaderPatcherRegisterProgram(GxmDevice_ShaderPatcher(), program, &id) < 0)
+    {
+        VitaMem_GpuUnlock();
         return -1;
+    }
 
     const int handle = (int)s_shaderCount++;
     s_shaders[handle].program = program;
     s_shaders[handle].id = id;
+    VitaMem_GpuUnlock();
     return handle;
 }
 
@@ -100,52 +115,68 @@ SceGxmVertexProgram *GxmProgram_Vertex(int handle,
                                        const SceGxmVertexStream *streams,
                                        uint32_t streamCount)
 {
-    if (handle < 0 || (uint32_t)handle >= s_shaderCount)
-        return NULL;
-
     const uint32_t layoutHash =
         GxmProgram_HashLayout(attributes, attributeCount, streams, streamCount);
+
+    // the cache scan, the patcher call and the slot claim have to be one operation
+    VitaMem_GpuLock();
+    if (handle < 0 || (uint32_t)handle >= s_shaderCount)
+    {
+        VitaMem_GpuUnlock();
+        return NULL;
+    }
 
     for (uint32_t i = 0; i < s_vertexCount; ++i)
     {
         if (s_vertexPrograms[i].shader == handle && s_vertexPrograms[i].layoutHash == layoutHash)
-            return s_vertexPrograms[i].program;
+        {
+            SceGxmVertexProgram *cached = s_vertexPrograms[i].program;
+            VitaMem_GpuUnlock();
+            return cached;
+        }
     }
 
-    if (s_vertexCount >= GXM_MAX_VERTEX_PROGRAMS)
-        return NULL;
-
     SceGxmVertexProgram *program = NULL;
-    if (sceGxmShaderPatcherCreateVertexProgram(GxmDevice_ShaderPatcher(), s_shaders[handle].id,
+    if (s_vertexCount >= GXM_MAX_VERTEX_PROGRAMS ||
+        sceGxmShaderPatcherCreateVertexProgram(GxmDevice_ShaderPatcher(), s_shaders[handle].id,
                                                attributes, attributeCount,
                                                streams, streamCount, &program) < 0)
+    {
+        VitaMem_GpuUnlock();
         return NULL;
+    }
 
     GxmVertexEntry *entry = &s_vertexPrograms[s_vertexCount++];
     entry->shader = handle;
     entry->layoutHash = layoutHash;
     entry->program = program;
+    VitaMem_GpuUnlock();
     return program;
 }
 
 SceGxmFragmentProgram *GxmProgram_Fragment(int handle, const GxmProgramState *state,
                                            int linkedVertexHandle)
 {
-    if (handle < 0 || (uint32_t)handle >= s_shaderCount)
-        return NULL;
-
     const uint32_t key = GxmState_ProgramKey(state);
+
+    VitaMem_GpuLock();
+    if (handle < 0 || (uint32_t)handle >= s_shaderCount)
+    {
+        VitaMem_GpuUnlock();
+        return NULL;
+    }
 
     for (uint32_t i = 0; i < s_fragmentCount; ++i)
     {
         const GxmFragmentEntry *entry = &s_fragmentPrograms[i];
         if (entry->shader == handle && entry->stateKey == key &&
             entry->linkedVertex == linkedVertexHandle)
-            return entry->program;
+        {
+            SceGxmFragmentProgram *cached = entry->program;
+            VitaMem_GpuUnlock();
+            return cached;
+        }
     }
-
-    if (s_fragmentCount >= GXM_MAX_FRAGMENT_PROGRAMS)
-        return NULL;
 
     // a null blend info writes the output register straight out, colour mask included, so a
     // masked write needs the blend info even with the blend funcs left at NONE
@@ -155,17 +186,22 @@ SceGxmFragmentProgram *GxmProgram_Fragment(int handle, const GxmProgramState *st
     const SceGxmProgram *linked = GxmProgram_Get(linkedVertexHandle);
 
     SceGxmFragmentProgram *program = NULL;
-    if (sceGxmShaderPatcherCreateFragmentProgram(GxmDevice_ShaderPatcher(), s_shaders[handle].id,
+    if (s_fragmentCount >= GXM_MAX_FRAGMENT_PROGRAMS ||
+        sceGxmShaderPatcherCreateFragmentProgram(GxmDevice_ShaderPatcher(), s_shaders[handle].id,
                                                  SCE_GXM_OUTPUT_REGISTER_FORMAT_UCHAR4,
                                                  SCE_GXM_MULTISAMPLE_NONE,
                                                  blend, linked, &program) < 0)
+    {
+        VitaMem_GpuUnlock();
         return NULL;
+    }
 
     GxmFragmentEntry *entry = &s_fragmentPrograms[s_fragmentCount++];
     entry->shader = handle;
     entry->linkedVertex = linkedVertexHandle;
     entry->stateKey = key;
     entry->program = program;
+    VitaMem_GpuUnlock();
     return program;
 }
 
@@ -173,6 +209,7 @@ void GxmProgram_Shutdown(void)
 {
     SceGxmShaderPatcher *patcher = GxmDevice_ShaderPatcher();
 
+    VitaMem_GpuLock();
     for (uint32_t i = 0; i < s_fragmentCount; ++i)
         sceGxmShaderPatcherReleaseFragmentProgram(patcher, s_fragmentPrograms[i].program);
     for (uint32_t i = 0; i < s_vertexCount; ++i)
@@ -181,6 +218,7 @@ void GxmProgram_Shutdown(void)
         sceGxmShaderPatcherUnregisterProgram(patcher, s_shaders[i].id);
 
     s_shaderCount = s_vertexCount = s_fragmentCount = 0;
+    VitaMem_GpuUnlock();
 }
 
 uint32_t GxmProgram_VertexCount(void)

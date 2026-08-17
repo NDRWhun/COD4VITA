@@ -250,6 +250,9 @@ bool GxmDevice_Init(void)
     gxmDev.frontBufferIndex = GXM_DISPLAY_BUFFERS - 1;
     gxmDev.sceneNotification.address = sceGxmGetNotificationRegion();
     gxmDev.sceneNotification.value = 0;
+    // the region keeps whatever the last process left there, and both fence tests read it
+    if (gxmDev.sceneNotification.address)
+        *gxmDev.sceneNotification.address = 0;
     gxmDev.initialized = true;
     return true;
 }
@@ -375,7 +378,8 @@ const SceGxmNotification *GxmDevice_SceneNotification(void)
 
 void GxmDevice_IssueFence(void)
 {
-    gxmDev.fenceValue = gxmDev.sceneNotification.value;
+    // the open scene writes value + 1, so that is what the wait has to reach
+    gxmDev.fenceValue = gxmDev.sceneNotification.value + 1;
 }
 
 bool GxmDevice_FenceReached(void)

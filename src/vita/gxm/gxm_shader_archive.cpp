@@ -1,6 +1,8 @@
 #include "gxm_shader_archive.h"
 #include "gxm_program.h"
 
+#include <vita/platform/vita_memory.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -170,15 +172,23 @@ int GxmShaderArchive_Lookup(uint32_t hash, GxmShaderStage stage, uint32_t alphaT
         const int order = GxmShaderArchive_Compare(&s_entries[middle], hash, stage, alphaTest);
         if (order == 0)
         {
+            // the lazy register caches into s_handles, so two threads asking for the same variant
+            // must not both register it; GxmProgram_Register takes the same recursive lock
+            VitaMem_GpuLock();
             if (s_handles[middle] < 0)
             {
                 const GxmArchiveEntry *entry = &s_entries[middle];
                 if ((uint64_t)entry->offset + entry->size > s_archiveSize)
+                {
+                    VitaMem_GpuUnlock();
                     return -1;
+                }
                 s_handles[middle] =
                     GxmProgram_Register(s_archive + entry->offset, entry->size);
             }
-            return s_handles[middle];
+            const int handle = s_handles[middle];
+            VitaMem_GpuUnlock();
+            return handle;
         }
         if (order < 0)
             low = middle + 1;
