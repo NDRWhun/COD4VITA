@@ -1,6 +1,10 @@
 #include <universal/q_shared.h>
 #include "database.h"
 
+#ifdef KISAK_VITA
+#include <vita/platform/vita_system.h>
+#endif
+
 #include <xanim/xanim.h>
 #include <xanim/xmodel.h>
 
@@ -7258,6 +7262,15 @@ void __cdecl Load_XAsset(bool atStreamStart)
     Load_Stream(atStreamStart, (uint8_t *)varXAsset, 8);
     varXAssetHeader = &varXAsset->header;
     Load_XAssetHeader(0);
+#ifdef KISAK_VITA
+    // a big zone is minutes of silence otherwise, and the last line names the hanging asset
+    static uint32_t loaded;
+    if (!(++loaded % 1024))
+    {
+        VitaSys_LogPrintf("db: %u assets\n", loaded);
+        VitaSys_LogFlush();
+    }
+#endif
 }
 
 void __cdecl Mark_XAssetHeader()

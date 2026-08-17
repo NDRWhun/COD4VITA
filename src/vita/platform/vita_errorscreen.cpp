@@ -347,6 +347,9 @@ void VitaBootScreen_Tick(const char *status)
         return;
     last = now;
 
+    // a long load has no input, and an idle console dims and sleeps its screen
+    sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DEFAULT);
+
     if (!VitaErrorScreen_Acquire())
     {
         s_bootScreenDone = true;
