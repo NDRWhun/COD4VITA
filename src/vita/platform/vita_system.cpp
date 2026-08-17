@@ -135,7 +135,7 @@ void VitaSys_LogFlush(void)
 }
 
 // the card is busy streaming fastfiles during boot, so a flush per line blocks long enough
-// for the system to kill the app
+// for the system to kill the app; the interval bounds how much tail a kill can take with it
 static void VitaSys_LogFlushLine(void)
 {
     if (!s_log)
@@ -143,7 +143,7 @@ static void VitaSys_LogFlushLine(void)
 
     static uint64_t lastFlush;
     const uint64_t now = sceKernelGetProcessTimeWide();
-    if (lastFlush && now - lastFlush < 1000000ull)
+    if (lastFlush && now - lastFlush < 100000ull)
         return;
     lastFlush = now;
     fflush(s_log);
@@ -228,6 +228,10 @@ static long double VitaSys_BenchmarkGHz(void)
     return 0.1010328 / ((double)minTime * (double)msecPerRawTimerTick);
 }
 
+// the win32 path reports total physical memory, so the heap newlib already reserved has to be
+// added back to what is merely free by the time this runs
+extern "C" unsigned int _newlib_heap_size_user;
+
 static int VitaSys_SystemMemoryMB(void)
 {
     SceKernelFreeMemorySizeInfo info;
@@ -237,9 +241,7 @@ static int VitaSys_SystemMemoryMB(void)
     if (sceKernelGetFreeMemorySize(&info) < 0)
         return 0;
 
-    // the configure table tops out at 1 GB, as the win32 path also caps
-    const int megabytes = info.size_user / (1024 * 1024);
-    return megabytes > 1024 ? 1024 : megabytes;
+    return (int)(((unsigned int)info.size_user + _newlib_heap_size_user) / (1024 * 1024));
 }
 
 void VitaSys_FindInfo(void)
@@ -480,7 +482,7 @@ void __cdecl Sys_Init()
     Com_Printf(16, "Measured CPU speed is %.2lf GHz\n", (double)sys_info.cpuGHz);
     Com_Printf(16, "Total CPU performance is estimated as %.2lf GHz\n",
                (double)sys_info.configureGHz);
-    Com_Printf(16, "System memory is %i MB (capped at 1 GB)\n", sys_info.sysMB);
+    Com_Printf(16, "System memory is %i MB\n", sys_info.sysMB);
     Com_Printf(16, "Video card is \"%s\"\n", sys_info.gpuDescription);
     Com_Printf(16, "Streaming SIMD Extensions (SSE) not supported\n");
     Com_Printf(16, "\n");
