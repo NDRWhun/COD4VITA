@@ -1,6 +1,10 @@
 #include <universal/q_shared.h>
 #include "threads.h"
 
+#ifdef KISAK_VITA
+#include <vita/platform/vita_system.h>
+#endif
+
 #ifndef KISAK_VITA
 #include <Windows.h>
 #endif
@@ -231,7 +235,18 @@ uint32_t __stdcall Sys_ThreadMain(ThreadContext_t threadContext)
     iassert(threadFunc[threadContext]);
     SetThreadName(0xFFFFFFFF, s_threadNames[threadContext]);
     Sys_InitThread(threadContext);
+#ifdef KISAK_VITA
+    // a thread that never reaches its body is indistinguishable from one that is merely parked
+    VitaSys_LogPrintf("thread %i \"%s\" entered\n", (int)threadContext,
+                      s_threadNames[threadContext]);
+    VitaSys_LogFlush();
+#endif
     threadFunc[threadContext](threadContext);
+#ifdef KISAK_VITA
+    VitaSys_LogPrintf("thread %i \"%s\" returned\n", (int)threadContext,
+                      s_threadNames[threadContext]);
+    VitaSys_LogFlush();
+#endif
     return 0;
 }
 
