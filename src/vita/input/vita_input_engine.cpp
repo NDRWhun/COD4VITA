@@ -3,6 +3,7 @@
 #include <qcommon/cmd.h>
 #include <client/client.h>
 #include <client/cl_input.h>
+#include <ui/ui_shared.h>
 #include <win32/win_local.h>
 #include <vita/input/vita_input.h>
 
@@ -104,10 +105,40 @@ static int IN_VitaClamp(int value, int last)
     return value;
 }
 
+// the menu's text fields are dvar-backed, so the system keyboard edits the dvar directly
+static void IN_VitaPumpKeyboard(void)
+{
+    extern int g_editingField;
+    extern itemDef_s *g_editItem;
+    static bool wasEditing;
+
+    if (g_editingField && g_editItem && g_editItem->dvar && !wasEditing)
+    {
+        wasEditing = true;
+        VitaKeyboard_Open(g_editItem->dvar, Dvar_GetVariantString(g_editItem->dvar), 64);
+    }
+    if (!g_editingField)
+        wasEditing = false;
+
+    const VitaKeyboardStatus status = VitaKeyboard_Update();
+    if (status != VITA_KEYBOARD_DONE && status != VITA_KEYBOARD_CANCELLED)
+        return;
+
+    if (status == VITA_KEYBOARD_DONE && g_editingField && g_editItem && g_editItem->dvar)
+        Dvar_SetStringByName(g_editItem->dvar, VitaKeyboard_Result());
+
+    // ending the edit the same way a rejected key does hands focus back to the menu
+    VitaKeyboard_Close();
+    g_editingField = 0;
+    g_editItem = NULL;
+    wasEditing = false;
+}
+
 // called several times per engine frame, so every delta here is measured against the wall clock
 void __cdecl IN_Frame()
 {
     IN_VitaRegisterDvars();
+    IN_VitaPumpKeyboard();
 
     const bool uiActive = Key_IsCatcherActive(0, KEYCATCH_UI);
     const bool consoleActive = Key_IsCatcherActive(0, KEYCATCH_CONSOLE);
