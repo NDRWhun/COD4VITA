@@ -82,15 +82,21 @@ static SceGxmRenderTarget *GxmRenderTarget_Shared(uint32_t width, uint32_t heigh
     uint32_t driverBytes = 0;
     sceGxmGetRenderTargetMemSize(&params, &driverBytes);
 
+    // the driver allocates this itself, so what is free beforehand is what decides the call
+    VitaSys_LogPrintf("gxm target %ux%u: wants %u KB, free main %u KB cdram %u KB\n",
+                      width, height, driverBytes / 1024, GxmMem_FreeMain() / 1024,
+                      GxmMem_FreeCdram() / 1024);
+    VitaSys_LogFlush();
+
     VitaMem_GpuLock();
     SceGxmRenderTarget *target = NULL;
     const int created = sceGxmCreateRenderTarget(&params, &target);
     VitaMem_GpuUnlock();
 
     s_sharedDriverBytes += driverBytes;
-    VitaSys_LogPrintf("gxm target %ux%u: driver %u KB, %u KB over %u targets, result 0x%08x\n",
-                      width, height, driverBytes / 1024, s_sharedDriverBytes / 1024,
-                      s_sharedCount + 1, (unsigned)created);
+    VitaSys_LogPrintf("gxm target %ux%u: result 0x%08x, %u KB over %u targets, free main %u KB\n",
+                      width, height, (unsigned)created, s_sharedDriverBytes / 1024,
+                      s_sharedCount + 1, GxmMem_FreeMain() / 1024);
     VitaSys_LogFlush();
 
     if (created < 0)
@@ -119,6 +125,11 @@ bool GxmDepthStencil_Create(GxmDepthStencil *depth, uint32_t width, uint32_t hei
 
     const uint32_t alignedWidth = (width + SCE_GXM_TILE_SIZEX - 1) & ~(SCE_GXM_TILE_SIZEX - 1);
     const uint32_t alignedHeight = (height + SCE_GXM_TILE_SIZEY - 1) & ~(SCE_GXM_TILE_SIZEY - 1);
+
+    VitaSys_LogPrintf("depth %ux%u: wants %u KB, free main %u KB cdram %u KB\n", width, height,
+                      (alignedWidth * alignedHeight * 4) / 1024, GxmMem_FreeMain() / 1024,
+                      GxmMem_FreeCdram() / 1024);
+    VitaSys_LogFlush();
 
     if (!GxmMem_AllocPooled(&depth->memory, alignedWidth * alignedHeight * 4, GXM_MEM_CDRAM,
                             SCE_GXM_DEPTHSTENCIL_SURFACE_ALIGNMENT))
