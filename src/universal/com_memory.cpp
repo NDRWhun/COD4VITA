@@ -205,7 +205,13 @@ char* __cdecl Z_VirtualAlloc(int32_t size, const char* name, int32_t type)
 
     buf = Z_TryVirtualAlloc(size, name, type);
     if (!buf)
+    {
+#ifdef KISAK_VITA
+        // the caller's name is the only way to tell which reservation ran the heap out
+        Com_Printf(16, "Z_VirtualAlloc failed for \"%s\", %i bytes\n", name ? name : "?", size);
+#endif
         Sys_OutOfMemErrorInternal(".\\universal\\com_memory.cpp", 716);
+    }
     return buf;
 }
 

@@ -43,15 +43,18 @@ static bool s_logLineFlush = true;
 // newlib stdio is not reentrant here, and the database thread also prints
 static SceUID s_logMutex = -1;
 
+// a fatal suspends the other threads, and one stopped inside the log would hold this forever
+static volatile bool s_logUnlocked;
+
 static void VitaSys_LogLock(void)
 {
-    if (s_logMutex >= 0)
+    if (s_logMutex >= 0 && !s_logUnlocked)
         sceKernelLockMutex(s_logMutex, 1, NULL);
 }
 
 static void VitaSys_LogUnlock(void)
 {
-    if (s_logMutex >= 0)
+    if (s_logMutex >= 0 && !s_logUnlocked)
         sceKernelUnlockMutex(s_logMutex, 1);
 }
 
@@ -174,6 +177,7 @@ static void VitaSys_ClaimFatal(void)
 
 void VitaSys_Fatal(const char *title, const char *message)
 {
+    s_logUnlocked = true;
     VitaSys_LogSetLineFlush(true);
     VitaSys_LogPrintf("\n======== %s ========\n%s\n", title, message);
     VitaSys_LogFlush();
@@ -542,15 +546,15 @@ void __cdecl Sys_OutOfMemErrorInternal(const char *filename, int line)
 
     VitaSys_ClaimFatal();
     com_errorEntered = 1;
-    Sys_SuspendOtherThreads();
 
+    // both take a lock, so they run before the suspend: a thread stopped holding one never frees it
     VitaMemStats mainArena;
     VitaMemStats cdramArena;
     VitaMem_GetStats(VITA_MEM_MAIN, &mainArena);
     VitaMem_GetStats(VITA_MEM_CDRAM, &cdramArena);
-
-    // Z_VirtualAlloc is served by the newlib heap, so that is the pool a failure here ran out of
     const struct mallinfo heap = mallinfo();
+
+    Sys_SuspendOtherThreads();
 
     Com_sprintf(string, sizeof(string),
                 "Out of memory at %s line %i.  Heap %u KB used of %u KB.  GXM arenas: main %u KB "

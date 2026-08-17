@@ -3,10 +3,10 @@
 #include <gfx_d3d/r_cinematic.h>
 #include <gfx_d3d/r_dvars.h>
 
-// 359 MB user memory less the 55 MB module image; VirtualAlloc needs 154 (PMem 128, hunks 26)
-// and sceKernelAllocMemBlock needs 81 for GXM, render target depth, dynamic buffers and a level
+// PMem commits 128 MB up front and boot measured 170 MB in use by R_Init, so 176 left nothing;
+// the balance of the 304 MB the module leaves goes to sceKernelAllocMemBlock for GXM
 extern "C" {
-unsigned int _newlib_heap_size_user = 176 * 1024 * 1024;
+unsigned int _newlib_heap_size_user = 208 * 1024 * 1024;
 }
 
 // storage only; R_RegisterDvars in r_dvars.cpp still assigns all three
