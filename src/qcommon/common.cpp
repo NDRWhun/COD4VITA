@@ -170,8 +170,11 @@ void QDECL Com_PrintMessage(int channel, const char* msg, int error)
 	// LWSS: Punkbuster stuff
 	//PbCaptureConsoleOutput(msg, 4096);
 
+// the retail TTY stops draining once its ring fills and sceIoWrite then blocks forever
+#ifndef KISAK_VITA
     // always print to stdout console
     fprintf(stderr, "%s", msg);
+#endif
 
 	if (rd_buffer)
 	{
