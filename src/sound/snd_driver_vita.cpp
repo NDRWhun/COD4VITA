@@ -8,6 +8,7 @@
 
 #include <qcommon/qcommon.h>
 #include <universal/com_files.h>
+#include <vita/platform/vita_system.h>
 #include <universal/com_sndalias.h>
 #include <universal/profile.h>
 
@@ -1117,6 +1118,23 @@ void __cdecl SND_SetData(MssSoundCOD4 *mssSound, void *srcData)
     // stream by decimation the way the PCM branch does would corrupt it.
     if (mssSound->info.rate > g_snd.playback_rate && mssSound->info.format != 17)
     {
+        // a header this path cannot resample would write through a zero-byte allocation
+        if ((mssSound->info.bits != 8 && mssSound->info.bits != 16) ||
+            mssSound->info.channels < 1 || mssSound->info.channels > 2 ||
+            !mssSound->info.samples)
+        {
+            const LoadedSound *owner =
+                (const LoadedSound *)((const uint8_t *)mssSound - offsetof(LoadedSound, sound));
+            VitaSys_LogPrintf("snd: '%s' fmt %i rate %u bits %i ch %i samples %u kept as-is\n",
+                              owner->name ? owner->name : "?", mssSound->info.format,
+                              mssSound->info.rate, mssSound->info.bits,
+                              mssSound->info.channels, mssSound->info.samples);
+            VitaSys_LogFlush();
+            mssSound->data = MSS_Alloc(mssSound->info.data_len, mssSound->info.rate);
+            Com_Memcpy(mssSound->data, srcData, mssSound->info.data_len);
+            mssSound->info.data_ptr = mssSound->data;
+            return;
+        }
         const uint32_t srcFrameCount = mssSound->info.samples;
         const uint32_t channels = mssSound->info.channels;
         uint32_t rate = mssSound->info.rate;
