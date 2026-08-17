@@ -126,6 +126,10 @@ void __cdecl Image_Upload2D_CopyDataBlock_PC(
             {
             case D3DFMT_A8R8G8B8:
             case D3DFMT_X8R8G8B8:
+#ifdef KISAK_VITA
+            // the GXM display surface is A8B8G8R8, so render target images carry that format
+            case D3DFMT_A8B8G8R8:
+#endif
                 srcStride = 4 * width;
                 dy = 1;
                 goto LABEL_20;

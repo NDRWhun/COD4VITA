@@ -8,6 +8,7 @@
 
 #include <sys/stat.h>
 #include <errno.h>
+#include <malloc.h>
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
@@ -58,8 +59,11 @@ void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect)
     if (!(type & (MEM_RESERVE | MEM_COMMIT)))
         return NULL;
 
-    // calloc, as the vitaGL build did: Win32 zero-fills committed pages
-    return calloc(1, (size_t)size);
+    // Win32 hands back page-aligned, zero-filled pages and the engine relies on both
+    void *memory = memalign(4096, (size_t)size);
+    if (memory)
+        memset(memory, 0, (size_t)size);
+    return memory;
 }
 
 BOOL VirtualFree(void *address, SIZE_T size, DWORD type)
