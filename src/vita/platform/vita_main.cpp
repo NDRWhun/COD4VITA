@@ -59,8 +59,8 @@ static void VitaMain_RunSelfTests(void)
 int main(void)
 {
     VitaSys_LogOpen(VITA_LOG_PATH);
-    // boot streams fastfiles off the card, so the log stays in memory until Com_Init returns
-    VitaSys_LogSetLineFlush(false);
+    // rate-limited in VitaSys_LogFlushLine, so boot pays a handful of writes rather than hundreds
+    VitaSys_LogSetLineFlush(true);
     VitaSys_BreadcrumbReset();
     VitaSys_LogPrintf("KisakCOD single player, Vita, built %s %s\n", __DATE__, __TIME__);
 

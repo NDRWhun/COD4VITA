@@ -144,7 +144,7 @@ static void VitaSys_LogFlushLine(void)
 
     static uint64_t lastFlush;
     const uint64_t now = sceKernelGetProcessTimeWide();
-    if (lastFlush && now - lastFlush < 500000ull)
+    if (lastFlush && now - lastFlush < 1000000ull)
         return;
     lastFlush = now;
     fflush(s_log);

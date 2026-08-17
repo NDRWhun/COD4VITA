@@ -68,5 +68,10 @@ void VitaSys_Breadcrumb(const char *format, ...)
         s_used += (uint32_t)length;
     }
 
-    (void)s_lastWrite;
+    // one write a second, so a kill costs at most that much of the trail
+    if (now - s_lastWrite >= 1000000ull)
+    {
+        s_lastWrite = now;
+        VitaSys_BreadcrumbFlush();
+    }
 }
