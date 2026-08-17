@@ -54,8 +54,8 @@ bool GxmDepthStencil_Create(GxmDepthStencil *depth, uint32_t width, uint32_t hei
     const uint32_t alignedWidth = (width + SCE_GXM_TILE_SIZEX - 1) & ~(SCE_GXM_TILE_SIZEX - 1);
     const uint32_t alignedHeight = (height + SCE_GXM_TILE_SIZEY - 1) & ~(SCE_GXM_TILE_SIZEY - 1);
 
-    if (!GxmMem_Alloc(&depth->memory, alignedWidth * alignedHeight * 4, GXM_MEM_MAIN,
-                      SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE))
+    if (!GxmMem_AllocPooled(&depth->memory, alignedWidth * alignedHeight * 4, GXM_MEM_CDRAM,
+                            SCE_GXM_DEPTHSTENCIL_SURFACE_ALIGNMENT))
         return false;
 
     if (sceGxmDepthStencilSurfaceInit(&depth->surface,
@@ -93,10 +93,9 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     const uint32_t stride = (width + 7) & ~7u;
 
 
-    VitaMemStats cd;
-    VitaMem_GetStats(VITA_MEM_CDRAM, &cd);
-    if (!GxmMem_Alloc(&rt->colorMem, stride * height * 4, GXM_MEM_CDRAM,
-                      SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE))
+    // pooled: a memblock and a GPU mapping per surface exhausts the kernel during target creation
+    if (!GxmMem_AllocPooled(&rt->colorMem, stride * height * 4, GXM_MEM_CDRAM,
+                            SCE_GXM_TEXTURE_ALIGNMENT))
     {
         return false;
     }

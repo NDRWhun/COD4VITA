@@ -230,8 +230,11 @@ bool GxmDevice_Init(void)
         return false;
 
     // pooled arenas map each block once, so every texture inside one is GPU-visible
-    VitaMem_SetGpuMapping(VITA_MEM_CDRAM, true, SCE_GXM_MEMORY_ATTRIB_READ);
-    VitaMem_SetGpuMapping(VITA_MEM_MAIN_UNCACHED, true, SCE_GXM_MEMORY_ATTRIB_READ);
+    // render targets are written by the GPU, so a read-only mapping would not carry them
+    VitaMem_SetGpuMapping(VITA_MEM_CDRAM, true,
+                          SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE);
+    VitaMem_SetGpuMapping(VITA_MEM_MAIN_UNCACHED, true,
+                          SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE);
     if (!GxmDevice_CreateContext())
         return false;
     if (!GxmDevice_CreateRenderTarget())
