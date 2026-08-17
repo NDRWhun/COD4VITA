@@ -82,6 +82,10 @@ int __cdecl Image_SourceBytesPerSlice_PC(_D3DFORMAT format, int width, int heigh
          return 4 * height * width;
     case D3DFMT_D24S8:
     case D3DFMT_A8R8G8B8:
+#ifdef KISAK_VITA
+    // the GXM display surface is A8B8G8R8, so render target images carry that format
+    case D3DFMT_A8B8G8R8:
+#endif
         return 4 * height * width;
     case D3DFMT_X8R8G8B8:
         return 3 * height * width;

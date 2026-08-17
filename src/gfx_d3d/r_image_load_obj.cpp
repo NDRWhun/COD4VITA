@@ -120,6 +120,10 @@ uint32_t __cdecl Image_GetCardMemoryAmountForMipLevel(
         case D3DFMT_A8R8G8B8:
         case D3DFMT_X8R8G8B8:
         case D3DFMT_D24S8:
+#ifdef KISAK_VITA
+        // the GXM display surface is A8B8G8R8, so render target images carry that format
+        case D3DFMT_A8B8G8R8:
+#endif
             return 4 * mipDepth * mipHeight * mipWidth;
         case D3DFMT_A8:
         case D3DFMT_L8:

@@ -995,6 +995,9 @@ void __cdecl R_ImageList_f()
             switch (v1)
             {
             case D3DFMT_A8R8G8B8:
+#ifdef KISAK_VITA
+            case D3DFMT_A8B8G8R8:
+#endif
                 Com_Printf(8, "RGBA32");
                 break;
             case D3DFMT_X8R8G8B8:
