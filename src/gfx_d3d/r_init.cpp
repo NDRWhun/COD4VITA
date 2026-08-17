@@ -3436,7 +3436,7 @@ void __cdecl R_PickRenderer(_D3DCAPS9 *caps)
 #ifdef KISAK_VITA
 void __cdecl R_StoreDirect3DCaps(uint32_t adapterIndex)
 {
-    Com_Printf(8, "Using %s code path because it is the only path this hardware provides.\n", R_DescribeRenderer(GFX_RENDERER_SHADER_3));
+    Com_Printf(8, "Using %s code path.\n", R_DescribeRenderer(GFX_RENDERER_SHADER_3));
     Dvar_SetInt((dvar_s *)r_rendererInUse, GFX_RENDERER_SHADER_3);
 
     vidConfig.maxTextureSize = 4096;
