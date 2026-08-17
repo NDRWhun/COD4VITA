@@ -116,6 +116,9 @@ void VitaSys_LogPrint(const char *text)
     fputs(text, s_log);
     if (s_logLineFlush)
         VitaSys_LogFlushLine();
+
+    // inside the lock, so only one thread ever draws the boot screen
+    VitaBootScreen_Tick(text);
     VitaSys_LogUnlock();
 }
 
@@ -178,6 +181,7 @@ static void VitaSys_ClaimFatal(void)
 void VitaSys_Fatal(const char *title, const char *message)
 {
     s_logUnlocked = true;
+    VitaBootScreen_Disable();
     VitaSys_LogSetLineFlush(true);
     VitaSys_LogPrintf("\n======== %s ========\n%s\n", title, message);
     VitaSys_LogFlush();

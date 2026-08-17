@@ -2,6 +2,7 @@
 
 #include <psp2/ctrl.h>
 #include <psp2/display.h>
+#include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/sysmem.h>
 #include <psp2/kernel/threadmgr.h>
 #include <string.h>
@@ -162,6 +163,33 @@ static bool VitaErrorScreen_Acquire(void)
     return true;
 }
 
+static void VitaErrorScreen_Present(void)
+{
+    SceDisplayFrameBuf frame;
+    memset(&frame, 0, sizeof(frame));
+    frame.size = sizeof(frame);
+    frame.base = s_pixels;
+    frame.pitch = SCREEN_PITCH;
+    frame.pixelformat = SCE_DISPLAY_PIXELFORMAT_A8B8G8R8;
+    frame.width = SCREEN_WIDTH;
+    frame.height = SCREEN_HEIGHT;
+    sceDisplaySetFrameBuf(&frame, SCE_DISPLAY_SETBUF_IMMEDIATE);
+}
+
+static void VitaErrorScreen_FillRows(int y, int height, uint32_t colour)
+{
+    if (y < 0)
+        y = 0;
+    if (y + height > SCREEN_HEIGHT)
+        height = SCREEN_HEIGHT - y;
+    for (int row = 0; row < height; ++row)
+    {
+        uint32_t *line = &s_pixels[(y + row) * SCREEN_PITCH];
+        for (uint32_t x = 0; x < SCREEN_PITCH; ++x)
+            line[x] = colour;
+    }
+}
+
 static void VitaErrorScreen_Fill(uint32_t colour)
 {
     for (uint32_t i = 0; i < SCREEN_PITCH * SCREEN_HEIGHT; ++i)
@@ -273,22 +301,13 @@ bool VitaErrorScreen_Show(const char *title, const char *body, const char *foote
                                   footerColour);
     }
 
-    SceDisplayFrameBuf frame;
-    memset(&frame, 0, sizeof(frame));
-    frame.size = sizeof(frame);
-    frame.base = s_pixels;
-    frame.pitch = SCREEN_PITCH;
-    frame.pixelformat = SCE_DISPLAY_PIXELFORMAT_A8B8G8R8;
-    frame.width = SCREEN_WIDTH;
-    frame.height = SCREEN_HEIGHT;
-
     // whatever is held on entry counts as already seen, so the press that got here does not dismiss
     uint32_t previous = DISMISS_BUTTONS;
 
     // the buffer is re-asserted every frame, so a flip left queued in GXM cannot hide the report
     for (uint32_t frames = 0; frames < DISMISS_SECONDS * 60; ++frames)
     {
-        sceDisplaySetFrameBuf(&frame, SCE_DISPLAY_SETBUF_IMMEDIATE);
+        VitaErrorScreen_Present();
         sceDisplayWaitVblankStart();
 
         SceCtrlData pad;
@@ -302,4 +321,52 @@ bool VitaErrorScreen_Show(const char *title, const char *body, const char *foote
     }
 
     return true;
+}
+
+// --- the boot screen, which holds the display until the renderer owns it ---
+
+static bool s_bootScreenDone;
+
+void VitaBootScreen_Disable(void)
+{
+    s_bootScreenDone = true;
+}
+
+void VitaBootScreen_Tick(const char *status)
+{
+    if (s_bootScreenDone)
+        return;
+
+    // boot is long enough that the system gives up on an application that has shown nothing
+    static uint64_t last;
+    const uint64_t now = sceKernelGetProcessTimeWide();
+    if (last && now - last < 250000ull)
+        return;
+    last = now;
+
+    if (!VitaErrorScreen_Acquire())
+    {
+        s_bootScreenDone = true;
+        return;
+    }
+
+    const uint32_t background = VitaErrorScreen_Colour(0, 0, 0);
+    const int statusY = MARGIN + CELL_HEIGHT * TITLE_SCALE * 2;
+    const int statusRows = CELL_HEIGHT * BODY_SCALE * 3;
+
+    // the buffer is in CDRAM, where a full clear each tick costs more than the boot screen saves
+    static bool painted;
+    if (!painted)
+    {
+        VitaErrorScreen_Fill(background);
+        VitaErrorScreen_Text("Call of Duty 4", MARGIN, MARGIN, TITLE_SCALE,
+                             VitaErrorScreen_Colour(220, 220, 220));
+        painted = true;
+    }
+
+    VitaErrorScreen_FillRows(statusY, statusRows, background);
+    if (status)
+        VitaErrorScreen_Paragraph(status, MARGIN, statusY, BODY_SCALE,
+                                  VitaErrorScreen_Colour(150, 150, 150));
+    VitaErrorScreen_Present();
 }

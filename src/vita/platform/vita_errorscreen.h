@@ -3,3 +3,7 @@
 
 // takes over the display with its own buffer, so it works whether or not GXM came up
 bool VitaErrorScreen_Show(const char *title, const char *body, const char *footer);
+
+// rate-limited, and a no-op once the renderer owns the display
+void VitaBootScreen_Tick(const char *status);
+void VitaBootScreen_Disable(void);

@@ -39,6 +39,7 @@
 #include <vita/gxm/gxm_program.h>
 #include <vita/gxm/gxm_rendertarget.h>
 #include <vita/gxm/gxm_shader_archive.h>
+#include <vita/platform/vita_errorscreen.h>
 #endif
 
 enum DxCapsResponse : __int32
@@ -4081,6 +4082,8 @@ char __cdecl R_CreateDevice(const GfxWindowParms *wndParms)
     dx.multiSampleQuality = 0;
 
     Com_Printf(8, "Creating GXM device...\n");
+    // GXM drives the display from here, so the boot screen must stop asserting its own buffer
+    VitaBootScreen_Disable();
     if (!GxmDevice_Init())
     {
         Com_Printf(8, "Couldn't initialize GXM\n");
