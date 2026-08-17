@@ -55,25 +55,26 @@ def fnv1a(data):
 
 
 def scan(buf, shaders, per_file, dumpdir=None):
-    n = len(buf)
-    p = 0
-    while p + 4 <= n:
-        tok = struct.unpack_from("<I", buf, p)[0]
-        if tok == VS_VERSION or tok == PS_VERSION:
+    # zone streams are not dword aligned, and one shader recurs with different
+    # baked constants per renderer loadDef, so every byte offset is a candidate
+    for pattern, kind in ((struct.pack("<I", VS_VERSION), "vs"),
+                          (struct.pack("<I", PS_VERSION), "ps")):
+        p = 0
+        while True:
+            p = buf.find(pattern, p)
+            if p < 0:
+                break
             dwords = stream_length(buf, p)
             if dwords:
                 blob = buf[p:p + dwords * 4]
                 h = fnv1a(blob)
-                kind = "vs" if tok == VS_VERSION else "ps"
                 if h not in shaders:
                     shaders[h] = (kind, dwords)
                     if dumpdir:
                         with open(os.path.join(dumpdir, "%08x.%s" % (h, kind)), "wb") as f:
                             f.write(blob)
                 per_file.add(h)
-                p += dwords * 4
-                continue
-        p += 4
+            p += 1
 
 
 def main():
