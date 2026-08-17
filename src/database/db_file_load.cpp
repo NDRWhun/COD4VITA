@@ -113,7 +113,7 @@ double __cdecl DB_GetLoadedFraction()
 }
 
 #ifdef KISAK_VITA
-// hashes of the stream as read and as inflated, so corruption names its own stage
+// stage hashes for corruption triage
 uint32_t db_dbgChunkHash[8];
 uint32_t db_dbgChunkBytes[8];
 uint32_t db_dbgChunkCount;

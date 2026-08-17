@@ -18,7 +18,7 @@ void __cdecl PMem_Init()
     uint8_t *memory; // [esp+0h] [ebp-4h]
 
 #ifdef KISAK_VITA
-    // 97 of the pc build's 128 MB sat free at boot while the heap starved; 96 still holds a level
+    // budget derivation in PORTING_NOTES.md
     memory = (uint8_t *)VirtualAlloc(0, 0x6000000u, 0x1000u, 4u);
     PMem_InitPhysicalMemory(&g_mem, memory, 0x6000000u);
 #else

@@ -212,7 +212,6 @@ char* __cdecl Z_VirtualAlloc(int32_t size, const char* name, int32_t type)
     if (!buf)
     {
 #ifdef KISAK_VITA
-        // the caller's name is the only way to tell which reservation ran the heap out
         Com_Printf(16, "Z_VirtualAlloc failed for \"%s\", %i bytes\n", name ? name : "?", size);
 #endif
         Sys_OutOfMemErrorInternal(".\\universal\\com_memory.cpp", 716);
@@ -1030,7 +1029,7 @@ static char* __cdecl Z_TryMallocGarbage(int32_t size, const char* name, int32_t 
 }
 
 #ifdef KISAK_VITA
-// gross bytes per caller name; frees are not tracked, so this reads as lifetime totals
+// lifetime totals; frees are not tracked
 static struct { const char *name; uint32_t bytes; uint32_t count; } z_dbgTally[24];
 
 static void Z_DbgTally(const char *name, uint32_t size)
@@ -1090,7 +1089,6 @@ void* Z_Malloc(int32_t size, const char* name, int32_t type)
 
     buf = Z_TryMalloc(size, name, type);
 
-    // a null here reaches a memcpy in every caller
     if (!buf)
     {
 #ifdef KISAK_VITA

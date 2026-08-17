@@ -67,7 +67,6 @@ void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect)
     if (memory)
         memset(memory, 0, (size_t)size);
 
-    // the megabyte-and-up reservations are the ones that decide the budget
     if (memory && size >= 0x100000)
         VitaSys_LogPrintf("VirtualAlloc %u KB from %p\n", (unsigned)(size / 1024),
                           __builtin_return_address(0));

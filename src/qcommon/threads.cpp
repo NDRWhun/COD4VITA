@@ -236,7 +236,6 @@ uint32_t __stdcall Sys_ThreadMain(ThreadContext_t threadContext)
     SetThreadName(0xFFFFFFFF, s_threadNames[threadContext]);
     Sys_InitThread(threadContext);
 #ifdef KISAK_VITA
-    // a thread that never reaches its body is indistinguishable from one that is merely parked
     VitaSys_LogPrintf("thread %i \"%s\" entered\n", (int)threadContext,
                       s_threadNames[threadContext]);
     VitaSys_LogFlush();

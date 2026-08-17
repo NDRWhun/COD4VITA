@@ -340,14 +340,13 @@ void VitaBootScreen_Tick(const char *status)
     if (s_bootScreenDone)
         return;
 
-    // boot is long enough that the system gives up on an application that has shown nothing
     static uint64_t last;
     const uint64_t now = sceKernelGetProcessTimeWide();
     if (last && now - last < 250000ull)
         return;
     last = now;
 
-    // a long load has no input, and an idle console dims and sleeps its screen
+    // keeps the display awake
     sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DEFAULT);
 
     if (!VitaErrorScreen_Acquire())
@@ -361,7 +360,7 @@ void VitaBootScreen_Tick(const char *status)
     const int statusY = MARGIN + CELL_HEIGHT * TITLE_SCALE * 2;
     const int statusRows = CELL_HEIGHT * BODY_SCALE * 3;
 
-    // the buffer is in CDRAM, where a full clear each tick costs more than the boot screen saves
+    // repaints only the status band
     static bool painted;
     if (!painted)
     {

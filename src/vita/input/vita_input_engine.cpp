@@ -57,7 +57,7 @@ static void IN_VitaRegisterDvars()
         "vita_touchCursor", 1, DVAR_ARCHIVE,
         "Drive the menu cursor from the front touch screen");
 
-    // the defaults live in a cfg the player can edit; absent means first boot, so it is written
+    // written once; the player edits it freely
     mkdir("ux0:data/kisakcod/raw", 0777);
     FILE *binds = fopen("ux0:data/kisakcod/raw/vita_controls.cfg", "r");
     if (binds)
@@ -129,7 +129,7 @@ static void IN_VitaPumpKeyboard(void)
     if (status == VITA_KEYBOARD_DONE && g_editingField && g_editItem && g_editItem->dvar)
         Dvar_SetStringByName(g_editItem->dvar, VitaKeyboard_Result());
 
-    // ending the edit the same way a rejected key does hands focus back to the menu
+    // same teardown as a rejected key
     VitaKeyboard_Close();
     g_editingField = 0;
     g_editItem = NULL;

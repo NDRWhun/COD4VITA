@@ -997,7 +997,7 @@ int __cdecl CL_AllowInput()
 #include <vita/input/vita_input.h>
 #include <aim_assist/aim_assist.h>
 
-// the console build's analog path: raw stick axes in, assisted view angles out
+// analog move and look from the pad state
 void __cdecl CL_GamepadMove(usercmd_s *cmd)
 {
     if (cl_paused->current.integer)
@@ -1018,7 +1018,7 @@ void __cdecl CL_GamepadMove(usercmd_s *cmd)
     if (!invert->current.enabled)
         pitchAxis = -pitchAxis;
 
-    // a diagonal keeps walk speed by scaling to the unit circle, as the console builds did
+    // unit-circle scale keeps diagonal speed
     float scale = 127.0f;
     if (I_fabs(side) > 0.0f || I_fabs(forward) > 0.0f)
     {
@@ -1043,8 +1043,7 @@ void __cdecl CL_GamepadMove(usercmd_s *cmd)
         }
     }
 
-    // the aim assist module only carries its mouse half, so the look integrates directly against
-    // the engine's own per-state turn speed limits until the gamepad half is ported
+    // direct integration; aim assist's gamepad half is not ported
     static const dvar_s *lookPower;
     if (!lookPower)
         lookPower = Dvar_RegisterFloat("vita_lookPower", 2.0f, 1.0f, 4.0f, DVAR_ARCHIVE,

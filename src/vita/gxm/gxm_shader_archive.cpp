@@ -175,8 +175,7 @@ int GxmShaderArchive_Lookup(uint32_t hash, GxmShaderStage stage, uint32_t alphaT
         const int order = GxmShaderArchive_Compare(&s_entries[middle], hash, stage, alphaTest);
         if (order == 0)
         {
-            // the lazy register caches into s_handles, so two threads asking for the same variant
-            // must not both register it; GxmProgram_Register takes the same recursive lock
+            // the lock spans the cache check and the register
             VitaMem_GpuLock();
             if (s_handles[middle] < 0)
             {

@@ -24,7 +24,7 @@ static SceKernelMemBlockType GxmMem_BlockType(GxmMemDomain domain)
     case GXM_MEM_MAIN_UNCACHED:
         return SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE;
     default:
-        // nothing in this port flushes a cache line, so GPU-visible memory cannot be write-back
+        // no cache maintenance anywhere in the port
         return SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE;
     }
 }

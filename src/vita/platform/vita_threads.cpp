@@ -274,7 +274,6 @@ DWORD ResumeThread(HANDLE handle)
     if (!thread->started)
     {
         VitaThread *argument = thread;
-        // a dormant thread that never starts is indistinguishable from one that is merely idle
         const int started = sceKernelStartThread(thread->uid, sizeof(argument), &argument);
         if (started < 0)
             VitaSys_LogPrintf("ResumeThread: sceKernelStartThread(0x%08x) failed 0x%08x\n",

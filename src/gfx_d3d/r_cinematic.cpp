@@ -1298,8 +1298,7 @@ bool R_Cinematic_IsPending()
 #include <vita/platform/vita_system.h>
 #include <malloc.h>
 
-// sceAvPlayer plays the offline H.264 re-encodes of the Bink files; each frame lands in the
-// same Y/Cb/Cr code images the Bink path fed, so the shipped cinematic materials draw them
+// sceAvPlayer feeds the bink code images; the cinematic materials are unchanged
 static SceAvPlayerHandle s_player;
 static bool s_playerLive;
 static bool s_moduleLoaded;
@@ -1363,7 +1362,6 @@ static int Cin_AudioThread(SceSize args, void *argp)
                                          volume);
                 }
             }
-            // the blocking write paces this loop at the movie's own audio rate
             if (s_audioPort >= 0 && samples == grain)
                 sceAudioOutOutput(s_audioPort, frame.pData);
         }
@@ -1406,7 +1404,7 @@ static bool Cin_CreatePlanes(uint32_t width, uint32_t height)
             return false;
         Cin_FillImage(&s_planeImage[i], s_plane[i], w, h, names[i]);
 
-        // black until the first frame decodes: zero luma, chroma at its neutral midpoint
+        // neutral yuv until the first frame
         void *bits; uint32_t pitch, slice;
         if (GxmImage_MapLevelWrite(s_plane[i], 0, 0, &bits, &pitch, &slice))
         {
@@ -1461,7 +1459,6 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
     (void)playbackFlags;
     R_Cinematic_StopPlayback();
 
-    // the converter names its output after the bink it came from
     char clean[64];
     I_strncpyz(clean, name ? name : "", sizeof(clean));
     char *dot = strrchr(clean, '.');
@@ -1475,7 +1472,7 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
     {
         VitaSys_LogPrintf("cinematic: no %s, skipping\n", path);
         s_started = true;
-        s_finished = true;                  // reports finished at once, so the game moves on
+        s_finished = true;
         return;
     }
     fclose(probe);
@@ -1496,7 +1493,7 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
     init.numOutputVideoFrameBuffers = 2;
     init.autoStart = SCE_TRUE;
 
-    // a valid handle is an opaque pointer-like value; failures are zero or an 0x806A error
+    // failure is zero or an 0x806A code
     s_player = sceAvPlayerInit(&init);
     if (!s_player || ((uint32_t)s_player & 0xFFFF0000u) == 0x806A0000u)
     {
@@ -1515,7 +1512,7 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
     if (s_audioThread >= 0)
         sceKernelStartThread(s_audioThread, 0, NULL);
 
-    // the material can draw before the first frame decodes, and a null code image is fatal
+    // the planes must exist before the first draw
     if (!s_plane[0] && !Cin_CreatePlanes(16, 16))
     {
         R_Cinematic_StopPlayback();
@@ -1535,7 +1532,6 @@ void __cdecl R_Cinematic_UpdateFrame()
 
     if (!s_playerLive || !sceAvPlayerIsActive(s_player))
     {
-        // one frame of grace lets the last picture present before the state flips
         if (s_playerLive)
             s_finished = true;
         if (s_finished && s_hasNext)
@@ -1564,7 +1560,7 @@ void __cdecl R_Cinematic_UpdateFrame()
                 GxmImage_UnmapLevelWrite(s_plane[0], 0, 0, bits);
             }
 
-            // the decoder hands NV12, so the chroma pairs unzip into the two planes
+            // NV12: the chroma pairs unzip into the two planes
             const uint8_t *uv = (const uint8_t *)frame.pData + width * height;
             const uint32_t chroma = (width / 2) * (height / 2);
             void *cbBits, *crBits;

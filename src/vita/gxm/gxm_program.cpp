@@ -58,8 +58,7 @@ int GxmProgram_Register(const void *gxp, uint32_t size)
     if (sceGxmProgramCheck(program) < 0)
         return -1;
 
-    // the patcher and the slot claim are one operation: the database thread registers materials
-    // while the render thread patches programs, and both suballocate from one patcher buffer
+    // scan, patcher call and slot claim under one lock
     VitaMem_GpuLock();
     if (s_shaderCount >= GXM_MAX_SHADERS)
     {
@@ -118,7 +117,6 @@ SceGxmVertexProgram *GxmProgram_Vertex(int handle,
     const uint32_t layoutHash =
         GxmProgram_HashLayout(attributes, attributeCount, streams, streamCount);
 
-    // the cache scan, the patcher call and the slot claim have to be one operation
     VitaMem_GpuLock();
     if (handle < 0 || (uint32_t)handle >= s_shaderCount)
     {

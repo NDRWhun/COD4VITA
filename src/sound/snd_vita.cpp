@@ -425,7 +425,7 @@ static int VitaSnd_MixThreadEntry(SceSize args, void *argp)
         VitaSnd_MixGrain(s_outBuffer[buffer]);
         busy += sceKernelGetProcessTimeWide() - start;
 
-        // this loop outlives every hang, so it is where the screen is kept awake
+        // keeps the display awake
         if (!(++grains & 63))
             sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DEFAULT);
 

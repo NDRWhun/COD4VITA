@@ -102,7 +102,7 @@ GxmMaterialShader *GxmMaterial_CreateShader(const void *bytecode, uint32_t byteC
                           "head %08x %08x %08x %08x\n", hash, (int)stage, length, byteCount,
                           words[0], words[1], words[2], words[3]);
 
-        // the first missed stream is dumped whole, so the divergent bytes can be diffed offline
+        // the first missed stream is dumped whole
         static bool dumped;
         if (!dumped && length <= 512)
         {

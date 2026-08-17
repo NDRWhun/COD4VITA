@@ -48,8 +48,7 @@ static void GxmRenderTarget_Unregister(GxmRenderTarget *rt)
     }
 }
 
-// a SceGxmRenderTarget describes a size and a scene budget; the colour surface is a BeginScene
-// argument, so every target of the same size shares one, and its driver memory with it
+// one SceGxmRenderTarget per size; the colour surface is a BeginScene argument
 struct GxmSharedTarget
 {
     SceGxmRenderTarget *target;
@@ -205,7 +204,6 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     rt->width = width;
     rt->height = height;
     rt->strideInPixels = stride;
-    // the shared target is sized for the per-frame budget, not the old per-target one
     rt->sceneBudget = GXM_SCENES_PER_FRAME;
     GxmRenderTarget_Register(rt);
     return true;
@@ -218,7 +216,7 @@ void GxmRenderTarget_Free(GxmRenderTarget *rt)
 
     GxmRenderTarget_Unregister(rt);
 
-    // the target is shared by every surface of its size, so it outlives any one of them
+    // the shared target outlives any one surface
     GxmMem_Free(&rt->colorMem);
     memset(rt, 0, sizeof(*rt));
 }

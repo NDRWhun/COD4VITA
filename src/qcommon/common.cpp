@@ -683,7 +683,7 @@ void Com_Error(errorParm_t code, const char* fmt, ...)
     _vsnprintf(com_errorMessage, 0x1000u, fmt, va);
     com_errorMessage[4095] = 0;
 #ifdef KISAK_VITA
-    // the longjmp below can land in a thread that reports nothing, so the text goes out first
+    // logged before the longjmp
     VitaSys_LogPrintf("Com_Error(%i): %s\n", (int)code, com_errorMessage);
     VitaSys_LogFlush();
 #endif

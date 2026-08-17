@@ -7263,7 +7263,7 @@ void __cdecl Load_XAsset(bool atStreamStart)
     varXAssetHeader = &varXAsset->header;
     Load_XAssetHeader(0);
 #ifdef KISAK_VITA
-    // a big zone is minutes of silence otherwise, and the last line names the hanging asset
+    // load progress heartbeat
     static uint32_t loaded;
     if (!(++loaded % 1024))
     {

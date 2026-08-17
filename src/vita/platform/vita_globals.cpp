@@ -3,8 +3,7 @@
 #include <gfx_d3d/r_cinematic.h>
 #include <gfx_d3d/r_dvars.h>
 
-// the ledger at the last boot OOM: PMem 96 + sounds 34 + vertex pools 25 + hunk 10 + newlib
-// overhead, with common's sound tail still to land; main keeps ~45 MB for the GXM side
+// budget derivation in PORTING_NOTES.md
 extern "C" {
 unsigned int _newlib_heap_size_user = 240 * 1024 * 1024;
 }

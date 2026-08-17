@@ -80,7 +80,7 @@ uint32_t GxmTexture_ElemBytes(uint32_t imageFormat, bool *isBlock)
     return format.blockBytes ? format.blockBytes : format.bytesPerPixel;
 }
 
-// interleaves the low 16 bits of a linear index back out to one axis of the morton curve
+// even bits of the morton index, compacted to one axis
 static uint32_t GxmTexture_MortonAxis(uint32_t value)
 {
     value &= 0x55555555u;
@@ -94,7 +94,7 @@ static uint32_t GxmTexture_MortonAxis(uint32_t value)
 void GxmTexture_SwizzleGrid(uint8_t *dst, const uint8_t *src, uint32_t wide, uint32_t high,
                             uint32_t elemBytes)
 {
-    // a non-pow2 grid has no morton layout; copying linearly keeps the failure visible, not fatal
+    // non-pow2 has no morton layout: copied linear, logged
     if (!wide || !high || (wide & (wide - 1)) || (high & (high - 1)))
     {
         VitaSys_LogPrintf("swizzle: %ux%u grid is not pow2, left linear\n", wide, high);

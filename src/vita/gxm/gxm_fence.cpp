@@ -13,7 +13,7 @@ bool GxmFence_Reached(uint32_t fence)
     if (!fence)
         return true;
 
-    // a fence taken before any scene was submitted has nothing to retire it, ever
+    // nothing can retire a fence taken before any scene
     if (GxmDevice_ScenesSubmitted() == 0)
     {
         static bool reported;
@@ -26,7 +26,6 @@ bool GxmFence_Reached(uint32_t fence)
         return true;
     }
 
-    // the counter rises by one per scene, so a signed difference survives the wrap; the fence is
-    // the value the open scene will write, so it is reached only once that scene has retired
+    // signed difference survives the wrap
     return (int32_t)(GxmDevice_ScenesRetired() - fence) >= 0;
 }
