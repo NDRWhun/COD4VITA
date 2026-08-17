@@ -1488,8 +1488,9 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
     init.numOutputVideoFrameBuffers = 2;
     init.autoStart = SCE_TRUE;
 
+    // a valid handle is an opaque pointer-like value; failures are zero or an 0x806A error
     s_player = sceAvPlayerInit(&init);
-    if (s_player < 0)
+    if (!s_player || ((uint32_t)s_player & 0xFFFF0000u) == 0x806A0000u)
     {
         VitaSys_LogPrintf("cinematic: sceAvPlayerInit failed 0x%08x\n", (unsigned)s_player);
         s_started = true;

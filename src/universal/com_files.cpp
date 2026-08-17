@@ -468,11 +468,13 @@ int __cdecl FS_CreatePath(char *OSPath)
     {
         for (ofs = OSPath + 1; *ofs; ++ofs)
         {
-            if (*ofs == 92)
+            // the vita joins its paths with forward slashes
+            if (*ofs == 92 || *ofs == '/')
             {
+                const char separator = *ofs;
                 *ofs = 0;
                 Sys_Mkdir(OSPath);
-                *ofs = 92;
+                *ofs = separator;
             }
         }
         return 0;

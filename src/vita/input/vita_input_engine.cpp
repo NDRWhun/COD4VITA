@@ -9,6 +9,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 #define KEYCATCH_CONSOLE 0x1
 #define KEYCATCH_UI      0x10
@@ -57,6 +58,7 @@ static void IN_VitaRegisterDvars()
         "Drive the menu cursor from the front touch screen");
 
     // the defaults live in a cfg the player can edit; absent means first boot, so it is written
+    mkdir("ux0:data/kisakcod/raw", 0777);
     FILE *binds = fopen("ux0:data/kisakcod/raw/vita_controls.cfg", "r");
     if (binds)
         fclose(binds);
