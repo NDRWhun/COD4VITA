@@ -1527,6 +1527,14 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
 
 void __cdecl R_Cinematic_UpdateFrame()
 {
+    // the menus draw the cinematic material with nothing playing; black beats a fatal
+    if (!s_plane[0] && !Cin_CreatePlanes(16, 16))
+        return;
+    gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_Y] = &s_planeImage[0];
+    gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CB] = &s_planeImage[1];
+    gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CR] = &s_planeImage[2];
+    gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_A] = rgp.whiteImage;
+
     if (!s_started)
         return;
 
@@ -1580,13 +1588,6 @@ void __cdecl R_Cinematic_UpdateFrame()
         }
     }
 
-    if (s_plane[0])
-    {
-        gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_Y] = &s_planeImage[0];
-        gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CB] = &s_planeImage[1];
-        gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CR] = &s_planeImage[2];
-        gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_A] = rgp.whiteImage;
-    }
 }
 
 void __cdecl R_Cinematic_DrawStretchPic_Letterboxed()
