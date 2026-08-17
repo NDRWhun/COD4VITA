@@ -4,7 +4,10 @@
 #include <psp2/kernel/threadmgr.h>
 
 #include "vita_memory.h"
+#include "vita_system.h"
 #include "vita_threads.h"
+
+extern "C" unsigned int _newlib_heap_size_user;
 
 #include <sys/stat.h>
 #include <errno.h>
@@ -63,6 +66,14 @@ void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect)
     void *memory = memalign(4096, (size_t)size);
     if (memory)
         memset(memory, 0, (size_t)size);
+    else
+    {
+        const struct mallinfo heap = mallinfo();
+        VitaSys_LogPrintf("VirtualAlloc failed: wanted %u KB, heap %u KB used of %u KB\n",
+                          (unsigned)((size_t)size / 1024), (unsigned)(heap.uordblks / 1024),
+                          (unsigned)(_newlib_heap_size_user / 1024));
+        VitaSys_LogFlush();
+    }
     return memory;
 }
 

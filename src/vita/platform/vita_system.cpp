@@ -5,6 +5,7 @@
 #include <psp2/kernel/sysmem.h>
 #include <psp2/power.h>
 
+#include <malloc.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -548,11 +549,15 @@ void __cdecl Sys_OutOfMemErrorInternal(const char *filename, int line)
     VitaMem_GetStats(VITA_MEM_MAIN, &mainArena);
     VitaMem_GetStats(VITA_MEM_CDRAM, &cdramArena);
 
+    // Z_VirtualAlloc is served by the newlib heap, so that is the pool a failure here ran out of
+    const struct mallinfo heap = mallinfo();
+
     Com_sprintf(string, sizeof(string),
-                "Out of memory at %s line %i.  Main arena %u KB reserved, %u KB used, largest free "
-                "run %u KB; CDRAM %u KB reserved, %u KB used.",
-                filename, line, mainArena.reserved / 1024, mainArena.used / 1024,
-                mainArena.largestFreeRun / 1024, cdramArena.reserved / 1024,
+                "Out of memory at %s line %i.  Heap %u KB used of %u KB.  GXM arenas: main %u KB "
+                "reserved, %u KB used, largest free run %u KB; CDRAM %u KB reserved, %u KB used.",
+                filename, line, (unsigned)(heap.uordblks / 1024),
+                (unsigned)(_newlib_heap_size_user / 1024), mainArena.reserved / 1024,
+                mainArena.used / 1024, mainArena.largestFreeRun / 1024, cdramArena.reserved / 1024,
                 cdramArena.used / 1024);
 
     VitaSys_Fatal("Out of memory", string);
