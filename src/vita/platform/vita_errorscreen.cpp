@@ -1,5 +1,7 @@
 #include "vita_errorscreen.h"
 
+#include "vita_system.h"
+
 #include <psp2/ctrl.h>
 #include <psp2/display.h>
 #include <psp2/kernel/processmgr.h>
@@ -163,7 +165,7 @@ static bool VitaErrorScreen_Acquire(void)
     return true;
 }
 
-static void VitaErrorScreen_Present(void)
+static int VitaErrorScreen_Present(void)
 {
     SceDisplayFrameBuf frame;
     memset(&frame, 0, sizeof(frame));
@@ -173,7 +175,8 @@ static void VitaErrorScreen_Present(void)
     frame.pixelformat = SCE_DISPLAY_PIXELFORMAT_A8B8G8R8;
     frame.width = SCREEN_WIDTH;
     frame.height = SCREEN_HEIGHT;
-    sceDisplaySetFrameBuf(&frame, SCE_DISPLAY_SETBUF_IMMEDIATE);
+    // IMMEDIATE is the exception-handler mode; the ordinary path is the one the hardware expects
+    return sceDisplaySetFrameBuf(&frame, SCE_DISPLAY_SETBUF_NEXTFRAME);
 }
 
 static void VitaErrorScreen_FillRows(int y, int height, uint32_t colour)
@@ -347,6 +350,7 @@ void VitaBootScreen_Tick(const char *status)
     if (!VitaErrorScreen_Acquire())
     {
         s_bootScreenDone = true;
+        VitaSys_LogPrint("boot screen: no framebuffer could be allocated\n");
         return;
     }
 
@@ -368,5 +372,15 @@ void VitaBootScreen_Tick(const char *status)
     if (status)
         VitaErrorScreen_Paragraph(status, MARGIN, statusY, BODY_SCALE,
                                   VitaErrorScreen_Colour(150, 150, 150));
-    VitaErrorScreen_Present();
+
+    const int result = VitaErrorScreen_Present();
+
+    // the recursive log call lands back here and stops at the rate limit above
+    static bool reported;
+    if (!reported)
+    {
+        reported = true;
+        VitaSys_LogPrintf("boot screen: buffer %p, sceDisplaySetFrameBuf returned 0x%08x\n",
+                          (void *)s_pixels, (unsigned)result);
+    }
 }
