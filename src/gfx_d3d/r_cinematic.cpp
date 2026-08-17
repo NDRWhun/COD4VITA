@@ -1405,6 +1405,14 @@ static bool Cin_CreatePlanes(uint32_t width, uint32_t height)
         if (!s_plane[i])
             return false;
         Cin_FillImage(&s_planeImage[i], s_plane[i], w, h, names[i]);
+
+        // black until the first frame decodes: zero luma, chroma at its neutral midpoint
+        void *bits; uint32_t pitch, slice;
+        if (GxmImage_MapLevelWrite(s_plane[i], 0, 0, &bits, &pitch, &slice))
+        {
+            memset(bits, i ? 128 : 0, w * h);
+            GxmImage_UnmapLevelWrite(s_plane[i], 0, 0, bits);
+        }
     }
     s_planeW = width;
     s_planeH = height;
@@ -1507,6 +1515,15 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
     if (s_audioThread >= 0)
         sceKernelStartThread(s_audioThread, 0, NULL);
 
+    // the material can draw before the first frame decodes, and a null code image is fatal
+    if (!s_plane[0] && !Cin_CreatePlanes(16, 16))
+    {
+        R_Cinematic_StopPlayback();
+        s_started = true;
+        s_finished = true;
+        return;
+    }
+
     s_started = true;
     s_finished = false;
 }
@@ -1572,7 +1589,7 @@ void __cdecl R_Cinematic_UpdateFrame()
         gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_Y] = &s_planeImage[0];
         gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CB] = &s_planeImage[1];
         gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CR] = &s_planeImage[2];
-        gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_A] = &s_alphaImage;
+        gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_A] = rgp.whiteImage;
     }
 }
 
