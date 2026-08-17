@@ -23,9 +23,17 @@ bool GxmBuffer_Create(GxmBuffer *buffer, uint32_t size, bool cpuCached)
     if (!size)
         return false;
 
-    const GxmMemDomain domain = cpuCached ? GXM_MEM_MAIN : GXM_MEM_MAIN_UNCACHED;
-    if (!GxmMem_Alloc(&buffer->memory, size, domain, SCE_GXM_MEMORY_ATTRIB_READ))
+    // pooled: a fastfile brings thousands of model buffers, and a memblock each is a kernel
+    // object per buffer rounded up to a page
+    if (cpuCached)
+    {
+        if (!GxmMem_Alloc(&buffer->memory, size, GXM_MEM_MAIN, SCE_GXM_MEMORY_ATTRIB_READ))
+            return false;
+    }
+    else if (!GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_MAIN_UNCACHED, 4))
+    {
         return false;
+    }
 
     buffer->size = buffer->memory.size;
     return true;
