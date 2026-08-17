@@ -112,6 +112,25 @@ double __cdecl DB_GetLoadedFraction()
     return (float)((loadedBytesInternal + loadedBytesExternal) / (totalBytesInternal + totalBytesExternal));
 }
 
+#ifdef KISAK_VITA
+// hashes of the stream as read and as inflated, so corruption names its own stage
+uint32_t db_dbgChunkHash[8];
+uint32_t db_dbgChunkBytes[8];
+uint32_t db_dbgChunkCount;
+uint32_t db_dbgOutHash = 2166136261u;
+uint32_t db_dbgOutBytes;
+
+static uint32_t DB_DbgFnv(uint32_t hash, const uint8_t *data, uint32_t count)
+{
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        hash ^= data[i];
+        hash *= 16777619u;
+    }
+    return hash;
+}
+#endif
+
 void __cdecl DB_LoadXFileData(uint8_t *pos, uint32_t size)
 {
     const char *v2; // eax
@@ -157,6 +176,13 @@ void __cdecl DB_LoadXFileData(uint8_t *pos, uint32_t size)
         DB_WaitXFileStage();
         DB_ReadXFileStage();
     }
+#ifdef KISAK_VITA
+    if (db_dbgOutBytes < 0x180000)
+    {
+        db_dbgOutHash = DB_DbgFnv(db_dbgOutHash, pos, size);
+        db_dbgOutBytes += size;
+    }
+#endif
 }
 
 void DB_ReadXFileStage()
@@ -199,6 +225,12 @@ int32_t __cdecl DB_ReadData()
         return 0;                           // past the end, which ReadFileEx reports as ERROR_HANDLE_EOF
     // avail_in counts the whole block, so the unread tail must be zeroed
     memset(fileBuffer + transferred, 0, 0x40000u - transferred);
+    if (db_dbgChunkCount < 8)
+    {
+        db_dbgChunkHash[db_dbgChunkCount] = DB_DbgFnv(2166136261u, fileBuffer, transferred);
+        db_dbgChunkBytes[db_dbgChunkCount] = transferred;
+        ++db_dbgChunkCount;
+    }
 #else
     if (!ReadFileEx(g_load.f, fileBuffer, 0x40000u, &g_load.overlapped, (LPOVERLAPPED_COMPLETION_ROUTINE)DB_FileReadCompletion))
         return 0;

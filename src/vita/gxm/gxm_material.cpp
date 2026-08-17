@@ -115,6 +115,14 @@ GxmMaterialShader *GxmMaterial_CreateShader(const void *bytecode, uint32_t byteC
                     n += snprintf(line + n, sizeof(line) - n, " %08x", words[j]);
                 VitaSys_LogPrintf("  dw%02u%s\n", i, line);
             }
+
+            extern uint32_t db_dbgChunkHash[8], db_dbgChunkBytes[8], db_dbgChunkCount;
+            extern uint32_t db_dbgOutHash, db_dbgOutBytes;
+            for (uint32_t c = 0; c < db_dbgChunkCount; ++c)
+                VitaSys_LogPrintf("  chunk %u: %08x (%u bytes)\n", c, db_dbgChunkHash[c],
+                                  db_dbgChunkBytes[c]);
+            VitaSys_LogPrintf("  inflated %u bytes so far, hash %08x\n", db_dbgOutBytes,
+                              db_dbgOutHash);
         }
         VitaSys_LogFlush();
         return NULL;
