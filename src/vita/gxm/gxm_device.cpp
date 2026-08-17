@@ -382,8 +382,9 @@ const SceGxmNotification *GxmDevice_SceneNotification(void)
 
 void GxmDevice_IssueFence(void)
 {
-    // the open scene writes value + 1, so that is what the wait has to reach
-    gxmDev.fenceValue = gxmDev.sceneNotification.value + 1;
+    // issued after the frame's scenes end, so everything queued so far is the target; one more
+    // would name a scene only the next frame can submit, which the waiter itself blocks
+    gxmDev.fenceValue = gxmDev.sceneNotification.value;
 }
 
 bool GxmDevice_FenceReached(void)
