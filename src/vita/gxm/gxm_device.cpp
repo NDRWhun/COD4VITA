@@ -1,6 +1,7 @@
 #include "gxm_device.h"
 #include "gxm_memory.h"
 #include "gxm_rendertarget.h"
+#include "../platform/vita_errorscreen.h"
 #include "../platform/vita_memory.h"
 
 #include <psp2/display.h>
@@ -274,6 +275,9 @@ void GxmDevice_EndFrame(void)
 
     GxmDisplayData data;
     data.address = back->mem.base;
+
+    // the boot screen keeps the display until the first real frame is queued here
+    VitaBootScreen_Disable();
 
     // the queue waits on the new buffer's fence and releases the one leaving the screen
     sceGxmDisplayQueueAddEntry(gxmDev.display[gxmDev.frontBufferIndex].sync, back->sync, &data);

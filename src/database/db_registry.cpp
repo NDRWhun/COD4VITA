@@ -10,6 +10,10 @@
 #include <qcommon/com_bsp.h>
 #include <gfx_d3d/r_init.h>
 #include <win32/win_local.h>
+
+#ifdef KISAK_VITA
+#include <vita/platform/vita_system.h>
+#endif
 #include <gfx_d3d/rb_uploadshaders.h>
 #include <gfx_d3d/r_image.h>
 #include <universal/com_files.h>
@@ -2405,8 +2409,16 @@ void DB_TryLoadXFile()
             MyAssertHandler(".\\database\\db_registry.cpp", 3764, 0, "%s", "!g_loadingZone");
         for (j = 0; j < zoneInfoCount; ++j)
         {
+#ifdef KISAK_VITA
+            VitaSys_LogPrintf("db: loading %s\n", g_zoneInfo[j].name);
+            VitaSys_LogFlush();
+#endif
             if (!DB_TryLoadXFileInternal(g_zoneInfo[j].name, g_zoneInfo[j].flags))
                 --g_loadingAssets;
+#ifdef KISAK_VITA
+            VitaSys_LogPrintf("db: finished %s\n", g_zoneInfo[j].name);
+            VitaSys_LogFlush();
+#endif
         }
         if (g_loadingZone)
             MyAssertHandler(".\\database\\db_registry.cpp", 3772, 0, "%s", "!g_loadingZone");

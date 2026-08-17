@@ -8,6 +8,10 @@
 #include <universal/com_memory.h>
 #include <client/client.h>
 #include <win32/win_net_debug.h>
+
+#ifdef KISAK_VITA
+#include <vita/platform/vita_system.h>
+#endif
 #include <bgame/bg_local.h>
 #include <script/scr_debugger.h>
 #include "com_bsp.h"
@@ -678,6 +682,11 @@ void Com_Error(errorParm_t code, const char* fmt, ...)
     com_errorEntered = 1;
     _vsnprintf(com_errorMessage, 0x1000u, fmt, va);
     com_errorMessage[4095] = 0;
+#ifdef KISAK_VITA
+    // the longjmp below can land in a thread that reports nothing, so the text goes out first
+    VitaSys_LogPrintf("Com_Error(%i): %s\n", (int)code, com_errorMessage);
+    VitaSys_LogFlush();
+#endif
     iassert( com_errorMessage[0] );
     if (code == ERR_SCRIPT || code == ERR_LOCALIZATION)
     {

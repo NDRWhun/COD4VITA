@@ -4088,8 +4088,6 @@ char __cdecl R_CreateDevice(const GfxWindowParms *wndParms)
     dx.multiSampleQuality = 0;
 
     Com_Printf(8, "Creating GXM device...\n");
-    // GXM drives the display from here, so the boot screen must stop asserting its own buffer
-    VitaBootScreen_Disable();
     if (!GxmDevice_Init())
     {
         Com_Printf(8, "Couldn't initialize GXM\n");
