@@ -3,10 +3,10 @@
 #include <gfx_d3d/r_cinematic.h>
 #include <gfx_d3d/r_dvars.h>
 
-// PMem commits 128 MB up front and common's loaded sounds land here through Z_Malloc; boot with
-// 208 ran the heap out at ~7200 assets, and 77 MB of main stood free at that point
+// the ledger at the last boot OOM: PMem 96 + sounds 34 + vertex pools 25 + hunk 10 + newlib
+// overhead, with common's sound tail still to land; main keeps ~45 MB for the GXM side
 extern "C" {
-unsigned int _newlib_heap_size_user = 224 * 1024 * 1024;
+unsigned int _newlib_heap_size_user = 240 * 1024 * 1024;
 }
 
 // storage only; R_RegisterDvars in r_dvars.cpp still assigns all three
