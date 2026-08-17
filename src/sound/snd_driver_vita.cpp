@@ -1132,15 +1132,26 @@ void __cdecl SND_SetData(MssSoundCOD4 *mssSound, void *srcData)
         const uint32_t newDataLen = frameCount * channels * bytesPerSample;
         mssSound->data = MSS_Alloc(newDataLen, rate);
 
+        // a divide per frame is minutes of load on this cpu, so the ratio walks as a remainder
+        const uint32_t step = frameCount ? srcFrameCount / frameCount : 0;
+        const uint32_t rem = frameCount ? srcFrameCount % frameCount : 0;
+        uint32_t srcFrame = 0, err = 0;
+
         if (bytesPerSample == 2)
         {
             const int16_t *src16 = (const int16_t *)srcData;
             int16_t *dst16 = (int16_t *)mssSound->data;
             for (uint32_t i = 0; i < frameCount; ++i)
             {
-                const uint32_t srcFrame = (uint32_t)((uint64_t)i * srcFrameCount / frameCount);
                 for (uint32_t c = 0; c < channels; ++c)
                     dst16[i * channels + c] = src16[srcFrame * channels + c];
+                srcFrame += step;
+                err += rem;
+                if (err >= frameCount)
+                {
+                    err -= frameCount;
+                    ++srcFrame;
+                }
             }
         }
         else
@@ -1149,9 +1160,15 @@ void __cdecl SND_SetData(MssSoundCOD4 *mssSound, void *srcData)
             uint8_t *dst8 = mssSound->data;
             for (uint32_t i = 0; i < frameCount; ++i)
             {
-                const uint32_t srcFrame = (uint32_t)((uint64_t)i * srcFrameCount / frameCount);
                 for (uint32_t c = 0; c < channels; ++c)
                     dst8[i * channels + c] = src8[srcFrame * channels + c];
+                srcFrame += step;
+                err += rem;
+                if (err >= frameCount)
+                {
+                    err -= frameCount;
+                    ++srcFrame;
+                }
             }
         }
 

@@ -853,7 +853,12 @@
          minv,
          DVAR_CHEAT,
          "Scale 3D viewports by this fraction.  Use this to see if framerate is pixel shader bound.");
+#ifdef KISAK_VITA
+     // the smp hand-off stalls on this platform's primitives; the proven config is single thread
+     r_smp_backend = Dvar_RegisterBool("r_smp_backend", false, DVAR_NOFLAG, "Process renderer back end in a separate thread");
+#else
      r_smp_backend = Dvar_RegisterBool("r_smp_backend", true, DVAR_NOFLAG, "Process renderer back end in a separate thread");
+#endif
      r_smp_worker = Dvar_RegisterBool("r_smp_worker", true, DVAR_NOFLAG, "Process renderer front end in a separate thread");
      r_smp_worker_thread[0] = R_RegisterWorkerThreadDvar("r_smp_worker_thread0", 0);
      r_smp_worker_thread[1] = R_RegisterWorkerThreadDvar("r_smp_worker_thread1", 1u);
