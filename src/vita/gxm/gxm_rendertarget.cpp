@@ -133,29 +133,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     params.multisampleMode = SCE_GXM_MULTISAMPLE_NONE;
     params.driverMemBlock = -1;
 
-    // GXM shares its internal pool with the shader patcher
-    unsigned int driverMemSize = 0;
-    const int sized = sceGxmGetRenderTargetMemSize(&params, &driverMemSize);
-    VitaSys_Breadcrumb("memSize rc=0x%08x size=%u", (unsigned)sized, driverMemSize);
-    if (sized < 0)
-    {
-        GxmMem_Free(&rt->colorMem);
-        return false;
-    }
-
-    const uint32_t aligned = (driverMemSize + 4095u) & ~4095u;
-    VitaSys_Breadcrumb("before sceKernelAllocMemBlock %u", aligned);
-    rt->driverMem = sceKernelAllocMemBlock("gxm_rendertarget",
-                                           SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE, aligned, NULL);
-    VitaSys_Breadcrumb("driverMem uid=0x%08x", (unsigned)rt->driverMem);
-    if (rt->driverMem < 0)
-    {
-        GxmMem_Free(&rt->colorMem);
-        return false;
-    }
-    params.driverMemBlock = rt->driverMem;
-
-    VitaSys_Breadcrumb("before sceGxmCreateRenderTarget");
+    VitaSys_Breadcrumb("before sceGxmCreateRenderTarget %ux%u", width, height);
     const int created = sceGxmCreateRenderTarget(&params, &rt->target);
     VitaSys_Breadcrumb("createRenderTarget rc=0x%08x", (unsigned)created);
     if (created < 0)
@@ -181,8 +159,6 @@ void GxmRenderTarget_Free(GxmRenderTarget *rt)
 
     if (rt->target)
         sceGxmDestroyRenderTarget(rt->target);
-    if (rt->driverMem > 0)
-        sceKernelFreeMemBlock(rt->driverMem);
     GxmMem_Free(&rt->colorMem);
     memset(rt, 0, sizeof(*rt));
 }
