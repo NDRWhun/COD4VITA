@@ -126,7 +126,9 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     params.multisampleMode = SCE_GXM_MULTISAMPLE_NONE;
     params.driverMemBlock = -1;
 
+    VitaMem_GpuLock();
     const int created = sceGxmCreateRenderTarget(&params, &rt->target);
+    VitaMem_GpuUnlock();
     if (created < 0)
     {
         GxmMem_Free(&rt->colorMem);
@@ -149,7 +151,11 @@ void GxmRenderTarget_Free(GxmRenderTarget *rt)
     GxmRenderTarget_Unregister(rt);
 
     if (rt->target)
+    {
+        VitaMem_GpuLock();
         sceGxmDestroyRenderTarget(rt->target);
+        VitaMem_GpuUnlock();
+    }
     GxmMem_Free(&rt->colorMem);
     memset(rt, 0, sizeof(*rt));
 }

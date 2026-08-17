@@ -66,11 +66,27 @@ static uint32_t VitaMem_PageSize(VitaMemArena arena)
     return arena == VITA_MEM_CDRAM ? VITA_MEM_CDRAM_PAGE : VITA_MEM_MAIN_PAGE;
 }
 
+static SceUID s_gpuLock = -1;
+
+// always taken inside the arena lock, never the other way round, so the two cannot deadlock
+void VitaMem_GpuLock(void)
+{
+    if (s_gpuLock >= 0)
+        sceKernelLockMutex(s_gpuLock, 1, NULL);
+}
+
+void VitaMem_GpuUnlock(void)
+{
+    if (s_gpuLock >= 0)
+        sceKernelUnlockMutex(s_gpuLock, 1);
+}
+
 bool VitaMem_Init(void)
 {
     memset(s_arenas, 0, sizeof(s_arenas));
     s_lock = sceKernelCreateMutex("kcod_mem", SCE_KERNEL_MUTEX_ATTR_RECURSIVE, 0, NULL);
-    return s_lock >= 0;
+    s_gpuLock = sceKernelCreateMutex("kcod_gpu", SCE_KERNEL_MUTEX_ATTR_RECURSIVE, 0, NULL);
+    return s_lock >= 0 && s_gpuLock >= 0;
 }
 
 static void VitaMem_Enter(void)
@@ -135,11 +151,16 @@ static bool VitaMem_Grow(VitaMemArena arena, uint32_t needed)
         return false;
     }
 
-    if (state->gpuMapped &&
-        sceGxmMapMemory(base, size, (SceGxmMemoryAttribFlags)state->gpuAttr) < 0)
+    if (state->gpuMapped)
     {
-        sceKernelFreeMemBlock(uid);
-        return false;
+        VitaMem_GpuLock();
+        const int mapped = sceGxmMapMemory(base, size, (SceGxmMemoryAttribFlags)state->gpuAttr);
+        VitaMem_GpuUnlock();
+        if (mapped < 0)
+        {
+            sceKernelFreeMemBlock(uid);
+            return false;
+        }
     }
 
     VitaMemBlock *block = (VitaMemBlock *)base;
@@ -302,7 +323,11 @@ static void VitaMem_ReleaseEmptyBlocks(VitaMemArenaState *state)
         state->stats.blocks--;
 
         if (state->gpuMapped)
+        {
+            VitaMem_GpuLock();
             sceGxmUnmapMemory(base);
+            VitaMem_GpuUnlock();
+        }
         sceKernelFreeMemBlock(uid);
     }
 }
@@ -388,7 +413,11 @@ void VitaMem_Shutdown(void)
             VitaMemBlock *next = block->next;
             const SceUID uid = block->uid;
             if (state->gpuMapped)
+            {
+                VitaMem_GpuLock();
                 sceGxmUnmapMemory(block->base);
+                VitaMem_GpuUnlock();
+            }
             sceKernelFreeMemBlock(uid);
             block = next;
         }

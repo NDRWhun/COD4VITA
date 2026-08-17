@@ -70,7 +70,10 @@ bool GxmMem_Alloc(GxmAlloc *out, uint32_t size, GxmMemDomain domain, uint32_t gp
         return false;
 
     // the ORed attribute flags are an int in C++; libgxm declares the parameter as the enum
-    if (sceGxmMapMemory(out->base, out->size, (SceGxmMemoryAttribFlags)gpuAttr) < 0)
+    VitaMem_GpuLock();
+    const int mapped = sceGxmMapMemory(out->base, out->size, (SceGxmMemoryAttribFlags)gpuAttr);
+    VitaMem_GpuUnlock();
+    if (mapped < 0)
     {
         GxmMem_Release(out);
         return false;
@@ -83,7 +86,10 @@ bool GxmMem_AllocVertexUsse(GxmAlloc *out, uint32_t size)
     if (!GxmMem_Reserve(out, size, GXM_MEM_MAIN))
         return false;
 
-    if (sceGxmMapVertexUsseMemory(out->base, out->size, &out->usseOffset) < 0)
+    VitaMem_GpuLock();
+    const int mapped = sceGxmMapVertexUsseMemory(out->base, out->size, &out->usseOffset);
+    VitaMem_GpuUnlock();
+    if (mapped < 0)
     {
         GxmMem_Release(out);
         return false;
@@ -97,7 +103,10 @@ bool GxmMem_AllocFragmentUsse(GxmAlloc *out, uint32_t size)
     if (!GxmMem_Reserve(out, size, GXM_MEM_MAIN))
         return false;
 
-    if (sceGxmMapFragmentUsseMemory(out->base, out->size, &out->usseOffset) < 0)
+    VitaMem_GpuLock();
+    const int mapped = sceGxmMapFragmentUsseMemory(out->base, out->size, &out->usseOffset);
+    VitaMem_GpuUnlock();
+    if (mapped < 0)
     {
         GxmMem_Release(out);
         return false;
@@ -146,13 +155,19 @@ void GxmMem_Free(GxmAlloc *a)
     switch (a->mapKind)
     {
     case GXM_MAP_VERTEX_USSE:
+        VitaMem_GpuLock();
         sceGxmUnmapVertexUsseMemory(a->base);
+        VitaMem_GpuUnlock();
         break;
     case GXM_MAP_FRAGMENT_USSE:
+        VitaMem_GpuLock();
         sceGxmUnmapFragmentUsseMemory(a->base);
+        VitaMem_GpuUnlock();
         break;
     default:
+        VitaMem_GpuLock();
         sceGxmUnmapMemory(a->base);
+        VitaMem_GpuUnlock();
         break;
     }
 
