@@ -1,11 +1,13 @@
 #include <universal/q_shared.h>
 #include <qcommon/qcommon.h>
+#include <qcommon/cmd.h>
 #include <client/client.h>
 #include <client/cl_input.h>
 #include <win32/win_local.h>
 #include <vita/input/vita_input.h>
 
 #include <math.h>
+#include <stdio.h>
 
 #define KEYCATCH_CONSOLE 0x1
 #define KEYCATCH_UI      0x10
@@ -52,6 +54,35 @@ static void IN_VitaRegisterDvars()
     vita_touchCursor = Dvar_RegisterBool(
         "vita_touchCursor", 1, DVAR_ARCHIVE,
         "Drive the menu cursor from the front touch screen");
+
+    // the defaults live in a cfg the player can edit; absent means first boot, so it is written
+    FILE *binds = fopen("ux0:data/kisakcod/raw/vita_controls.cfg", "r");
+    if (binds)
+        fclose(binds);
+    else
+    {
+        binds = fopen("ux0:data/kisakcod/raw/vita_controls.cfg", "w");
+        if (binds)
+        {
+            fputs("// vita controls; AUX1-4 cross/circle/square/triangle, AUX5-6 L/R,\n"
+                  "// AUX7-10 dpad up/down/left/right, AUX11 select, AUX12-13 rear touch left/right\n"
+                  "bind AUX1 \"+gostand\"\n"
+                  "bind AUX2 \"togglecrouch\"\n"
+                  "bind AUX3 \"+usereload\"\n"
+                  "bind AUX4 \"weapnext\"\n"
+                  "bind AUX5 \"+toggleads_throw\"\n"
+                  "bind AUX6 \"+attack\"\n"
+                  "bind AUX7 \"+nightvision\"\n"
+                  "bind AUX8 \"toggleprone\"\n"
+                  "bind AUX9 \"+smoke\"\n"
+                  "bind AUX10 \"+frag\"\n"
+                  "bind AUX11 \"+breath_sprint\"\n"
+                  "bind AUX12 \"+breath_sprint\"\n"
+                  "bind AUX13 \"+melee\"\n", binds);
+            fclose(binds);
+        }
+    }
+    Cbuf_AddText(0, "exec vita_controls.cfg\n");
 }
 
 static float IN_VitaStickResponse(float value)
@@ -136,7 +167,7 @@ void __cdecl IN_Frame()
         dy = 0;
     }
 
-    if (dx || dy || pointerMoved)
+    if (uiActive && (dx || dy || pointerMoved))
         CL_MouseEvent(s_cursorX, s_cursorY, dx, dy);
 }
 

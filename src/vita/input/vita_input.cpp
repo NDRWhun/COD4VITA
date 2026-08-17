@@ -19,6 +19,21 @@
 #define K_MOUSE1     0xC8
 #define K_MOUSE2     0xC9
 
+// each control gets its own bindable identity ("bind AUX1 ..."), nothing pretends to be a key
+#define K_AUX1       0xCF
+#define K_AUX2       0xD0
+#define K_AUX3       0xD1
+#define K_AUX4       0xD2
+#define K_AUX5       0xD3
+#define K_AUX6       0xD4
+#define K_AUX7       0xD5
+#define K_AUX8       0xD6
+#define K_AUX9       0xD7
+#define K_AUX10      0xD8
+#define K_AUX11      0xD9
+#define K_AUX12      0xDA
+#define K_AUX13      0xDB
+
 #define VITA_SCREEN_WIDTH   960
 #define VITA_SCREEN_HEIGHT  544
 
@@ -36,21 +51,21 @@ struct VitaButtonMapping
     int key;
 };
 
-// R fires and L aims, as the shoulder buttons do on the console builds
+// every control raises its own AUX key; what it does is decided by binds, not by this table
 static const VitaButtonMapping s_gameMap[] =
 {
-    { SCE_CTRL_RTRIGGER, K_MOUSE1 },
-    { SCE_CTRL_LTRIGGER, K_MOUSE2 },
-    { SCE_CTRL_CROSS,    K_SPACE },
-    { SCE_CTRL_CIRCLE,   'c' },
-    { SCE_CTRL_SQUARE,   'r' },
-    { SCE_CTRL_TRIANGLE, 'f' },
+    { SCE_CTRL_CROSS,    K_AUX1 },
+    { SCE_CTRL_CIRCLE,   K_AUX2 },
+    { SCE_CTRL_SQUARE,   K_AUX3 },
+    { SCE_CTRL_TRIANGLE, K_AUX4 },
+    { SCE_CTRL_LTRIGGER, K_AUX5 },
+    { SCE_CTRL_RTRIGGER, K_AUX6 },
+    { SCE_CTRL_UP,       K_AUX7 },
+    { SCE_CTRL_DOWN,     K_AUX8 },
+    { SCE_CTRL_LEFT,     K_AUX9 },
+    { SCE_CTRL_RIGHT,    K_AUX10 },
+    { SCE_CTRL_SELECT,   K_AUX11 },
     { SCE_CTRL_START,    K_ESCAPE },
-    { SCE_CTRL_SELECT,   K_TAB },
-    { SCE_CTRL_UP,       K_UPARROW },
-    { SCE_CTRL_DOWN,     K_DOWNARROW },
-    { SCE_CTRL_LEFT,     K_LEFTARROW },
-    { SCE_CTRL_RIGHT,    K_RIGHTARROW },
 };
 
 // cross must be ENTER here: Menu_HandleKey activates an item on 13, not on space
@@ -67,8 +82,7 @@ static const VitaButtonMapping s_menuMap[] =
     { SCE_CTRL_RIGHT,    K_RIGHTARROW },
 };
 
-// the engine's analog move path is compiled out, so the left stick drives the movement binds
-static const int s_gameStickKeys[STICK_DIR_COUNT] = { 'w', 's', 'a', 'd' };
+// in game the sticks feed CL_GamepadMove as analog axes; only the menus want key repeats
 static const int s_menuStickKeys[STICK_DIR_COUNT] = { K_UPARROW, K_DOWNARROW, K_LEFTARROW, K_RIGHTARROW };
 
 static VitaInputKeyFn s_keyFn;
@@ -81,6 +95,8 @@ static bool s_resyncButtons;
 static float s_lookSensitivity = 1.0f;
 static float s_deadZone = 0.2f;
 static float s_moveThreshold = 0.35f;
+
+static bool s_rearHeld[2];
 
 static int s_touchOriginX = 0;
 static int s_touchOriginY = 0;
@@ -134,6 +150,7 @@ bool VitaInput_Init(VitaInputKeyFn keyFn, VitaInputCharFn charFn)
 
     sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG_WIDE);
     sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
+    sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_START);
     VitaInput_QueryTouchPanel();
     return true;
 }
@@ -141,6 +158,7 @@ bool VitaInput_Init(VitaInputKeyFn keyFn, VitaInputCharFn charFn)
 void VitaInput_Shutdown(void)
 {
     sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_STOP);
+    sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_STOP);
     s_keyFn = NULL;
     s_charFn = NULL;
 }
@@ -188,7 +206,9 @@ static void VitaInput_PollTouch(void)
 // the release threshold sits below the press threshold so a stick held near it cannot chatter
 static void VitaInput_EmitStickKeys(void)
 {
-    const int *keys = s_context == VITA_INPUT_MENU ? s_menuStickKeys : s_gameStickKeys;
+    if (s_context != VITA_INPUT_MENU)
+        return;
+    const int *keys = s_menuStickKeys;
     const float deflection[STICK_DIR_COUNT] =
     {
         s_state.moveForward, -s_state.moveForward, -s_state.moveSide, s_state.moveSide
@@ -211,7 +231,6 @@ static void VitaInput_ReleaseHeld(void)
 {
     uint32_t count;
     const VitaButtonMapping *map = VitaInput_Map(&count);
-    const int *keys = s_context == VITA_INPUT_MENU ? s_menuStickKeys : s_gameStickKeys;
 
     if (s_keyFn)
     {
@@ -223,7 +242,15 @@ static void VitaInput_ReleaseHeld(void)
         for (uint32_t i = 0; i < STICK_DIR_COUNT; ++i)
         {
             if (s_stickKeys & (1u << i))
-                s_keyFn(keys[i], false);
+                s_keyFn(s_menuStickKeys[i], false);
+        }
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            if (s_rearHeld[i])
+            {
+                s_keyFn(i ? K_AUX13 : K_AUX12, false);
+                s_rearHeld[i] = false;
+            }
         }
     }
     s_stickKeys = 0;
@@ -277,6 +304,25 @@ void VitaInput_Frame(void)
 
     VitaInput_EmitStickKeys();
     VitaInput_PollTouch();
+
+    // the back panel is two bindable halves, live only while the game has the controls
+    bool rear[2] = { false, false };
+    SceTouchData back;
+    if (s_context == VITA_INPUT_GAME &&
+        sceTouchPeek(SCE_TOUCH_PORT_BACK, &back, 1) >= 0)
+    {
+        for (uint32_t i = 0; i < back.reportNum && i < SCE_TOUCH_MAX_REPORT; ++i)
+            rear[back.report[i].x >= TOUCH_PANEL_WIDTH / 2] = true;
+    }
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        if (rear[i] != s_rearHeld[i])
+        {
+            s_rearHeld[i] = rear[i];
+            if (s_keyFn)
+                s_keyFn(i ? K_AUX13 : K_AUX12, rear[i]);
+        }
+    }
 }
 
 const VitaInputState *VitaInput_State(void)

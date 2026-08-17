@@ -993,6 +993,72 @@ int __cdecl CL_AllowInput()
     return result;
 }
 
+#ifdef KISAK_VITA
+#include <vita/input/vita_input.h>
+#include <aim_assist/aim_assist.h>
+
+// the console build's analog path: raw stick axes in, assisted view angles out
+void __cdecl CL_GamepadMove(usercmd_s *cmd)
+{
+    if (cl_paused->current.integer)
+        return;
+    if ((clients[0].snap.ps.pm_flags & 0x800) != 0 && cl_freemove->current.integer != 2)
+        return;
+
+    const VitaInputState *pad = VitaInput_State();
+    const float side = pad->moveSide;
+    const float forward = pad->moveForward;
+    const float yawAxis = -pad->lookYaw;
+    float pitchAxis = pad->lookPitch;
+
+    static const dvar_s *invert;
+    if (!invert)
+        invert = Dvar_RegisterBool("vita_invertLook", 0, DVAR_ARCHIVE,
+                                   "Invert the right stick's pitch");
+    if (!invert->current.enabled)
+        pitchAxis = -pitchAxis;
+
+    // a diagonal keeps walk speed by scaling to the unit circle, as the console builds did
+    float scale = 127.0f;
+    if (I_fabs(side) > 0.0f || I_fabs(forward) > 0.0f)
+    {
+        const float ratio = I_fabs(side) <= I_fabs(forward) ? side / forward : forward / side;
+        scale = sqrtf(ratio * ratio + 1.0f) * 127.0f;
+    }
+    cmd->rightmove = ClampChar((int)(scale * side) + cmd->rightmove);
+    cmd->forwardmove = ClampChar((int)(scale * forward) + cmd->forwardmove);
+
+    if (kb[KEY_SPEED].active == (clients[0].usingAds == 0))
+        cmd->buttons |= 0x800u;
+    if (!kb[KEY_BACK].active)
+    {
+        if (kb[KEY_SPRINT].active || kb[KEY_SPRINT].wasPressed)
+        {
+            cmd->buttons |= BUTTON_SPRINT;
+            kb[KEY_SPRINT].wasPressed = 0;
+        }
+        else
+        {
+            cmd->buttons &= ~(unsigned)BUTTON_SPRINT;
+        }
+    }
+
+    // the aim assist module only carries its mouse half, so the look integrates directly against
+    // the engine's own per-state turn speed limits until the gamepad half is ported
+    static const dvar_s *lookPower;
+    if (!lookPower)
+        lookPower = Dvar_RegisterFloat("vita_lookPower", 2.0f, 1.0f, 4.0f, DVAR_ARCHIVE,
+                                       "Right stick response curve exponent; 1 is linear");
+
+    const float dt = (float)(unsigned int)cls.frametime * 0.001f;
+    const float power = lookPower->current.value;
+    const float shapedPitch = powf(I_fabs(pitchAxis), power) * (pitchAxis < 0.0f ? -1.0f : 1.0f);
+    const float shapedYaw = powf(I_fabs(yawAxis), power) * (yawAxis < 0.0f ? -1.0f : 1.0f);
+
+    clients[0].viewangles[0] += shapedPitch * clients[0].cgameMaxPitchSpeed * dt;
+    clients[0].viewangles[1] += shapedYaw * clients[0].cgameMaxYawSpeed * dt;
+}
+#else
 void __cdecl CL_GamepadMove(usercmd_s *cmd)
 {
     // KISAKTODO
@@ -1106,6 +1172,7 @@ void __cdecl CL_GamepadMove(usercmd_s *cmd)
     }
 #endif
 }
+#endif
 
 void __cdecl CL_GetMouseMovement(clientActive_t *cl, float *mx, float *my)
 {
@@ -1604,9 +1671,14 @@ void __cdecl CL_CreateCmd(usercmd_s *result)
         CL_CmdButtons(result);
         CL_KeyMove(result);
         CL_MouseMove(result);
+#ifdef KISAK_VITA
+        if (!Key_IsCatcherActive(0, 0x11))
+            CL_GamepadMove(result);
+#else
         // KISAKTODO
         //if (GPad_IsActive(CL_ControllerIndexFromClientNum(0)))
         //    CL_GamepadMove(result);
+#endif
         if (clients[0].viewangles[0] - oldAngles <= 90.0)
         {
             if (oldAngles - clients[0].viewangles[0] > 90.0)

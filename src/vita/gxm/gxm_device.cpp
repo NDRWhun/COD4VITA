@@ -4,6 +4,7 @@
 #include "../platform/vita_errorscreen.h"
 #include "../platform/vita_memory.h"
 
+#include <psp2/common_dialog.h>
 #include <psp2/display.h>
 #include <psp2/kernel/sysmem.h>
 #include <stdlib.h>
@@ -271,6 +272,19 @@ void GxmDevice_EndFrame(void)
     // the frame must land on the back buffer however many targets the scene switcher visited
     GxmRenderTarget_Begin(GxmRenderTarget_Display());
     GxmRenderTarget_End();
+
+    // the system composites its dialogs (the IME among them) into the buffer being handed over
+    SceCommonDialogUpdateParam dialog;
+    memset(&dialog, 0, sizeof(dialog));
+    dialog.renderTarget.colorFormat = SCE_GXM_COLOR_FORMAT_A8B8G8R8;
+    dialog.renderTarget.surfaceType = SCE_GXM_COLOR_SURFACE_LINEAR;
+    dialog.renderTarget.width = GXM_SCREEN_WIDTH;
+    dialog.renderTarget.height = GXM_SCREEN_HEIGHT;
+    dialog.renderTarget.strideInPixels = GXM_SCREEN_WIDTH;
+    dialog.renderTarget.colorSurfaceData = back->mem.base;
+    dialog.displaySyncObject = back->sync;
+    sceCommonDialogUpdate(&dialog);
+
     sceGxmPadHeartbeat(&back->surface, back->sync);
 
     GxmDisplayData data;
