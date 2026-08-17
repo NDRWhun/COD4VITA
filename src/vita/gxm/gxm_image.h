@@ -43,6 +43,11 @@ void GxmImage_Release(GxmImage *image);
 bool GxmImage_MapLevel(const GxmImage *image, uint32_t mipLevel, uint32_t face,
                        void **bits, uint32_t *rowPitch, uint32_t *slicePitch);
 
+// a write mapping: swizzled layouts stage the linear copy, and the unmap reorders it into place
+bool GxmImage_MapLevelWrite(const GxmImage *image, uint32_t mipLevel, uint32_t face,
+                            void **bits, uint32_t *rowPitch, uint32_t *slicePitch);
+void GxmImage_UnmapLevelWrite(const GxmImage *image, uint32_t mipLevel, uint32_t face, void *bits);
+
 // the D3D format the texture carries, read back from GXM so render-target views work too
 uint32_t GxmImage_FormatOf(const GxmTexture *texture);
 

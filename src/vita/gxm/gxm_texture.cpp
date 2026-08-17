@@ -1,6 +1,8 @@
 #include "gxm_texture.h"
 #include "gxm_memory.h"
 
+#include <vita/platform/vita_system.h>
+
 #include <string.h>
 
 // UBC2 and UBC3 have the strictest requirement at 16 bytes (GPU guide, memory alignment)
@@ -64,6 +66,59 @@ uint32_t GxmTexture_LevelSize(uint32_t imageFormat, uint32_t width, uint32_t hei
     return width * height * format.bytesPerPixel;
 }
 
+uint32_t GxmTexture_ElemBytes(uint32_t imageFormat, bool *isBlock)
+{
+    GxmTextureFormat format;
+    if (!GxmTexture_Format(imageFormat, &format))
+    {
+        if (isBlock)
+            *isBlock = false;
+        return 0;
+    }
+    if (isBlock)
+        *isBlock = format.blockBytes != 0;
+    return format.blockBytes ? format.blockBytes : format.bytesPerPixel;
+}
+
+// interleaves the low 16 bits of a linear index back out to one axis of the morton curve
+static uint32_t GxmTexture_MortonAxis(uint32_t value)
+{
+    value &= 0x55555555u;
+    value = (value | (value >> 1)) & 0x33333333u;
+    value = (value | (value >> 2)) & 0x0F0F0F0Fu;
+    value = (value | (value >> 4)) & 0x00FF00FFu;
+    value = (value | (value >> 8)) & 0x0000FFFFu;
+    return value;
+}
+
+void GxmTexture_SwizzleGrid(uint8_t *dst, const uint8_t *src, uint32_t wide, uint32_t high,
+                            uint32_t elemBytes)
+{
+    // a non-pow2 grid has no morton layout; copying linearly keeps the failure visible, not fatal
+    if (!wide || !high || (wide & (wide - 1)) || (high & (high - 1)))
+    {
+        VitaSys_LogPrintf("swizzle: %ux%u grid is not pow2, left linear\n", wide, high);
+        memcpy(dst, src, (size_t)wide * high * elemBytes);
+        return;
+    }
+
+    // square morton tiles of the short side, walked along the long side
+    const uint32_t tile = wide < high ? wide : high;
+    for (uint32_t tileY = 0; tileY < high; tileY += tile)
+    {
+        for (uint32_t tileX = 0; tileX < wide; tileX += tile)
+        {
+            for (uint32_t d = 0; d < tile * tile; ++d)
+            {
+                const uint32_t y = tileY + GxmTexture_MortonAxis(d);
+                const uint32_t x = tileX + GxmTexture_MortonAxis(d >> 1);
+                memcpy(dst, src + ((size_t)y * wide + x) * elemBytes, elemBytes);
+                dst += elemBytes;
+            }
+        }
+    }
+}
+
 static uint32_t GxmTexture_TotalSize(uint32_t imageFormat, uint32_t width, uint32_t height,
                                      uint32_t mipCount, uint32_t faces)
 {
@@ -125,13 +180,30 @@ bool GxmTexture_Create(GxmTexture *texture, uint32_t imageFormat,
     if (!GxmTexture_Allocate(texture, imageFormat, width, height, mipCount, cube ? 6 : 1))
         return false;
 
-    const int result = cube
-        ? sceGxmTextureInitCube(&texture->texture, texture->memory.base, format.format,
-                                width, height, mipCount)
-        : sceGxmTextureInitLinear(&texture->texture, texture->memory.base, format.format,
-                                  width, height, mipCount);
+    // block formats and cube faces live in the swizzled layout; only flat uncompressed is linear
+    const bool swizzled = cube || format.blockBytes != 0;
+    if (swizzled && ((width & (width - 1)) || (height & (height - 1))))
+    {
+        VitaSys_LogPrintf("texture img %u %ux%u: swizzled layout needs pow2 sides\n",
+                          imageFormat, width, height);
+        GxmTexture_Free(texture);
+        return false;
+    }
+
+    int result;
+    if (cube)
+        result = sceGxmTextureInitCube(&texture->texture, texture->memory.base, format.format,
+                                       width, height, mipCount);
+    else if (format.blockBytes)
+        result = sceGxmTextureInitSwizzled(&texture->texture, texture->memory.base, format.format,
+                                           width, height, mipCount);
+    else
+        result = sceGxmTextureInitLinear(&texture->texture, texture->memory.base, format.format,
+                                         width, height, mipCount);
     if (result < 0)
     {
+        VitaSys_LogPrintf("texture img %u %ux%u mips %u cube %i: init failed 0x%08x\n",
+                          imageFormat, width, height, mipCount, (int)cube, (unsigned)result);
         GxmTexture_Free(texture);
         return false;
     }

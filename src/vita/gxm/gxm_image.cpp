@@ -164,6 +164,55 @@ bool GxmImage_MapLevel(const GxmImage *image, uint32_t mipLevel, uint32_t face,
     return false;
 }
 
+// block formats always, and cube faces even uncompressed, carry the swizzled layout
+static bool GxmImage_LevelNeedsSwizzle(const GxmTexture *texture)
+{
+    bool isBlock = false;
+    GxmTexture_ElemBytes(texture->imageFormat, &isBlock);
+    return isBlock || texture->isCube;
+}
+
+bool GxmImage_MapLevelWrite(const GxmImage *image, uint32_t mipLevel, uint32_t face,
+                            void **bits, uint32_t *rowPitch, uint32_t *slicePitch)
+{
+    if (!GxmImage_MapLevel(image, mipLevel, face, bits, rowPitch, slicePitch))
+        return false;
+    if (!GxmImage_LevelNeedsSwizzle(&image->texture))
+        return true;
+
+    void *stage = malloc(*slicePitch);
+    if (!stage)
+        return false;
+    *bits = stage;
+    return true;
+}
+
+void GxmImage_UnmapLevelWrite(const GxmImage *image, uint32_t mipLevel, uint32_t face, void *bits)
+{
+    void *real;
+    uint32_t rowPitch, slicePitch;
+    if (!bits || !GxmImage_MapLevel(image, mipLevel, face, &real, &rowPitch, &slicePitch))
+        return;
+    if (bits == real)
+        return;
+
+    const GxmTexture *texture = &image->texture;
+    uint32_t w = texture->width >> mipLevel;
+    uint32_t h = texture->height >> mipLevel;
+    if (!w) w = 1;
+    if (!h) h = 1;
+
+    bool isBlock = false;
+    const uint32_t elem = GxmTexture_ElemBytes(texture->imageFormat, &isBlock);
+    if (isBlock)
+    {
+        w = (w + 3) / 4;
+        h = (h + 3) / 4;
+    }
+    GxmTexture_SwizzleGrid((uint8_t *)real, (const uint8_t *)bits, w, h, elem);
+    free(bits);
+}
+
 uint32_t GxmImage_FormatOf(const GxmTexture *texture)
 {
     switch (sceGxmTextureGetFormat(&texture->texture))

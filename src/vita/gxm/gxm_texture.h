@@ -56,4 +56,11 @@ void GxmTexture_Free(GxmTexture *texture);
 // bytes a mip level occupies in the engine's packing
 uint32_t GxmTexture_LevelSize(uint32_t imageFormat, uint32_t width, uint32_t height);
 
+// element granularity of a format: a 4x4 block for DXT, a texel otherwise
+uint32_t GxmTexture_ElemBytes(uint32_t imageFormat, bool *isBlock);
+
+// linear-to-swizzled reorder of a pow2 element grid, matching the hardware's morton layout
+void GxmTexture_SwizzleGrid(uint8_t *dst, const uint8_t *src, uint32_t wide, uint32_t high,
+                            uint32_t elemBytes);
+
 uint32_t GxmTexture_BytesResident(void);

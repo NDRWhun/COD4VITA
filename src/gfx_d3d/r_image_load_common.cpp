@@ -228,8 +228,8 @@ void __cdecl Image_Upload3D_CopyData_PC(
     void *bits;
     uint32_t rowPitch;
     uint32_t slicePitch;
-    if (!GxmImage_MapLevel((const GxmImage *)image->texture.basemap, mipLevel, 0,
-                           &bits, &rowPitch, &slicePitch))
+    if (!GxmImage_MapLevelWrite((const GxmImage *)image->texture.basemap, mipLevel, 0,
+                                &bits, &rowPitch, &slicePitch))
         Com_Error(ERR_FATAL, "Volume image '%s' has no mip level %i\n", image->name, mipLevel);
 
     dst = (uint8_t *)bits;
@@ -239,6 +239,7 @@ void __cdecl Image_Upload3D_CopyData_PC(
         src += srcRowPitch;
         dst += slicePitch;
     }
+    GxmImage_UnmapLevelWrite((const GxmImage *)image->texture.basemap, mipLevel, 0, bits);
 #else
     int v9; // [esp+18h] [ebp-2Ch]
     int hr; // [esp+1Ch] [ebp-28h]
@@ -331,12 +332,13 @@ void __cdecl Image_Upload2D_CopyData_PC(
     void *bits;
     uint32_t rowPitch;
     uint32_t slicePitch;
-    if (!GxmImage_MapLevel((const GxmImage *)image->texture.basemap, mipLevel, faceIndex,
-                           &bits, &rowPitch, &slicePitch))
+    if (!GxmImage_MapLevelWrite((const GxmImage *)image->texture.basemap, mipLevel, faceIndex,
+                                &bits, &rowPitch, &slicePitch))
         Com_Error(ERR_FATAL, "Image '%s' has no face %i mip level %i\n",
                   image->name, faceIndex, mipLevel);
 
     Image_Upload2D_CopyDataBlock_PC(width, height, src, format, rowPitch, (uint8_t *)bits);
+    GxmImage_UnmapLevelWrite((const GxmImage *)image->texture.basemap, mipLevel, faceIndex, bits);
 #else
     if (image->mapType == MAPTYPE_2D)
     {
