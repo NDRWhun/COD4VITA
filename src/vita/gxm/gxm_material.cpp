@@ -1,6 +1,8 @@
 #include "gxm_material.h"
 #include "gxm_program.h"
 
+#include <vita/platform/vita_system.h>
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -81,14 +83,27 @@ GxmMaterialShader *GxmMaterial_CreateShader(const void *bytecode, uint32_t byteC
 {
     const uint32_t length = GxmShaderArchive_BytecodeLength(bytecode, byteCount);
     if (!length)
+    {
+        const uint32_t *words = (const uint32_t *)bytecode;
+        VitaSys_LogPrintf("shader: no end token in %u bytes, head %08x %08x %08x %08x\n",
+                          byteCount, words[0], words[1], words[2], words[3]);
+        VitaSys_LogFlush();
         return NULL;
+    }
 
     const uint32_t hash = GxmShaderArchive_HashBytecode(bytecode, length);
 
     // the archive keys the fragment variants on alpha test; 0 is the one every shader has
     const int handle = GxmShaderArchive_Lookup(hash, stage, 0);
     if (handle < 0)
+    {
+        const uint32_t *words = (const uint32_t *)bytecode;
+        VitaSys_LogPrintf("shader: no archive entry for hash %08x stage %i len %u of %u, "
+                          "head %08x %08x %08x %08x\n", hash, (int)stage, length, byteCount,
+                          words[0], words[1], words[2], words[3]);
+        VitaSys_LogFlush();
         return NULL;
+    }
 
     GxmMaterialShader *shader = (GxmMaterialShader *)malloc(sizeof(GxmMaterialShader));
     if (!shader)

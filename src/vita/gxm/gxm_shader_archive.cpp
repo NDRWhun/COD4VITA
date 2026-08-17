@@ -2,6 +2,7 @@
 #include "gxm_program.h"
 
 #include <vita/platform/vita_memory.h>
+#include <vita/platform/vita_system.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,6 +101,8 @@ bool GxmShaderArchive_Load(const char *path)
     for (uint32_t i = 0; i < s_entryCount; ++i)
         s_handles[i] = -1;
 
+    VitaSys_LogPrintf("shader archive %s: %u entries, %u bytes\n", path, s_entryCount,
+                      s_archiveSize);
     return true;
 }
 
