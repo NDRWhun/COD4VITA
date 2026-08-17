@@ -1046,8 +1046,14 @@ void* Z_Malloc(int32_t size, const char* name, int32_t type)
 
     buf = Z_TryMalloc(size, name, type);
 
-    //if (!buf)
-    //    Z_MallocFailed(size + 32);
+    // a null here reaches a memcpy in every caller
+    if (!buf)
+    {
+#ifdef KISAK_VITA
+        Com_PrintError(16, "Z_Malloc failed: \"%s\", %i bytes\n", name ? name : "?", size);
+#endif
+        Z_MallocFailed(size + 32);
+    }
 
     return buf;
 }
