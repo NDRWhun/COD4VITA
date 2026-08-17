@@ -479,6 +479,9 @@ void __cdecl R_InitShadowmapRenderTarget(
         Com_Error(ERR_FATAL, "Depth-texture shadowmaps are unsupported on GXM\n");
 
     const uint32_t shadowmapId = renderTarget - gfxRenderTargets;
+    Com_Printf(8, "  RT[%i] depth %ix%i (%i KB), free main %i KB cdram %i KB\n",
+               shadowmapId, tileRes, totalHeight, (tileRes * totalHeight * 4) / 1024,
+               (int)(GxmMem_FreeMain() / 1024), (int)(GxmMem_FreeCdram() / 1024));
     if (!GxmDepthStencil_Create(&s_gxmDepth[shadowmapId], tileRes, totalHeight))
         Com_Error(ERR_FATAL, "Couldn't create a %i x %i depth-stencil surface\n", tileRes, totalHeight);
     s_gxmDepthOwned[shadowmapId] = true;

@@ -168,3 +168,20 @@ uint32_t GxmMem_BytesPeak(GxmMemDomain domain)
 {
     return s_bytesPeak[domain];
 }
+
+// free user memory and CDRAM, for reporting a shortfall at the point it bites
+uint32_t GxmMem_FreeMain(void)
+{
+    SceKernelFreeMemorySizeInfo info;
+    memset(&info, 0, sizeof(info));
+    info.size = sizeof(info);
+    return sceKernelGetFreeMemorySize(&info) < 0 ? 0 : info.size_user;
+}
+
+uint32_t GxmMem_FreeCdram(void)
+{
+    SceKernelFreeMemorySizeInfo info;
+    memset(&info, 0, sizeof(info));
+    info.size = sizeof(info);
+    return sceKernelGetFreeMemorySize(&info) < 0 ? 0 : info.size_cdram;
+}

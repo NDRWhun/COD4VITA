@@ -41,3 +41,6 @@ void GxmMem_Free(GxmAlloc *a);
 
 uint32_t GxmMem_BytesUsed(GxmMemDomain domain);
 uint32_t GxmMem_BytesPeak(GxmMemDomain domain);
+
+uint32_t GxmMem_FreeMain(void);
+uint32_t GxmMem_FreeCdram(void);
