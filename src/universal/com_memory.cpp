@@ -1024,6 +1024,32 @@ static char* __cdecl Z_TryMallocGarbage(int32_t size, const char* name, int32_t 
     return buf;
 }
 
+#ifdef KISAK_VITA
+// gross bytes per caller name; frees are not tracked, so this reads as lifetime totals
+static struct { const char *name; uint32_t bytes; uint32_t count; } z_dbgTally[24];
+
+static void Z_DbgTally(const char *name, uint32_t size)
+{
+    for (int i = 0; i < 24; ++i)
+    {
+        if (z_dbgTally[i].name == name || !z_dbgTally[i].name)
+        {
+            z_dbgTally[i].name = name;
+            z_dbgTally[i].bytes += size;
+            ++z_dbgTally[i].count;
+            return;
+        }
+    }
+}
+
+void Z_DbgReport(void)
+{
+    for (int i = 0; i < 24 && z_dbgTally[i].name; ++i)
+        Com_PrintError(16, "zmem: %-24s %8u KB in %u allocs\n", z_dbgTally[i].name,
+                       z_dbgTally[i].bytes / 1024, z_dbgTally[i].count);
+}
+#endif
+
 static uint32_t* __cdecl Z_TryMalloc(int32_t size, const char* name, int32_t type)
 {
     uint32_t* buf; // [esp+0h] [ebp-4h]
@@ -1031,12 +1057,19 @@ static uint32_t* __cdecl Z_TryMalloc(int32_t size, const char* name, int32_t typ
     buf = (uint32_t*)Z_TryMallocGarbage(size, name, type);
     if (buf)
         Com_Memset(buf, 0, size);
+#ifdef KISAK_VITA
+    if (buf)
+        Z_DbgTally(name, (uint32_t)size);
+#endif
     return buf;
 }
 
 static void __cdecl Z_MallocFailed(int32_t size)
 {
     Com_PrintError(16, "Failed to Z_Malloc %i bytes\n", size);
+#ifdef KISAK_VITA
+    Z_DbgReport();
+#endif
     Sys_OutOfMemErrorInternal(".\\universal\\com_memory.cpp", 593);
 }
 
