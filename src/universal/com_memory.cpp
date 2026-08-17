@@ -196,6 +196,11 @@ char* __cdecl Z_TryVirtualAlloc(int32_t size, const char* name, int32_t type)
     buf = (char*)Z_TryVirtualAllocInternal(size);
     if (buf)
         track_z_commit((size + 4095) & 0xFFFFF000, type);
+#ifdef KISAK_VITA
+    void Z_DbgTallyNamed(const char *name, uint32_t size);
+    if (buf)
+        Z_DbgTallyNamed(name, (uint32_t)size);
+#endif
     return buf;
 }
 
@@ -1047,6 +1052,12 @@ void Z_DbgReport(void)
     for (int i = 0; i < 24 && z_dbgTally[i].name; ++i)
         Com_PrintError(16, "zmem: %-24s %8u KB in %u allocs\n", z_dbgTally[i].name,
                        z_dbgTally[i].bytes / 1024, z_dbgTally[i].count);
+    PMem_DumpMemStats();
+}
+
+void Z_DbgTallyNamed(const char *name, uint32_t size)
+{
+    Z_DbgTally(name ? name : "?", size);
 }
 #endif
 
