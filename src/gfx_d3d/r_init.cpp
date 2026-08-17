@@ -4100,10 +4100,12 @@ char __cdecl R_CreateDevice(const GfxWindowParms *wndParms)
         return 0;
     }
 
-    // every draw resolves its program through this, so a missing archive renders nothing
-    if (!GxmShaderArchive_Load("ux0:data/kisakcod/shaders.kgxp"))
+    // every draw resolves its program through this, so a missing archive renders nothing;
+    // the packaged copy is the default and the data directory overrides it
+    if (!GxmShaderArchive_Load("app0:shaders.kgxp")
+        && !GxmShaderArchive_Load("ux0:data/kisakcod/shaders.kgxp"))
     {
-        Com_Printf(8, "Couldn't load ux0:data/kisakcod/shaders.kgxp\n");
+        Com_Printf(8, "Couldn't load shaders.kgxp from app0: or ux0:data/kisakcod\n");
         GxmPipeline_Shutdown();
         GxmProgram_Shutdown();
         GxmDevice_Shutdown();

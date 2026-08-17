@@ -96,8 +96,19 @@ else()
   set(LIVEAREA_FILES "")
 endif()
 
+# the archive is built from the user's own game files, so it is passed in rather than committed
+if(DEFINED SHADER_ARCHIVE AND EXISTS ${SHADER_ARCHIVE})
+  message(STATUS "packing shader archive: ${SHADER_ARCHIVE}")
+  set(SHADER_FILES FILE ${SHADER_ARCHIVE} shaders.kgxp)
+else()
+  message(WARNING "no shader archive: pass -DSHADER_ARCHIVE=<path/to/shaders.kgxp> or the "
+                  "renderer will fail to start unless one is present in ux0:data/kisakcod")
+  set(SHADER_FILES "")
+endif()
+
 vita_create_vpk(COD4VITA.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
     VERSION ${VITA_VERSION}
     NAME ${VITA_APP_NAME}
     ${LIVEAREA_FILES}
+    ${SHADER_FILES}
 )
