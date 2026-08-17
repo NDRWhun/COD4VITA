@@ -101,6 +101,21 @@ GxmMaterialShader *GxmMaterial_CreateShader(const void *bytecode, uint32_t byteC
         VitaSys_LogPrintf("shader: no archive entry for hash %08x stage %i len %u of %u, "
                           "head %08x %08x %08x %08x\n", hash, (int)stage, length, byteCount,
                           words[0], words[1], words[2], words[3]);
+
+        // the first missed stream is dumped whole, so the divergent bytes can be diffed offline
+        static bool dumped;
+        if (!dumped && length <= 512)
+        {
+            dumped = true;
+            char line[128];
+            for (uint32_t i = 0; i < length / 4; i += 4)
+            {
+                int n = 0;
+                for (uint32_t j = i; j < i + 4 && j < length / 4; ++j)
+                    n += snprintf(line + n, sizeof(line) - n, " %08x", words[j]);
+                VitaSys_LogPrintf("  dw%02u%s\n", i, line);
+            }
+        }
         VitaSys_LogFlush();
         return NULL;
     }
