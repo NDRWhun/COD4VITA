@@ -70,7 +70,7 @@ void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect)
     if (memory && size >= 0x100000)
         VitaSys_LogPrintf("VirtualAlloc %u KB from %p\n", (unsigned)(size / 1024),
                           __builtin_return_address(0));
-    else
+    else if (!memory)
     {
         const struct mallinfo heap = mallinfo();
         VitaSys_LogPrintf("VirtualAlloc failed: wanted %u KB, heap %u KB used of %u KB\n",

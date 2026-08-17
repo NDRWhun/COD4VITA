@@ -93,6 +93,25 @@ void __cdecl DB_AllocXZoneMemory(
         size = blockSize[blockIndex];
         if (size)
         {
+#ifdef KISAK_VITA
+            // geometry inflates straight into the GPU buffers; a PMem copy would be dead weight
+            if (blockIndex == 7)
+            {
+                zoneMem->lockedVertexData = (uint8_t *)R_AllocStaticVertexBuffer(
+                    (IDirect3DVertexBuffer9 **)&zoneMem->vertexBuffer, size);
+                zoneMem->blocks[7].size = size;
+                zoneMem->blocks[7].data = zoneMem->lockedVertexData;
+                continue;
+            }
+            if (blockIndex == 8)
+            {
+                zoneMem->lockedIndexData = (uint8_t *)R_AllocStaticIndexBuffer(
+                    (IDirect3DIndexBuffer9 **)&zoneMem->indexBuffer, size);
+                zoneMem->blocks[8].size = size;
+                zoneMem->blocks[8].data = zoneMem->lockedIndexData;
+                continue;
+            }
+#endif
             buf = DB_MemAlloc(size, g_block_mem_type[blockIndex], allocType);
             if (!buf)
             {
@@ -109,6 +128,7 @@ void __cdecl DB_AllocXZoneMemory(
             zoneMem->blocks[blockIndex].data = buf;
         }
     }
+#ifndef KISAK_VITA
     if (zoneMem->vertexBuffer)
         MyAssertHandler(".\\database\\db_memory.cpp", 104, 0, "%s", "zoneMem->vertexBuffer == NULL");
     if (zoneMem->lockedVertexData)
@@ -121,6 +141,7 @@ void __cdecl DB_AllocXZoneMemory(
         MyAssertHandler(".\\database\\db_memory.cpp", 111, 0, "%s", "zoneMem->lockedIndexData == NULL");
     if (zoneMem->blocks[8].size)
         zoneMem->lockedIndexData = (uint8_t *)R_AllocStaticIndexBuffer((IDirect3DIndexBuffer9 **)&zoneMem->indexBuffer, zoneMem->blocks[8].size);
+#endif
 }
 
 uint8_t *__cdecl DB_MemAlloc(uint32_t size, uint32_t type, uint32_t allocType)

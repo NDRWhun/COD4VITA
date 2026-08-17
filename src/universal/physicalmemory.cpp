@@ -19,8 +19,8 @@ void __cdecl PMem_Init()
 
 #ifdef KISAK_VITA
     // budget derivation in PORTING_NOTES.md
-    memory = (uint8_t *)VirtualAlloc(0, 0x8000000u, 0x1000u, 4u);
-    PMem_InitPhysicalMemory(&g_mem, memory, 0x8000000u);
+    memory = (uint8_t *)VirtualAlloc(0, 0x6000000u, 0x1000u, 4u);
+    PMem_InitPhysicalMemory(&g_mem, memory, 0x6000000u);
 #else
     memory = (uint8_t *)VirtualAlloc(0, 0x8000000u, 0x1000u, 4u);
     PMem_InitPhysicalMemory(&g_mem, memory, 0x8000000u);

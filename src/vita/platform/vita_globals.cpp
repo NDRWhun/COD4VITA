@@ -5,7 +5,7 @@
 
 // budget derivation in PORTING_NOTES.md
 extern "C" {
-unsigned int _newlib_heap_size_user = 260 * 1024 * 1024;
+unsigned int _newlib_heap_size_user = 240 * 1024 * 1024;
 }
 
 // storage only; R_RegisterDvars in r_dvars.cpp still assigns all three
