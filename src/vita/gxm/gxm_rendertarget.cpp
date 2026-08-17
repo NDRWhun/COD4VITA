@@ -2,6 +2,7 @@
 #include "gxm_device.h"
 #include <psp2/kernel/sysmem.h>
 #include <vita/platform/vita_memory.h>
+#include <vita/platform/vita_system.h>
 
 #include <string.h>
 
@@ -45,6 +46,71 @@ static void GxmRenderTarget_Unregister(GxmRenderTarget *rt)
         s_registry[i] = s_registry[--s_registryCount];
         return;
     }
+}
+
+// a SceGxmRenderTarget describes a size and a scene budget; the colour surface is a BeginScene
+// argument, so every target of the same size shares one, and its driver memory with it
+struct GxmSharedTarget
+{
+    SceGxmRenderTarget *target;
+    uint32_t width;
+    uint32_t height;
+};
+
+static GxmSharedTarget s_shared[GXM_MAX_RENDER_TARGETS];
+static uint32_t s_sharedCount;
+static uint32_t s_sharedDriverBytes;
+
+static SceGxmRenderTarget *GxmRenderTarget_Shared(uint32_t width, uint32_t height)
+{
+    for (uint32_t i = 0; i < s_sharedCount; ++i)
+    {
+        if (s_shared[i].width == width && s_shared[i].height == height)
+            return s_shared[i].target;
+    }
+    if (s_sharedCount >= GXM_MAX_RENDER_TARGETS)
+        return NULL;
+
+    SceGxmRenderTargetParams params;
+    memset(&params, 0, sizeof(params));
+    params.width = (uint16_t)width;
+    params.height = (uint16_t)height;
+    params.scenesPerFrame = GXM_SCENES_PER_FRAME;
+    params.multisampleMode = SCE_GXM_MULTISAMPLE_NONE;
+    params.driverMemBlock = -1;
+
+    uint32_t driverBytes = 0;
+    sceGxmGetRenderTargetMemSize(&params, &driverBytes);
+
+    VitaMem_GpuLock();
+    SceGxmRenderTarget *target = NULL;
+    const int created = sceGxmCreateRenderTarget(&params, &target);
+    VitaMem_GpuUnlock();
+
+    s_sharedDriverBytes += driverBytes;
+    VitaSys_LogPrintf("gxm target %ux%u: driver %u KB, %u KB over %u targets, result 0x%08x\n",
+                      width, height, driverBytes / 1024, s_sharedDriverBytes / 1024,
+                      s_sharedCount + 1, (unsigned)created);
+    VitaSys_LogFlush();
+
+    if (created < 0)
+        return NULL;
+
+    s_shared[s_sharedCount].target = target;
+    s_shared[s_sharedCount].width = width;
+    s_shared[s_sharedCount].height = height;
+    ++s_sharedCount;
+    return target;
+}
+
+void GxmRenderTarget_ShutdownShared(void)
+{
+    VitaMem_GpuLock();
+    for (uint32_t i = 0; i < s_sharedCount; ++i)
+        sceGxmDestroyRenderTarget(s_shared[i].target);
+    VitaMem_GpuUnlock();
+    s_sharedCount = 0;
+    s_sharedDriverBytes = 0;
 }
 
 bool GxmDepthStencil_Create(GxmDepthStencil *depth, uint32_t width, uint32_t height)
@@ -118,18 +184,8 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     }
 
 
-    SceGxmRenderTargetParams params;
-    memset(&params, 0, sizeof(params));
-    params.width = (uint16_t)width;
-    params.height = (uint16_t)height;
-    params.scenesPerFrame = GXM_SCENES_PER_TARGET;
-    params.multisampleMode = SCE_GXM_MULTISAMPLE_NONE;
-    params.driverMemBlock = -1;
-
-    VitaMem_GpuLock();
-    const int created = sceGxmCreateRenderTarget(&params, &rt->target);
-    VitaMem_GpuUnlock();
-    if (created < 0)
+    rt->target = GxmRenderTarget_Shared(width, height);
+    if (!rt->target)
     {
         GxmMem_Free(&rt->colorMem);
         return false;
@@ -138,7 +194,8 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     rt->width = width;
     rt->height = height;
     rt->strideInPixels = stride;
-    rt->sceneBudget = GXM_SCENES_PER_TARGET;
+    // the shared target is sized for the per-frame budget, not the old per-target one
+    rt->sceneBudget = GXM_SCENES_PER_FRAME;
     GxmRenderTarget_Register(rt);
     return true;
 }
@@ -150,12 +207,7 @@ void GxmRenderTarget_Free(GxmRenderTarget *rt)
 
     GxmRenderTarget_Unregister(rt);
 
-    if (rt->target)
-    {
-        VitaMem_GpuLock();
-        sceGxmDestroyRenderTarget(rt->target);
-        VitaMem_GpuUnlock();
-    }
+    // the target is shared by every surface of its size, so it outlives any one of them
     GxmMem_Free(&rt->colorMem);
     memset(rt, 0, sizeof(*rt));
 }

@@ -43,6 +43,9 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
                             SceGxmColorFormat colorFormat, SceGxmTextureFormat textureFormat);
 void GxmRenderTarget_Free(GxmRenderTarget *rt);
 
+// targets of one size share a SceGxmRenderTarget, so they are destroyed together
+void GxmRenderTarget_ShutdownShared(void);
+
 void GxmRenderTarget_SetDepth(GxmRenderTarget *rt, const GxmDepthStencil *depth);
 const SceGxmTexture *GxmRenderTarget_Texture(const GxmRenderTarget *rt);
 
