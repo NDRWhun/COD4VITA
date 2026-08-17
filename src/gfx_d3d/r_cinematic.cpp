@@ -1290,22 +1290,325 @@ bool R_Cinematic_IsPending()
 }
 
 #else
-void __cdecl R_Cinematic_Init() { /* THUNK */ }
-void __cdecl R_Cinematic_Shutdown() { /* THUNK */ }
-void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float volume) { /* THUNK */ }
-void __cdecl R_Cinematic_StartNextPlayback() { /* THUNK */ }
-void __cdecl R_Cinematic_StopPlayback() { /* THUNK */ }
-void __cdecl R_Cinematic_UpdateFrame() { /* THUNK */ }
-void __cdecl R_Cinematic_SyncNow() { /* THUNK */ }
-void __cdecl R_Cinematic_DrawStretchPic_Letterboxed() { /* THUNK */ }
-bool __cdecl R_Cinematic_IsFinished() { /* THUNK */ return true; }
-bool __cdecl R_Cinematic_IsStarted() { /* THUNK */ return false; }
-bool R_Cinematic_IsPending() { return false; }
-bool __cdecl R_Cinematic_IsNextReady() { /* THUNK */ return true; }
-bool __cdecl R_Cinematic_IsUnderrun() { /* THUNK */ return false; }
-void __cdecl R_Cinematic_BeginLostDevice() { /* THUNK */ }
-void __cdecl R_Cinematic_EndLostDevice() { /* THUNK */ }
-void __cdecl R_Cinematic_SetPaused(CinematicEnum paused) {}
-void R_Cinematic_SetNextPlayback(const char *name, uint32_t playbackFlags) {}
-void R_Cinematic_UnsetNextPlayback() {}
+#include <psp2/avplayer.h>
+#include <psp2/audioout.h>
+#include <psp2/sysmodule.h>
+#include <psp2/kernel/threadmgr.h>
+#include <vita/gxm/gxm_image.h>
+#include <vita/platform/vita_system.h>
+#include <malloc.h>
+
+// sceAvPlayer plays the offline H.264 re-encodes of the Bink files; each frame lands in the
+// same Y/Cb/Cr code images the Bink path fed, so the shipped cinematic materials draw them
+static SceAvPlayerHandle s_player;
+static bool s_playerLive;
+static bool s_moduleLoaded;
+static bool s_started;
+static bool s_finished;
+static char s_next[64];
+static uint32_t s_nextFlags;
+static bool s_hasNext;
+static float s_volume = 1.0f;
+
+static GfxImage s_planeImage[3];        // Y, Cb, Cr
+static GxmImage *s_plane[3];
+static uint32_t s_planeW, s_planeH;
+static GfxImage s_alphaImage;           // constant white: the movies carry no alpha plane
+static GxmImage *s_alphaPlane;
+
+static SceUID s_audioThread = -1;
+static int s_audioPort = -1;
+static volatile bool s_audioRun;
+
+static void *Cin_Alloc(void *arg, uint32_t alignment, uint32_t size)
+{
+    (void)arg;
+    return memalign(alignment ? alignment : 16, size);
+}
+
+static void Cin_Free(void *arg, void *ptr)
+{
+    (void)arg;
+    free(ptr);
+}
+
+static int Cin_AudioThread(SceSize args, void *argp)
+{
+    (void)args; (void)argp;
+    uint32_t grain = 0;
+    while (s_audioRun)
+    {
+        SceAvPlayerFrameInfo frame;
+        memset(&frame, 0, sizeof(frame));
+        if (s_playerLive && sceAvPlayerIsActive(s_player) &&
+            sceAvPlayerGetAudioData(s_player, &frame))
+        {
+            const uint32_t channels = frame.details.audio.channelCount ?
+                                      frame.details.audio.channelCount : 2;
+            const uint32_t samples = frame.details.audio.size / (2 * channels);
+            if (s_audioPort < 0 && samples)
+            {
+                s_audioPort = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_BGM, samples,
+                                                  frame.details.audio.sampleRate,
+                                                  channels == 1 ? SCE_AUDIO_OUT_MODE_MONO
+                                                                : SCE_AUDIO_OUT_MODE_STEREO);
+                grain = samples;
+                if (s_audioPort >= 0)
+                {
+                    int volume[2];
+                    volume[0] = volume[1] = (int)(s_volume * SCE_AUDIO_VOLUME_0DB);
+                    sceAudioOutSetVolume(s_audioPort,
+                                         (SceAudioOutChannelFlag)(SCE_AUDIO_VOLUME_FLAG_L_CH |
+                                                                  SCE_AUDIO_VOLUME_FLAG_R_CH),
+                                         volume);
+                }
+            }
+            // the blocking write paces this loop at the movie's own audio rate
+            if (s_audioPort >= 0 && samples == grain)
+                sceAudioOutOutput(s_audioPort, frame.pData);
+        }
+        else
+        {
+            sceKernelDelayThread(4000);
+        }
+    }
+    if (s_audioPort >= 0)
+    {
+        sceAudioOutReleasePort(s_audioPort);
+        s_audioPort = -1;
+    }
+    return 0;
+}
+
+static void Cin_FillImage(GfxImage *image, GxmImage *gxm, uint32_t width, uint32_t height,
+                          const char *name)
+{
+    memset(image, 0, sizeof(*image));
+    image->mapType = MAPTYPE_2D;
+    image->texture.basemap = (IDirect3DBaseTexture9 *)gxm;
+    image->width = (uint16_t)width;
+    image->height = (uint16_t)height;
+    image->depth = 1;
+    image->name = name;
+}
+
+static bool Cin_CreatePlanes(uint32_t width, uint32_t height)
+{
+    static const char *names[3] = { "$cinematicY", "$cinematicCb", "$cinematicCr" };
+    for (int i = 0; i < 3; ++i)
+    {
+        if (s_plane[i])
+            GxmImage_Release(s_plane[i]);
+        const uint32_t w = i ? width / 2 : width;
+        const uint32_t h = i ? height / 2 : height;
+        s_plane[i] = GxmImage_Create2D(GXM_D3DFMT_L8, w, h, 1);
+        if (!s_plane[i])
+            return false;
+        Cin_FillImage(&s_planeImage[i], s_plane[i], w, h, names[i]);
+    }
+    s_planeW = width;
+    s_planeH = height;
+    return true;
+}
+
+void __cdecl R_Cinematic_Init()
+{
+    if (!s_alphaPlane)
+    {
+        s_alphaPlane = GxmImage_Create2D(GXM_D3DFMT_L8, 1, 1, 1);
+        if (s_alphaPlane)
+        {
+            void *bits; uint32_t pitch, slice;
+            if (GxmImage_MapLevelWrite(s_alphaPlane, 0, 0, &bits, &pitch, &slice))
+            {
+                *(uint8_t *)bits = 255;
+                GxmImage_UnmapLevelWrite(s_alphaPlane, 0, 0, bits);
+            }
+            Cin_FillImage(&s_alphaImage, s_alphaPlane, 1, 1, "$cinematicA");
+        }
+    }
+}
+
+void __cdecl R_Cinematic_StopPlayback()
+{
+    s_audioRun = false;
+    if (s_audioThread >= 0)
+    {
+        sceKernelWaitThreadEnd(s_audioThread, NULL, NULL);
+        sceKernelDeleteThread(s_audioThread);
+        s_audioThread = -1;
+    }
+    if (s_playerLive)
+    {
+        sceAvPlayerStop(s_player);
+        sceAvPlayerClose(s_player);
+        s_playerLive = false;
+    }
+    s_started = false;
+    s_finished = false;
+}
+
+void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float volume)
+{
+    (void)playbackFlags;
+    R_Cinematic_StopPlayback();
+
+    // the converter names its output after the bink it came from
+    char clean[64];
+    I_strncpyz(clean, name ? name : "", sizeof(clean));
+    char *dot = strrchr(clean, '.');
+    if (dot)
+        *dot = 0;
+
+    char path[128];
+    Com_sprintf(path, sizeof(path), "ux0:data/kisakcod/video/%s.mp4", clean);
+    FILE *probe = fopen(path, "rb");
+    if (!probe)
+    {
+        VitaSys_LogPrintf("cinematic: no %s, skipping\n", path);
+        s_started = true;
+        s_finished = true;                  // reports finished at once, so the game moves on
+        return;
+    }
+    fclose(probe);
+
+    if (!s_moduleLoaded)
+    {
+        sceSysmoduleLoadModule(SCE_SYSMODULE_AVPLAYER);
+        s_moduleLoaded = true;
+    }
+
+    SceAvPlayerInitData init;
+    memset(&init, 0, sizeof(init));
+    init.memoryReplacement.allocate = Cin_Alloc;
+    init.memoryReplacement.deallocate = Cin_Free;
+    init.memoryReplacement.allocateTexture = Cin_Alloc;
+    init.memoryReplacement.deallocateTexture = Cin_Free;
+    init.basePriority = 160;
+    init.numOutputVideoFrameBuffers = 2;
+    init.autoStart = SCE_TRUE;
+
+    s_player = sceAvPlayerInit(&init);
+    if (s_player < 0)
+    {
+        VitaSys_LogPrintf("cinematic: sceAvPlayerInit failed 0x%08x\n", (unsigned)s_player);
+        s_started = true;
+        s_finished = true;
+        return;
+    }
+    s_playerLive = true;
+    sceAvPlayerAddSource(s_player, path);
+
+    s_volume = volume;
+    s_audioRun = true;
+    s_audioThread = sceKernelCreateThread("kcod_cinematic", Cin_AudioThread, 160, 32 * 1024,
+                                          0, SCE_KERNEL_CPU_MASK_USER_ALL, NULL);
+    if (s_audioThread >= 0)
+        sceKernelStartThread(s_audioThread, 0, NULL);
+
+    s_started = true;
+    s_finished = false;
+}
+
+void __cdecl R_Cinematic_UpdateFrame()
+{
+    if (!s_started)
+        return;
+
+    if (!s_playerLive || !sceAvPlayerIsActive(s_player))
+    {
+        // one frame of grace lets the last picture present before the state flips
+        if (s_playerLive)
+            s_finished = true;
+        if (s_finished && s_hasNext)
+        {
+            char next[64];
+            I_strncpyz(next, s_next, sizeof(next));
+            s_hasNext = false;
+            R_Cinematic_StartPlayback(next, s_nextFlags, s_volume);
+        }
+        return;
+    }
+
+    SceAvPlayerFrameInfo frame;
+    memset(&frame, 0, sizeof(frame));
+    if (sceAvPlayerGetVideoData(s_player, &frame) && frame.pData)
+    {
+        const uint32_t width = frame.details.video.width;
+        const uint32_t height = frame.details.video.height;
+        if (width && height &&
+            ((width != s_planeW || height != s_planeH) ? Cin_CreatePlanes(width, height) : true))
+        {
+            void *bits; uint32_t pitch, slice;
+            if (GxmImage_MapLevelWrite(s_plane[0], 0, 0, &bits, &pitch, &slice))
+            {
+                memcpy(bits, frame.pData, width * height);
+                GxmImage_UnmapLevelWrite(s_plane[0], 0, 0, bits);
+            }
+
+            // the decoder hands NV12, so the chroma pairs unzip into the two planes
+            const uint8_t *uv = (const uint8_t *)frame.pData + width * height;
+            const uint32_t chroma = (width / 2) * (height / 2);
+            void *cbBits, *crBits;
+            uint32_t p2, s2;
+            if (GxmImage_MapLevelWrite(s_plane[1], 0, 0, &cbBits, &p2, &s2) &&
+                GxmImage_MapLevelWrite(s_plane[2], 0, 0, &crBits, &p2, &s2))
+            {
+                uint8_t *cb = (uint8_t *)cbBits, *cr = (uint8_t *)crBits;
+                for (uint32_t i = 0; i < chroma; ++i)
+                {
+                    cb[i] = uv[i * 2];
+                    cr[i] = uv[i * 2 + 1];
+                }
+                GxmImage_UnmapLevelWrite(s_plane[1], 0, 0, cbBits);
+                GxmImage_UnmapLevelWrite(s_plane[2], 0, 0, crBits);
+            }
+        }
+    }
+
+    if (s_plane[0])
+    {
+        gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_Y] = &s_planeImage[0];
+        gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CB] = &s_planeImage[1];
+        gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CR] = &s_planeImage[2];
+        gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_A] = &s_alphaImage;
+    }
+}
+
+void __cdecl R_Cinematic_DrawStretchPic_Letterboxed()
+{
+    if (!s_started || s_finished || !rgp.cinematicMaterial)
+        return;
+    static const float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    R_AddCmdDrawStretchPic(0.0f, 0.0f, 960.0f, 544.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+                           white, rgp.cinematicMaterial);
+}
+
+void __cdecl R_Cinematic_Shutdown() { R_Cinematic_StopPlayback(); }
+void __cdecl R_Cinematic_StartNextPlayback()
+{
+    if (s_hasNext)
+    {
+        char next[64];
+        I_strncpyz(next, s_next, sizeof(next));
+        s_hasNext = false;
+        R_Cinematic_StartPlayback(next, s_nextFlags, s_volume);
+    }
+}
+void __cdecl R_Cinematic_SyncNow() {}
+bool __cdecl R_Cinematic_IsFinished() { return !s_started || s_finished; }
+bool __cdecl R_Cinematic_IsStarted() { return s_started && !s_finished; }
+bool R_Cinematic_IsPending() { return s_hasNext; }
+bool __cdecl R_Cinematic_IsNextReady() { return true; }
+bool __cdecl R_Cinematic_IsUnderrun() { return false; }
+void __cdecl R_Cinematic_BeginLostDevice() {}
+void __cdecl R_Cinematic_EndLostDevice() {}
+void __cdecl R_Cinematic_SetPaused(CinematicEnum paused) { (void)paused; }
+void R_Cinematic_SetNextPlayback(const char *name, uint32_t playbackFlags)
+{
+    I_strncpyz(s_next, name ? name : "", sizeof(s_next));
+    s_nextFlags = playbackFlags;
+    s_hasNext = s_next[0] != 0;
+}
+void R_Cinematic_UnsetNextPlayback() { s_hasNext = false; }
 #endif
