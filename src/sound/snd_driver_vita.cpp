@@ -1116,7 +1116,10 @@ void __cdecl SND_SetData(MssSoundCOD4 *mssSound, void *srcData)
 {
     // ADPCM stays compressed - the mixer decodes it a block at a time, and halving a block
     // stream by decimation the way the PCM branch does would corrupt it.
-    if (mssSound->info.rate > g_snd.playback_rate && mssSound->info.format != 17)
+    // 24000 rather than the mixer rate: the engine asks for 22 kHz sound on this spec anyway,
+    // and full-rate pcm for every loaded sound is more memory than the heap can carry
+    const uint32_t targetRate = 24000;
+    if (mssSound->info.rate > targetRate && mssSound->info.format != 17)
     {
         // a header this path cannot resample would write through a zero-byte allocation
         if ((mssSound->info.bits != 8 && mssSound->info.bits != 16) ||
@@ -1140,7 +1143,7 @@ void __cdecl SND_SetData(MssSoundCOD4 *mssSound, void *srcData)
         uint32_t rate = mssSound->info.rate;
         uint32_t frameCount = srcFrameCount;
 
-        while (rate > g_snd.playback_rate)
+        while (rate > targetRate)
         {
             rate /= 2;
             frameCount /= 2;
