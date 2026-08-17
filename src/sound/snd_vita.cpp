@@ -418,11 +418,16 @@ static int VitaSnd_MixThreadEntry(SceSize args, void *argp)
     uint64_t busy = 0;
     uint64_t window = 0;
 
+    uint32_t grains = 0;
     while (!s_quit)
     {
         const uint64_t start = sceKernelGetProcessTimeWide();
         VitaSnd_MixGrain(s_outBuffer[buffer]);
         busy += sceKernelGetProcessTimeWide() - start;
+
+        // this loop outlives every hang, so it is where the screen is kept awake
+        if (!(++grains & 63))
+            sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DEFAULT);
 
         sceAudioOutOutput(s_port, s_outBuffer[buffer]);
         buffer ^= 1;

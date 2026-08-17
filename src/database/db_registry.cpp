@@ -2657,6 +2657,10 @@ int32_t __cdecl DB_TryLoadXFileInternal(char *zoneName, int32_t zoneFlags)
     uint32_t i; // [esp+114h] [ebp-8h]
     void *zoneFile; // [esp+118h] [ebp-4h]
 
+#ifdef KISAK_VITA
+    VitaSys_LogPrintf("db: open %s flags %x\n", zoneName, zoneFlags);
+    VitaSys_LogFlush();
+#endif
     Com_Printf(0, "Trying to load file %s with flags %x\n", zoneName, zoneFlags);
 
     modZone = 0;
