@@ -3837,12 +3837,6 @@ void R_LoadGraphicsAssets()
     }
 
     DB_LoadXAssets(zoneInfo, zoneCount, 0);
-
-#ifdef KISAK_VITA
-    // the render targets are built immediately after this, and libgxm does not tolerate the
-    // database thread creating GPU resources at the same time
-    DB_SyncXAssets();
-#endif
 }
 
 void __cdecl R_UpdateGpuSyncType()
