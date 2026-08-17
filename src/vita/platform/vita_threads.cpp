@@ -1,6 +1,7 @@
 #include "vita_threads.h"
 
 #include "vita_sys.h"
+#include "vita_system.h"
 
 #include <psp2/kernel/threadmgr.h>
 #include <string.h>
@@ -249,8 +250,11 @@ HANDLE CreateThread(void *attributes, SIZE_T stackSize, DWORD (*start)(void *),
         if (!(flags & CREATE_SUSPENDED))
         {
             VitaThread *argument = thread;
-            sceKernelStartThread(thread->uid, sizeof(argument), &argument);
-            thread->started = true;
+            const int started = sceKernelStartThread(thread->uid, sizeof(argument), &argument);
+            if (started < 0)
+                VitaSys_LogPrintf("CreateThread: sceKernelStartThread failed 0x%08x\n",
+                                  (unsigned)started);
+            thread->started = started >= 0;
         }
 
         VitaThreads_Leave();
@@ -270,8 +274,12 @@ DWORD ResumeThread(HANDLE handle)
     if (!thread->started)
     {
         VitaThread *argument = thread;
-        sceKernelStartThread(thread->uid, sizeof(argument), &argument);
-        thread->started = true;
+        // a dormant thread that never starts is indistinguishable from one that is merely idle
+        const int started = sceKernelStartThread(thread->uid, sizeof(argument), &argument);
+        if (started < 0)
+            VitaSys_LogPrintf("ResumeThread: sceKernelStartThread(0x%08x) failed 0x%08x\n",
+                              (unsigned)thread->uid, (unsigned)started);
+        thread->started = started >= 0;
     }
     else
     {
