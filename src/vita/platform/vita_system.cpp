@@ -30,7 +30,6 @@ extern "C" int fileno(FILE *);
 #include <universal/q_parse.h>
 #include <universal/timing.h>
 
-#include "vita_breadcrumb.h"
 #include "vita_errorscreen.h"
 #include "vita_memory.h"
 #include "../input/vita_input.h"
@@ -181,7 +180,6 @@ void VitaSys_Fatal(const char *title, const char *message)
     if (!VitaErrorScreen_Show(title, message, "Log: " VITA_LOG_PATH "  -  press X to quit"))
         VitaSys_LogPrint("the error screen could not take a framebuffer\n");
 
-    VitaSys_BreadcrumbFlush();
     VitaSys_LogClose();
     sceKernelExitProcess(0);
     for (;;)
@@ -515,7 +513,6 @@ void __cdecl Sys_Quit()
         track_shutdown(0);
     Con_ShutdownChannels();
 
-    VitaSys_BreadcrumbFlush();
     VitaSys_LogClose();
     sceKernelExitProcess(0);
 }

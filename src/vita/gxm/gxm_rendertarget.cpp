@@ -2,7 +2,6 @@
 #include "gxm_device.h"
 #include <psp2/kernel/sysmem.h>
 #include <vita/platform/vita_memory.h>
-#include <vita/platform/vita_breadcrumb.h>
 
 #include <string.h>
 
@@ -93,17 +92,14 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     // colour surfaces stride in multiples of 8 pixels
     const uint32_t stride = (width + 7) & ~7u;
 
-    VitaSys_Breadcrumb("RT enter %ux%u", width, height);
 
     VitaMemStats cd;
     VitaMem_GetStats(VITA_MEM_CDRAM, &cd);
-    VitaSys_Breadcrumb("RT stats read, about to alloc %u", stride * height * 4);
     if (!GxmMem_Alloc(&rt->colorMem, stride * height * 4, GXM_MEM_CDRAM,
                       SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE))
     {
         return false;
     }
-    VitaSys_Breadcrumb("RT colour base=%p", rt->colorMem.base);
 
     if (sceGxmColorSurfaceInit(&rt->color, colorFormat,
                                SCE_GXM_COLOR_SURFACE_LINEAR,
@@ -115,7 +111,6 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
         return false;
     }
 
-    VitaSys_Breadcrumb("RT colorSurfaceInit done");
     if (sceGxmTextureInitLinearStrided(&rt->texture, rt->colorMem.base, textureFormat,
                                        width, height, stride * 4) < 0)
     {
@@ -123,7 +118,6 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
         return false;
     }
 
-    VitaSys_Breadcrumb("RT textureInit done, filling params");
 
     SceGxmRenderTargetParams params;
     memset(&params, 0, sizeof(params));
@@ -133,9 +127,7 @@ bool GxmRenderTarget_Create(GxmRenderTarget *rt, uint32_t width, uint32_t height
     params.multisampleMode = SCE_GXM_MULTISAMPLE_NONE;
     params.driverMemBlock = -1;
 
-    VitaSys_Breadcrumb("before sceGxmCreateRenderTarget %ux%u", width, height);
     const int created = sceGxmCreateRenderTarget(&params, &rt->target);
-    VitaSys_Breadcrumb("createRenderTarget rc=0x%08x", (unsigned)created);
     if (created < 0)
     {
         GxmMem_Free(&rt->colorMem);

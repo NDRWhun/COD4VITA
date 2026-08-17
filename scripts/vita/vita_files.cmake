@@ -1,8 +1,6 @@
 set(VITA_PLATFORM
     "${SRC_DIR}/vita/platform/vita_errorscreen.cpp"
     "${SRC_DIR}/vita/platform/vita_errorscreen.h"
-    "${SRC_DIR}/vita/platform/vita_breadcrumb.cpp"
-    "${SRC_DIR}/vita/platform/vita_breadcrumb.h"
     "${SRC_DIR}/vita/platform/vita_files.cpp"
     "${SRC_DIR}/vita/platform/vita_files.h"
     "${SRC_DIR}/vita/platform/vita_globals.cpp"

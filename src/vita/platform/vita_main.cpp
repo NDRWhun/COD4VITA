@@ -15,7 +15,6 @@
 
 #include "vita_memory.h"
 #include "vita_selftest.h"
-#include "vita_breadcrumb.h"
 #include "vita_system.h"
 #include "vita_threads.h"
 
@@ -61,7 +60,6 @@ int main(void)
     VitaSys_LogOpen(VITA_LOG_PATH);
     // rate-limited in VitaSys_LogFlushLine, so boot pays a handful of writes rather than hundreds
     VitaSys_LogSetLineFlush(true);
-    VitaSys_BreadcrumbReset();
     VitaSys_LogPrintf("KisakCOD single player, Vita, built %s %s\n", __DATE__, __TIME__);
 
     if (!VitaMem_Init())
@@ -99,7 +97,6 @@ int main(void)
 
     // the card is free again once boot is done, so the whole trail reaches it here
     VitaSys_LogFlush();
-    VitaSys_BreadcrumbFlush();
 
     for (;;)
         Com_Frame();
