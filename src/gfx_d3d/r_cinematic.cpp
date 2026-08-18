@@ -1459,9 +1459,12 @@ void __cdecl R_Cinematic_StopPlayback()
     }
     if (s_playerLive)
     {
+        VitaSys_LogPrintf("cinematic: stopping player\n");
+        VitaSys_LogFlush();
         sceAvPlayerStop(s_player);
         sceAvPlayerClose(s_player);
         s_playerLive = false;
+        VitaSys_LogPrintf("cinematic: player closed\n");
     }
     s_started = false;
     s_finished = false;
@@ -1493,7 +1496,12 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
 
     if (!s_moduleLoaded)
     {
-        sceSysmoduleLoadModule(SCE_SYSMODULE_AVPLAYER);
+        // the player is only the framework; the avc and aac decoders are their own modules
+        const int mp = sceSysmoduleLoadModule(SCE_SYSMODULE_AVPLAYER);
+        const int mv = sceSysmoduleLoadModule(SCE_SYSMODULE_AVCDEC);
+        const int ma = sceSysmoduleLoadModule(SCE_SYSMODULE_AUDIOCODEC);
+        VitaSys_LogPrintf("cinematic: modules player 0x%08x avcdec 0x%08x audiocodec 0x%08x\n",
+                          (unsigned)mp, (unsigned)mv, (unsigned)ma);
         s_moduleLoaded = true;
     }
 
@@ -1504,7 +1512,7 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
     init.memoryReplacement.allocateTexture = Cin_Alloc;
     init.memoryReplacement.deallocateTexture = Cin_Free;
     // the load pegs every core at higher priority, and a starved demuxer gives up
-    init.basePriority = 96;
+    init.basePriority = 125;
     init.numOutputVideoFrameBuffers = 2;
     init.autoStart = SCE_TRUE;
 
@@ -1567,7 +1575,8 @@ void __cdecl R_Cinematic_UpdateFrame()
     if (!s_playerLive || !sceAvPlayerIsActive(s_player))
     {
         // a player that never comes up must still end, or the loadscreen waits on it forever
-        if (s_playerLive && (s_everActive || VitaSys_Milliseconds() - s_startMs > 5000))
+        if (s_playerLive && !s_finished &&
+            (s_everActive || VitaSys_Milliseconds() - s_startMs > 5000))
         {
             VitaSys_LogPrintf("cinematic: over after %u ms, %u frames shown\n",
                               VitaSys_Milliseconds() - s_startMs, s_frameSeen);
