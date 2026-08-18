@@ -1906,7 +1906,7 @@ static int Cin_WorkerThread(SceSize args, void *argp)
                         VitaSys_LogPrintf("cinematic: decode 0x%08x at sample %u\n",
                                           (unsigned)rc, s_vid.next - 1);
                 }
-                else if (array.numOfOutput && sample->ptsMs + 120 >= now)
+                else if (array.numOfOutput && sample->ptsMs + 120 >= VitaSys_Milliseconds() - begin)
                 {
                     Cin_StageDecodedFrame(&picture);
                 }
