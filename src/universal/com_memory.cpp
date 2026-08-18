@@ -893,6 +893,12 @@ void* Hunk_UserAlloc(HunkUser* user, uint32_t size, int32_t alignment)
     iassert(!(alignment & (alignment - 1)));
     iassert(alignment <= HUNK_MAX_ALIGNEMT);
 
+#ifdef KISAK_VITA
+    // the script vm walks 8-byte records out of here, and ldrd faults on anything narrower
+    if (alignment < 8)
+        alignment = 8;
+#endif
+
     alignment = alignment - 1;
 
     for (current = user->current; ; current = newCurrent)
