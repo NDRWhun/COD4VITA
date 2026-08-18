@@ -30,13 +30,18 @@ bool GxmBuffer_Create(GxmBuffer *buffer, uint32_t size, bool cpuCached)
         if (!GxmMem_Alloc(&buffer->memory, size, GXM_MEM_MAIN, SCE_GXM_MEMORY_ATTRIB_READ))
             return false;
     }
-    // zone geometry is written once and then only read by the GPU, so it goes to video memory
-    // first and reaches the partition the heap shares only when both dedicated pools are full
-    else if (!GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_CDRAM, 4) &&
-             !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_PHYCONT, 4) &&
-             !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_MAIN_UNCACHED, 4))
+    else
     {
-        return false;
+        // small buffers leave the CDRAM reserve for the zone's one large geometry block
+        const bool spare = size >= GXM_CDRAM_GEOMETRY_RESERVE / 4 ||
+                           GxmMem_FreeCdram() > size + GXM_CDRAM_GEOMETRY_RESERVE;
+        if ((!spare || !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_CDRAM, 4)) &&
+            !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_PHYCONT, 4) &&
+            !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_MAIN_UNCACHED, 4) &&
+            !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_CDRAM, 4))
+        {
+            return false;
+        }
     }
 
     buffer->size = buffer->memory.size;
