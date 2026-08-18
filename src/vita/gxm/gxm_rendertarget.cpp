@@ -256,8 +256,7 @@ GxmDepthStencil *GxmRenderTarget_DisplayDepth(void)
     return &s_displayDepth;
 }
 
-// every other target gets its texture at creation, but the display's colour is a back buffer
-// that rotates each frame, so its view is rebuilt whenever the surface is
+// the back buffer rotates each frame, so the view over it is rebuilt with the surface
 static void GxmRenderTarget_ViewDisplay(GxmRenderTarget *rt)
 {
     void *base = sceGxmColorSurfaceGetData(&rt->color);

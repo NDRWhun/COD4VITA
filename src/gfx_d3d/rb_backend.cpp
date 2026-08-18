@@ -2765,8 +2765,7 @@ void __cdecl RB_BeginFrame(const GfxBackEndData *data)
 }
 
 #ifdef KISAK_VITA
-// a black frame and a full one look the same from outside, so the counters that tell them
-// apart go to the log on a slow cadence
+// a black frame and a full one differ only in these counters, so they reach the log periodically
 static void RB_ReportGxmCounters()
 {
     static uint32_t s_reportFrame;

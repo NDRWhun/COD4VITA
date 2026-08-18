@@ -79,9 +79,7 @@ int __cdecl SV_GetBufferIndex(unsigned __int8 *ptr)
     return 0;
 }
 
-// the carve was byte-packed, which x86 read happily; the savegame writers store words into
-// whatever it hands out, and a word store to an odd address faults on ARM. rounding both ends
-// of the pair keeps the free strictly LIFO.
+// callers store words into the carve, and the free stays LIFO only if both ends round alike
 static int SV_HistoryStride(int size)
 {
     return (size + 7) & ~7;

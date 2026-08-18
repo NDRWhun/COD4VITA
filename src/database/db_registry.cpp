@@ -1329,7 +1329,7 @@ XAssetHeader __cdecl DB_FindXAssetHeader(XAssetType type, const char *name)
             if (Sys_IsMainThread())
                 KISAK_NULLSUB();
 #ifdef KISAK_VITA
-            // the wait is only reported once it ends, so one that never ends says nothing at all
+            // the completion report below never prints for a wait that does not complete
             if (start && Sys_Milliseconds() - start - reported >= 5000)
             {
                 reported = Sys_Milliseconds() - start;

@@ -77,7 +77,7 @@ static void VitaSys_MakeParentDirs(const char *path)
 // newlib's default buffer is a kilobyte, so boot would still reach the card hundreds of times
 static char s_logBuffer[128 * 1024];
 
-// the run that has to be read is usually the one before the reboot, so it is kept aside
+// a crash is read from the run before the reboot, so that one survives a boot
 static void VitaSys_KeepPreviousLog(const char *path)
 {
     const char *extension = strrchr(path, '.');

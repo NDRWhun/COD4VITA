@@ -140,8 +140,7 @@ bool GxmBlit_Rect(const SceGxmTexture *texture, int x, int y, int width, int hei
         return false;
     }
 
-    // the pipeline substitutes a dummy for a texture the GPU cannot read, and this path has to
-    // refuse the same way: sampling an unmapped surface faults the whole context, not the draw
+    // sampling an unmapped surface faults the context, not just the draw
     if ((uintptr_t)sceGxmTextureGetData(texture) < GXM_LOWEST_MAPPED)
     {
         if (!s_droppedBlits)

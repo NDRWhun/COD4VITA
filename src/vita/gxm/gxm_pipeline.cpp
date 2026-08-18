@@ -73,8 +73,7 @@ static const uint16_t *s_indexBase;
 
 static GxmSamplerUnit s_units[GXM_PIPELINE_TEXTURE_UNITS];
 
-// a slot the program fetches but nothing bound holds whatever the context had, which is null
-// on a fresh one; parking every free slot here keeps that fetch inside mapped memory
+// an unbound slot keeps whatever the context held, so free slots park here instead of on null
 static GxmBuffer s_dummyStream;
 
 static GxmBuffer s_clearVertices;
