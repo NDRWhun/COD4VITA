@@ -1521,6 +1521,7 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
         return;
     }
 
+    VitaSys_LogPrintf("cinematic: playing %s\n", path);
     s_started = true;
     s_finished = false;
 }

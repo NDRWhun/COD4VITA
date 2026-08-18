@@ -18,6 +18,9 @@
 #include <gfx_d3d/r_init.h>
 #include <universal/profile.h>
 #include <client/cl_scrn.h>
+#ifdef KISAK_VITA
+#include <vita/platform/vita_system.h>
+#endif
 #include <client/cl_input.h>
 #include <universal/com_sndalias.h>
 #include <universal/com_files.h>
@@ -2610,6 +2613,12 @@ void __cdecl UI_DrawConnectScreen()
         Menus_CloseAll(&uiInfo.uiDC);
         Menus_OpenByName(&uiInfo.uiDC, "briefing");
     }
+#ifdef KISAK_VITA
+    // the loadscreen is this menu drawing the movie, so a black load is one of the two missing
+    VitaSys_LogPrintf("loadscreen: %i menus, type %i, briefing %s\n", Menu_Count(&uiInfo.uiDC),
+                      g_currentMenuType,
+                      Menus_FindByName(&uiInfo.uiDC, "briefing") ? "found" : "MISSING");
+#endif
     SCR_UpdateLoadScreen();
 }
 
