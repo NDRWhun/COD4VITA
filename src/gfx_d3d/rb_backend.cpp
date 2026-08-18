@@ -695,16 +695,19 @@ static bool RB_FillRawTexture(int cols, int rows, const uint8_t *data)
     }
 
     // written in place: the swizzle would otherwise need a staging copy of the whole frame
-    const uint32_t size = GxmTexture_LevelSize(GXM_IMG_A8R8G8B8, s_rawWidth, s_rawHeight);
-    if (!s_rawTexture.memory.base || size < (uint32_t)cols * (uint32_t)rows * 4)
+    const uint32_t rowPitch = GxmTexture_LevelSizeEx(GXM_IMG_A8R8G8B8, s_rawWidth, 1, true);
+    if (!s_rawTexture.memory.base || s_rawTexture.memory.size < rowPitch * (uint32_t)rows)
         return false;
 
-    uint8_t *dest = (uint8_t *)s_rawTexture.memory.base;
-    for (int pixel = 0; pixel < cols * rows; ++pixel)
+    for (int row = 0; row < rows; ++row)
     {
-        Byte4CopyRgbaToVertexColor(data, dest);
-        data += 4;
-        dest += 4;
+        uint8_t *dest = (uint8_t *)s_rawTexture.memory.base + (uint32_t)row * rowPitch;
+        for (int col = 0; col < cols; ++col)
+        {
+            Byte4CopyRgbaToVertexColor(data, dest);
+            data += 4;
+            dest += 4;
+        }
     }
     return true;
 }

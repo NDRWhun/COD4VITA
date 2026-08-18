@@ -1408,7 +1408,7 @@ static bool Cin_CreatePlanes(uint32_t width, uint32_t height)
         void *bits; uint32_t pitch, slice;
         if (GxmImage_MapLevelWrite(s_plane[i], 0, 0, &bits, &pitch, &slice))
         {
-            memset(bits, i ? 128 : 0, w * h);
+            memset(bits, i ? 128 : 0, slice);
             GxmImage_UnmapLevelWrite(s_plane[i], 0, 0, bits);
         }
     }
@@ -1564,23 +1564,30 @@ void __cdecl R_Cinematic_UpdateFrame()
             void *bits; uint32_t pitch, slice;
             if (GxmImage_MapLevelWrite(s_plane[0], 0, 0, &bits, &pitch, &slice))
             {
-                memcpy(bits, frame.pData, width * height);
+                uint8_t *dst = (uint8_t *)bits;
+                const uint8_t *from = (const uint8_t *)frame.pData;
+                for (uint32_t row = 0; row < height; ++row, dst += pitch, from += width)
+                    memcpy(dst, from, width);
                 GxmImage_UnmapLevelWrite(s_plane[0], 0, 0, bits);
             }
 
             // NV12: the chroma pairs unzip into the two planes
             const uint8_t *uv = (const uint8_t *)frame.pData + width * height;
-            const uint32_t chroma = (width / 2) * (height / 2);
+            const uint32_t chromaW = width / 2, chromaH = height / 2;
             void *cbBits, *crBits;
             uint32_t p2, s2;
             if (GxmImage_MapLevelWrite(s_plane[1], 0, 0, &cbBits, &p2, &s2) &&
                 GxmImage_MapLevelWrite(s_plane[2], 0, 0, &crBits, &p2, &s2))
             {
                 uint8_t *cb = (uint8_t *)cbBits, *cr = (uint8_t *)crBits;
-                for (uint32_t i = 0; i < chroma; ++i)
+                for (uint32_t row = 0; row < chromaH; ++row, cb += p2, cr += p2)
                 {
-                    cb[i] = uv[i * 2];
-                    cr[i] = uv[i * 2 + 1];
+                    for (uint32_t x = 0; x < chromaW; ++x)
+                    {
+                        cb[x] = uv[x * 2];
+                        cr[x] = uv[x * 2 + 1];
+                    }
+                    uv += width;
                 }
                 GxmImage_UnmapLevelWrite(s_plane[1], 0, 0, cbBits);
                 GxmImage_UnmapLevelWrite(s_plane[2], 0, 0, crBits);

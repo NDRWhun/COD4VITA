@@ -138,6 +138,7 @@ bool GxmImage_MapLevel(const GxmImage *image, uint32_t mipLevel, uint32_t face,
 
     const uint32_t format = texture->imageFormat;
     const bool compressed = format >= GXM_IMG_DXT1;
+    const bool linearLayout = GxmTexture_IsLinearLayout(texture);
 
     uint32_t offset = 0;
     for (uint32_t f = 0; f < faces; ++f)
@@ -145,11 +146,11 @@ bool GxmImage_MapLevel(const GxmImage *image, uint32_t mipLevel, uint32_t face,
         uint32_t w = texture->width, h = texture->height;
         for (uint32_t level = 0; level < texture->mipCount; ++level)
         {
-            const uint32_t size = GxmTexture_LevelSize(format, w, h);
+            const uint32_t size = GxmTexture_LevelSizeEx(format, w, h, linearLayout);
             if (f == face && level == mipLevel)
             {
                 // one row of blocks for a compressed format, one row of texels otherwise
-                *rowPitch = GxmTexture_LevelSize(format, w, compressed ? 4u : 1u);
+                *rowPitch = GxmTexture_LevelSizeEx(format, w, compressed ? 4u : 1u, linearLayout);
                 *bits = (uint8_t *)texture->memory.base + offset;
 
                 // a volume is a vertical strip, so a slice is its share of the rows

@@ -51,7 +51,8 @@ static bool GxmTexture_Format(uint32_t imageFormat, GxmTextureFormat *out)
     }
 }
 
-uint32_t GxmTexture_LevelSize(uint32_t imageFormat, uint32_t width, uint32_t height)
+uint32_t GxmTexture_LevelSizeEx(uint32_t imageFormat, uint32_t width, uint32_t height,
+                                bool linearLayout)
 {
     GxmTextureFormat format;
     if (!GxmTexture_Format(imageFormat, &format))
@@ -63,7 +64,22 @@ uint32_t GxmTexture_LevelSize(uint32_t imageFormat, uint32_t width, uint32_t hei
         const uint32_t blocksY = (height + 3) / 4;
         return blocksX * blocksY * format.blockBytes;
     }
+    // the hardware reads linear rows at the width rounded up to 8 texels
+    if (linearLayout)
+        width = (width + 7u) & ~7u;
     return width * height * format.bytesPerPixel;
+}
+
+uint32_t GxmTexture_LevelSize(uint32_t imageFormat, uint32_t width, uint32_t height)
+{
+    return GxmTexture_LevelSizeEx(imageFormat, width, height, false);
+}
+
+bool GxmTexture_IsLinearLayout(const GxmTexture *texture)
+{
+    bool isBlock = false;
+    GxmTexture_ElemBytes(texture->imageFormat, &isBlock);
+    return !isBlock && !texture->isCube;
 }
 
 uint32_t GxmTexture_ElemBytes(uint32_t imageFormat, bool *isBlock)
@@ -120,7 +136,7 @@ void GxmTexture_SwizzleGrid(uint8_t *dst, const uint8_t *src, uint32_t wide, uin
 }
 
 static uint32_t GxmTexture_TotalSize(uint32_t imageFormat, uint32_t width, uint32_t height,
-                                     uint32_t mipCount, uint32_t faces)
+                                     uint32_t mipCount, uint32_t faces, bool linearLayout)
 {
     uint32_t total = 0;
     for (uint32_t face = 0; face < faces; ++face)
@@ -128,7 +144,7 @@ static uint32_t GxmTexture_TotalSize(uint32_t imageFormat, uint32_t width, uint3
         uint32_t w = width, h = height;
         for (uint32_t level = 0; level < mipCount; ++level)
         {
-            total += GxmTexture_LevelSize(imageFormat, w, h);
+            total += GxmTexture_LevelSizeEx(imageFormat, w, h, linearLayout);
             w = w > 1 ? w / 2 : 1;
             h = h > 1 ? h / 2 : 1;
         }
@@ -144,7 +160,9 @@ static bool GxmTexture_Allocate(GxmTexture *texture, uint32_t imageFormat,
     if (!GxmTexture_Format(imageFormat, &format))
         return false;
 
-    const uint32_t size = GxmTexture_TotalSize(imageFormat, width, height, mipCount, faces);
+    const bool linearLayout = faces == 1 && format.blockBytes == 0;
+    const uint32_t size = GxmTexture_TotalSize(imageFormat, width, height, mipCount, faces,
+                                               linearLayout);
     if (!size)
         return false;
 
@@ -236,18 +254,35 @@ bool GxmTexture_Upload(GxmTexture *texture, uint32_t mipLevel, uint32_t face,
     if (face >= faces)
         return false;
 
+    const bool linearLayout = GxmTexture_IsLinearLayout(texture);
     uint32_t offset = 0;
     for (uint32_t f = 0; f < faces; ++f)
     {
         uint32_t w = texture->width, h = texture->height;
         for (uint32_t level = 0; level < texture->mipCount; ++level)
         {
-            const uint32_t size = GxmTexture_LevelSize(texture->imageFormat, w, h);
+            const uint32_t size = GxmTexture_LevelSizeEx(texture->imageFormat, w, h, linearLayout);
             if (f == face && level == mipLevel)
             {
-                if (srcSize > size)
-                    return false;
-                memcpy((uint8_t *)texture->memory.base + offset, src, srcSize);
+                uint8_t *dst = (uint8_t *)texture->memory.base + offset;
+                const uint32_t tightPitch = GxmTexture_LevelSize(texture->imageFormat, w, 1);
+                const uint32_t dstPitch = GxmTexture_LevelSizeEx(texture->imageFormat, w, 1,
+                                                                 linearLayout);
+                if (dstPitch == tightPitch)
+                {
+                    if (srcSize > size)
+                        return false;
+                    memcpy(dst, src, srcSize);
+                    return true;
+                }
+                // tight source rows spread out to the padded stride
+                const uint8_t *from = (const uint8_t *)src;
+                for (uint32_t rows = srcSize / tightPitch; rows; --rows)
+                {
+                    memcpy(dst, from, tightPitch);
+                    dst += dstPitch;
+                    from += tightPitch;
+                }
                 return true;
             }
             offset += size;

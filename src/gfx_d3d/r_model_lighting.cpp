@@ -718,7 +718,8 @@ void __cdecl RB_PatchModelLighting(const GfxModelLightingPatch *patchList, uint3
     iassert(volume->depth == lightImage->depth);
 
     // the volume is a vertical strip, so a slice is a contiguous run of rows
-    const uint32_t rowPitch = GxmTexture_LevelSize(volume->imageFormat, volume->width, 1);
+    const uint32_t rowPitch = GxmTexture_LevelSizeEx(volume->imageFormat, volume->width, 1,
+                                                     GxmTexture_IsLinearLayout(volume));
     modelLightGlob.lockedBox.RowPitch = (int)rowPitch;
     modelLightGlob.lockedBox.SlicePitch = (int)(rowPitch * (volume->height / volume->depth));
     modelLightGlob.lockedBox.pBits = volume->memory.base;

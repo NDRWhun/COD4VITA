@@ -56,6 +56,11 @@ void GxmTexture_Free(GxmTexture *texture);
 // bytes a mip level occupies in the engine's packing
 uint32_t GxmTexture_LevelSize(uint32_t imageFormat, uint32_t width, uint32_t height);
 
+// linear layouts pad each row to 8 texels; block and swizzled layouts stay packed
+uint32_t GxmTexture_LevelSizeEx(uint32_t imageFormat, uint32_t width, uint32_t height,
+                                bool linearLayout);
+bool GxmTexture_IsLinearLayout(const GxmTexture *texture);
+
 // element granularity of a format: a 4x4 block for DXT, a texel otherwise
 uint32_t GxmTexture_ElemBytes(uint32_t imageFormat, bool *isBlock);
 
