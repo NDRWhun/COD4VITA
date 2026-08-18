@@ -275,7 +275,14 @@ void GxmRenderTarget_End(void)
     if (!s_current)
         return;
 
-    sceGxmEndScene(GxmDevice_Context(), NULL, GxmDevice_SceneNotification());
+    // the counter must only advance for a scene the GPU will actually retire
+    const SceGxmNotification *notification = GxmDevice_SceneNotification();
+    const int ended = sceGxmEndScene(GxmDevice_Context(), NULL, notification);
+    if (ended < 0)
+    {
+        GxmDevice_CancelScene();
+        VitaSys_LogPrintf("sceGxmEndScene failed 0x%08x\n", (unsigned)ended);
+    }
     s_current = NULL;
 }
 

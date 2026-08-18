@@ -26,6 +26,8 @@ SceGxmSyncObject *GxmDevice_BackBufferSync(void);
 
 // every scene end stamps this rising value into notification memory
 const SceGxmNotification *GxmDevice_SceneNotification(void);
+void GxmDevice_CancelScene(void);
+void GxmDevice_ResyncScenes(void);
 
 // GPU fence: the issued value is reached once the GPU retires the scenes submitted before it
 void GxmDevice_IssueFence(void);

@@ -42,6 +42,7 @@
 #include <vita/gxm/gxm_device.h>
 #include <vita/gxm/gxm_fence.h>
 #include <vita/gxm/gxm_rendertarget.h>
+#include <vita/platform/vita_system.h>
 #include <vita/gxm/gxm_texture.h>
 #endif
 
@@ -105,7 +106,23 @@ void __cdecl R_FinishGpuFence()
 {
     PROF_SCOPED("R_SyncGpu");
 
+#ifdef KISAK_VITA
+    // this spin holds the main thread hard enough to take the system UI with it, so a fence the
+    // GPU can no longer reach has to be recovered rather than waited on
+    const unsigned start = VitaSys_Milliseconds();
+    bool resynced = false;
+    while (!RB_IsGpuFenceFinished())
+    {
+        if (resynced || VitaSys_Milliseconds() - start < 2000)
+            continue;
+        VitaSys_LogPrintf("gpu fence stalled for 2000 ms; resynchronising the scene counter\n");
+        VitaSys_LogFlush();
+        GxmDevice_ResyncScenes();
+        resynced = true;
+    }
+#else
     while (!RB_IsGpuFenceFinished());
+#endif
 }
 
 void __cdecl R_AcquireGpuFenceLock()

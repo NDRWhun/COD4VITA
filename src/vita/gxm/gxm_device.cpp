@@ -398,6 +398,21 @@ const SceGxmNotification *GxmDevice_SceneNotification(void)
     return &gxmDev.sceneNotification;
 }
 
+void GxmDevice_CancelScene(void)
+{
+    --gxmDev.sceneNotification.value;
+}
+
+// after a finish the GPU has retired everything real, so a counter still ahead counted a scene
+// that never reached it; leaving it ahead makes every later fence unreachable
+void GxmDevice_ResyncScenes(void)
+{
+    GxmDevice_Finish();
+    if (gxmDev.sceneNotification.address)
+        gxmDev.sceneNotification.value = *gxmDev.sceneNotification.address;
+    gxmDev.fenceValue = gxmDev.sceneNotification.value;
+}
+
 void GxmDevice_IssueFence(void)
 {
     // everything queued so far; one more would wait on the next frame
