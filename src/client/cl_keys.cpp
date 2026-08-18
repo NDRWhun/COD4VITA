@@ -1649,6 +1649,7 @@ void __cdecl CL_KeyEvent(int32_t localClientNum, int32_t key, int32_t down, uint
             }
             goto LABEL_91;
         }
+#ifdef KISAK_MP
         if (clientUIActives[0].cgameInitialized
             && CG_IsScoreboardDisplayed(localClientNum)
             && down
@@ -1656,6 +1657,7 @@ void __cdecl CL_KeyEvent(int32_t localClientNum, int32_t key, int32_t down, uint
         {
             return;
         }
+#endif
         if (!down)
         {
             kba = keys[key].binding;

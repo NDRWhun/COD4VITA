@@ -31,7 +31,15 @@ static int __cdecl R_AllocSkinnedCachedVerts(int vertCount)
 
     iassert(vertCount > 0);
     if (!gfxBuf.skinnedCacheLockAddr)
+    {
+#ifdef KISAK_VITA
+        // a model that cannot get skinned space falls back to its bind pose, silently
+        static uint32_t s_reported;
+        if (s_reported++ < 4)
+            Com_PrintWarning(8, "skinned cache lock missing, model unskinned\n");
+#endif
         return -1;
+    }
 
     offset = InterlockedExchangeAdd(&frontEndDataOut->skinnedCacheVb->used, 32 * vertCount);
     if ((uint32_t)(32 * vertCount + offset) <= 0x480000)
