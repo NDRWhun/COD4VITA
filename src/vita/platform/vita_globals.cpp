@@ -6,7 +6,7 @@
 // budget derivation in PORTING_NOTES.md
 extern "C" {
 // the adpcm audio freed the heap side, and the partition slack hosts the gpu spill
-unsigned int _newlib_heap_size_user = 224 * 1024 * 1024;
+unsigned int _newlib_heap_size_user = 208 * 1024 * 1024;
 }
 
 // storage only; R_RegisterDvars in r_dvars.cpp still assigns all three

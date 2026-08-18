@@ -1112,90 +1112,157 @@ void __cdecl SND_SetHWND(HWND hwnd)
     // no window handle to bind: sceAudio has no DirectSound equivalent
 }
 
+static const int kEncIndexTable[16] =
+{
+    -1, -1, -1, -1, 2, 4, 6, 8,
+    -1, -1, -1, -1, 2, 4, 6, 8
+};
+static const int kEncStepTable[89] =
+{
+    7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45,
+    50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253,
+    279, 307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963, 1060, 1166,
+    1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428,
+    4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 15289,
+    16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767
+};
+
+// one nibble; the predictor walks exactly the way the mixer's decoder rebuilds it
+static uint8_t VitaSnd_ImaEncodeSample(int sample, int *predictor, int *index)
+{
+    const int step = kEncStepTable[*index];
+    int diff = sample - *predictor;
+    uint8_t nibble = 0;
+    if (diff < 0)
+    {
+        nibble = 8;
+        diff = -diff;
+    }
+    int delta = step >> 3;
+    if (diff >= step)      { nibble |= 4; diff -= step; delta += step; }
+    if (diff >= (step >> 1)) { nibble |= 2; diff -= step >> 1; delta += step >> 1; }
+    if (diff >= (step >> 2)) { nibble |= 1; delta += step >> 2; }
+    *predictor += (nibble & 8) ? -delta : delta;
+    if (*predictor > 32767) *predictor = 32767;
+    if (*predictor < -32768) *predictor = -32768;
+    *index += kEncIndexTable[nibble];
+    if (*index < 0) *index = 0;
+    if (*index > 88) *index = 88;
+    return nibble;
+}
+
+// mirrors VitaSnd_DecodeImaBlock: per-channel 4-byte headers, then 4-byte nibble groups
+static void VitaSnd_ImaEncode(const int16_t *pcm, uint32_t frames, uint32_t channels,
+                              uint32_t blockSize, uint32_t framesPerBlock, uint8_t *out)
+{
+    int index[2] = { 0, 0 };
+    for (uint32_t start = 0; start < frames; start += framesPerBlock)
+    {
+        uint8_t *block = out;
+        int predictor[2];
+        for (uint32_t c = 0; c < channels; ++c)
+        {
+            predictor[c] = pcm[start * channels + c];
+            block[c * 4] = (uint8_t)(predictor[c] & 0xFF);
+            block[c * 4 + 1] = (uint8_t)((predictor[c] >> 8) & 0xFF);
+            block[c * 4 + 2] = (uint8_t)index[c];
+            block[c * 4 + 3] = 0;
+        }
+        uint8_t *p = block + 4 * channels;
+        const uint8_t *end = block + blockSize;
+        uint32_t frame = start + 1;
+        while (p + 4 * channels <= end)
+        {
+            for (uint32_t c = 0; c < channels; ++c)
+            {
+                for (int b = 0; b < 4; ++b)
+                {
+                    uint8_t byte = 0;
+                    for (int half = 0; half < 2; ++half)
+                    {
+                        const uint32_t f = frame + (uint32_t)(b * 2 + half);
+                        const int sample = f < frames ? pcm[f * channels + c] : predictor[c];
+                        const uint8_t nib = VitaSnd_ImaEncodeSample(sample, &predictor[c],
+                                                                    &index[c]);
+                        byte |= half ? (uint8_t)(nib << 4) : nib;
+                    }
+                    p[c * 4 + b] = byte;
+                }
+            }
+            p += 4 * channels;
+            frame += 8;
+        }
+        out += blockSize;
+    }
+}
+
 void __cdecl SND_SetData(MssSoundCOD4 *mssSound, void *srcData)
 {
-    // ADPCM stays compressed; PCM stores at 24 kHz or below
+    // ADPCM stays compressed; 16-bit PCM is decimated to 24 kHz and held as ADPCM
     const uint32_t targetRate = 24000;
-    if (mssSound->info.rate > targetRate && mssSound->info.format != 17)
+    const uint32_t channels = mssSound->info.channels;
+
+    if (mssSound->info.format != 17 && mssSound->info.bits == 16 &&
+        channels >= 1 && channels <= 2 && mssSound->info.samples)
     {
-        // bits outside 8/16 would size the copy at zero
-        if ((mssSound->info.bits != 8 && mssSound->info.bits != 16) ||
-            mssSound->info.channels < 1 || mssSound->info.channels > 2 ||
-            !mssSound->info.samples)
-        {
-            const LoadedSound *owner =
-                (const LoadedSound *)((const uint8_t *)mssSound - offsetof(LoadedSound, sound));
-            VitaSys_LogPrintf("snd: '%s' fmt %i rate %u bits %i ch %i samples %u kept as-is\n",
-                              owner->name ? owner->name : "?", mssSound->info.format,
-                              mssSound->info.rate, mssSound->info.bits,
-                              mssSound->info.channels, mssSound->info.samples);
-            VitaSys_LogFlush();
-            mssSound->data = MSS_Alloc(mssSound->info.data_len, mssSound->info.rate);
-            Com_Memcpy(mssSound->data, srcData, mssSound->info.data_len);
-            mssSound->info.data_ptr = mssSound->data;
-            return;
-        }
         const uint32_t srcFrameCount = mssSound->info.samples;
-        const uint32_t channels = mssSound->info.channels;
         uint32_t rate = mssSound->info.rate;
         uint32_t frameCount = srcFrameCount;
-
         while (rate > targetRate)
         {
             rate /= 2;
             frameCount /= 2;
         }
+        if (!frameCount)
+            frameCount = 1;
 
-        const uint32_t bytesPerSample = (uint32_t)(mssSound->info.bits / 8);
-        const uint32_t newDataLen = frameCount * channels * bytesPerSample;
-        mssSound->data = MSS_Alloc(newDataLen, rate);
+        int16_t *pcm = (int16_t *)malloc(frameCount * channels * 2);
+        if (!pcm)
+        {
+            mssSound->data = MSS_Alloc(mssSound->info.data_len, mssSound->info.rate);
+            Com_Memcpy(mssSound->data, srcData, mssSound->info.data_len);
+            mssSound->info.data_ptr = mssSound->data;
+            mssSound->info.initial_ptr = mssSound->data;
+            return;
+        }
 
         // remainder walk, no divide per frame
-        const uint32_t step = frameCount ? srcFrameCount / frameCount : 0;
-        const uint32_t rem = frameCount ? srcFrameCount % frameCount : 0;
+        const uint32_t step = srcFrameCount / frameCount;
+        const uint32_t rem = srcFrameCount % frameCount;
+        const int16_t *src16 = (const int16_t *)srcData;
         uint32_t srcFrame = 0, err = 0;
-
-        if (bytesPerSample == 2)
+        for (uint32_t i = 0; i < frameCount; ++i)
         {
-            const int16_t *src16 = (const int16_t *)srcData;
-            int16_t *dst16 = (int16_t *)mssSound->data;
-            for (uint32_t i = 0; i < frameCount; ++i)
+            for (uint32_t c = 0; c < channels; ++c)
+                pcm[i * channels + c] = src16[srcFrame * channels + c];
+            srcFrame += step;
+            err += rem;
+            if (err >= frameCount)
             {
-                for (uint32_t c = 0; c < channels; ++c)
-                    dst16[i * channels + c] = src16[srcFrame * channels + c];
-                srcFrame += step;
-                err += rem;
-                if (err >= frameCount)
-                {
-                    err -= frameCount;
-                    ++srcFrame;
-                }
-            }
-        }
-        else
-        {
-            const uint8_t *src8 = (const uint8_t *)srcData;
-            uint8_t *dst8 = mssSound->data;
-            for (uint32_t i = 0; i < frameCount; ++i)
-            {
-                for (uint32_t c = 0; c < channels; ++c)
-                    dst8[i * channels + c] = src8[srcFrame * channels + c];
-                srcFrame += step;
-                err += rem;
-                if (err >= frameCount)
-                {
-                    err -= frameCount;
-                    ++srcFrame;
-                }
+                err -= frameCount;
+                ++srcFrame;
             }
         }
 
+        const uint32_t blockSize = 1024 * channels;
+        const uint32_t framesPerBlock = ((blockSize - 4 * channels) * 2) / channels + 1;
+        const uint32_t blocks = (frameCount + framesPerBlock - 1) / framesPerBlock;
+
+        mssSound->data = MSS_Alloc(blocks * blockSize, rate);
+        VitaSnd_ImaEncode(pcm, frameCount, channels, blockSize, framesPerBlock,
+                          (uint8_t *)mssSound->data);
+        free(pcm);
+
+        mssSound->info.format = 17;
+        mssSound->info.bits = 4;
+        mssSound->info.block_size = blockSize;
         mssSound->info.rate = rate;
         mssSound->info.samples = frameCount;
-        mssSound->info.data_len = newDataLen;
+        mssSound->info.data_len = blocks * blockSize;
     }
     else
     {
+        // 8-bit and oddball shapes are rare enough to store as they came
         mssSound->data = MSS_Alloc(mssSound->info.data_len, mssSound->info.rate);
         Com_Memcpy(mssSound->data, srcData, mssSound->info.data_len);
     }
