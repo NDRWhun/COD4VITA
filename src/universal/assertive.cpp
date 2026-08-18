@@ -703,6 +703,27 @@ void MyAssertHandler(const char *filename, int line, int type, const char *fmt, 
     va_end(va);
     VitaSys_LogPrintf("ASSERT %s:%d (type %d): %s\n", filename ? filename : "?", line, type, text);
     VitaSys_LogFlush();
+
+    // an assert that returns into a loop it was meant to stop spins forever, which reads as a
+    // frozen console; the same one repeating this often is that, not a caller making progress
+    static const char *lastFile;
+    static int lastLine;
+    static uint32_t repeats;
+    if (filename == lastFile && line == lastLine)
+    {
+        if (++repeats == 512)
+        {
+            char loop[1024];
+            snprintf(loop, sizeof(loop), "%s:%d repeated 512 times:\n%s", filename, line, text);
+            VitaSys_Fatal("Assert loop", loop);
+        }
+    }
+    else
+    {
+        lastFile = filename;
+        lastLine = line;
+        repeats = 0;
+    }
 #else
 
 #ifdef KISAK_RADIANT

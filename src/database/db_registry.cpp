@@ -2146,7 +2146,11 @@ void __cdecl DB_GetXAsset(XAssetType type, XAssetHeader header)
     for (assetEntryIndex = db_hashTable[DB_HashForName(name, type)]; ; assetEntryIndex = assetEntry->nextHash)
     {
         if (!assetEntryIndex)
+        {
+            // the chain ended without a match; entry 0 links to itself, so walking on never returns
             MyAssertHandler(".\\database\\db_registry.cpp", 3163, 0, "%s", "assetEntryIndex");
+            return;
+        }
         assetEntry = &g_assetEntryPool[assetEntryIndex].entry;
         if (assetEntry->asset.type == type && assetEntry->asset.header.xmodelPieces == header.xmodelPieces)
             break;
