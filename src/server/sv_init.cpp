@@ -430,15 +430,16 @@ void __cdecl SV_SpawnServer(const char *mapname, int savegame)
 
     if (IsFastFileLoad())
     {
-        //char zoneName[64];
-        //XZoneInfo zoneInfo;
+        char zoneName[64];
+        XZoneInfo zoneInfo;
 
         DB_ResetZoneSize(0);
-        //Com_sprintf(zoneName, 0x40u, "%s_load", mapname);
-        //zoneInfo.name = zoneName;
-        //zoneInfo.allocFlags = 32;
-        //zoneInfo.freeFlags = 96;
-        //DB_LoadXAssets(&zoneInfo, 1, 0);
+        // the loadscreen the briefing menu draws lives in this zone, and the map zone frees it
+        Com_sprintf(zoneName, 0x40u, "%s_load", mapname);
+        zoneInfo.name = zoneName;
+        zoneInfo.allocFlags = 32;
+        zoneInfo.freeFlags = 96;
+        DB_LoadXAssets(&zoneInfo, 1, 0);
     }
     // MP END
 
