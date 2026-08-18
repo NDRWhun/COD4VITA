@@ -1819,9 +1819,9 @@ static int Cin_WorkerThread(SceSize args, void *argp)
     {
         const unsigned now = VitaSys_Milliseconds() - begin;
 
-        // audio first: its blocking output paces the loop
+        // audio first: its blocking output paces the loop; video still runs each pass
         if (s_aacLive && s_aud.next < s_aud.count &&
-            s_aud.samples[s_aud.next].ptsMs <= now + 80)
+            s_aud.samples[s_aud.next].ptsMs <= now + 30)
         {
             const CinSample *sample = &s_aud.samples[s_aud.next++];
             if (sample->size <= s_esBufSize &&
@@ -1856,11 +1856,11 @@ static int Cin_WorkerThread(SceSize args, void *argp)
                         sceAudioOutOutput(s_audioPort, s_aacPcm);
                 }
             }
-            continue;
+            /* fall through to video */;
         }
 
-        if (s_avcLive && s_vid.next < s_vid.count &&
-            s_vid.samples[s_vid.next].ptsMs <= now)
+        for (int burst = 0; burst < 2 && s_avcLive && s_vid.next < s_vid.count &&
+             s_vid.samples[s_vid.next].ptsMs <= VitaSys_Milliseconds() - begin; ++burst)
         {
             const CinSample *sample = &s_vid.samples[s_vid.next++];
             const uint32_t esLen = (sample->size + s_spsPpsLen <= s_esBufSize)
@@ -1904,7 +1904,7 @@ static int Cin_WorkerThread(SceSize args, void *argp)
                     Cin_StageDecodedFrame(&picture);
                 }
             }
-            continue;
+            /* next burst */;
         }
 
         sceKernelDelayThread(2000);
