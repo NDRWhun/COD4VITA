@@ -33,7 +33,7 @@ static GxmBuffer *R_GxmCreateBuffer(int sizeInBytes, const char *what, uint32_t 
         budget.size = sizeof(budget);
         sceKernelGetFreeMemorySize(&budget);
         R_FatalInitError(va("GXM didn't create a %i-byte %s; free user %u KB cdram %u KB phycont %u KB\n",
-                            sizeInBytes, what, (unsigned)(budget.size_user / 1024),
+                            sizeInBytes, what, (unsigned)((budget.size_user < 0 ? 0 : budget.size_user) / 1024),
                             (unsigned)(budget.size_cdram / 1024),
                             (unsigned)(budget.size_phycont / 1024)));
     }

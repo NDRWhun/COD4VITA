@@ -2792,7 +2792,7 @@ static void RB_ReportGxmCounters()
     const struct mallinfo heap = mallinfo();
     VitaSys_LogPrintf("  free: user %u KB cdram %u KB phycont %u KB; heap %u KB used, "
                       "%u KB free\n",
-                      (unsigned)(budget.size_user / 1024), (unsigned)(budget.size_cdram / 1024),
+                      (unsigned)((budget.size_user < 0 ? 0 : budget.size_user) / 1024), (unsigned)(budget.size_cdram / 1024),
                       (unsigned)(budget.size_phycont / 1024),
                       (unsigned)(heap.uordblks / 1024), (unsigned)(heap.fordblks / 1024));
 
