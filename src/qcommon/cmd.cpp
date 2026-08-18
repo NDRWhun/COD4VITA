@@ -1310,7 +1310,14 @@ void __cdecl Cmd_Exec_f()
         if (I_stricmp(pathname, "config.cfg"))
 #endif
         {
-            if ((!IsFastFileLoad() || !Cmd_ExecFromFastFile(localClientNum, 0, filename))
+#ifdef KISAK_VITA
+            // the input layer writes this one to disk, so the fastfile lookup would only block
+            // until the database gave up on it
+            const int packed = IsFastFileLoad() && I_stricmp(pathname, "vita_controls.cfg");
+#else
+            const int packed = IsFastFileLoad();
+#endif
+            if ((!packed || !Cmd_ExecFromFastFile(localClientNum, 0, filename))
                 && !Cmd_ExecFromDisk(localClientNum, 0, filename))
             {
                 v1 = Cmd_Argv(1);

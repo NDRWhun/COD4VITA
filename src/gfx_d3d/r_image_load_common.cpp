@@ -334,8 +334,14 @@ void __cdecl Image_Upload2D_CopyData_PC(
     uint32_t slicePitch;
     if (!GxmImage_MapLevelWrite((const GxmImage *)image->texture.basemap, mipLevel, faceIndex,
                                 &bits, &rowPitch, &slicePitch))
-        Com_Error(ERR_FATAL, "Image '%s' has no face %i mip level %i\n",
-                  image->name, faceIndex, mipLevel);
+    {
+        // only a freed texture or a level past the chain gets here, so both are named
+        const GxmTexture *bound = (const GxmTexture *)image->texture.basemap;
+        Com_Error(ERR_FATAL,
+                  "Image '%s' has no face %i mip level %i (%ux%u fmt %u, %u mips, base %p)\n",
+                  image->name, faceIndex, mipLevel, bound->width, bound->height,
+                  bound->imageFormat, bound->mipCount, bound->memory.base);
+    }
 
     Image_Upload2D_CopyDataBlock_PC(width, height, src, format, rowPitch, (uint8_t *)bits);
     GxmImage_UnmapLevelWrite((const GxmImage *)image->texture.basemap, mipLevel, faceIndex, bits);
