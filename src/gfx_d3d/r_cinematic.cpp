@@ -1349,8 +1349,36 @@ static uint8_t *s_esBuf;
 static uint32_t s_esBufSize;
 static SceAvcdecCtrl s_avcCtrl;
 static bool s_avcLive;
-static GxmAlloc s_avcFrameMem;
-static GxmAlloc s_avcOutMem;
+static SceUID s_avcFrameUid = -1;
+static void *s_avcFrameBase;
+static SceUID s_avcOutUid = -1;
+static void *s_avcOutBase;
+
+// the decoder wants raw physically contiguous blocks it maps itself, free of gxm
+static void *Cin_PhycontAlloc(SceUID *uid, uint32_t size)
+{
+    size = (size + 0xFFFFFu) & ~0xFFFFFu;
+    *uid = sceKernelAllocMemBlock("kcod_avc", SCE_KERNEL_MEMBLOCK_TYPE_USER_MAIN_PHYCONT_NC_RW,
+                                  size, NULL);
+    if (*uid < 0)
+        return NULL;
+    void *base = NULL;
+    if (sceKernelGetMemBlockBase(*uid, &base) < 0)
+    {
+        sceKernelFreeMemBlock(*uid);
+        *uid = -1;
+        return NULL;
+    }
+    return base;
+}
+
+static void Cin_PhycontFree(SceUID *uid, void **base)
+{
+    if (*uid >= 0)
+        sceKernelFreeMemBlock(*uid);
+    *uid = -1;
+    *base = NULL;
+}
 static uint32_t s_avcPitch, s_avcRows;
 static SceAudiodecCtrl s_aacCtrl;
 static SceAudiodecInfo s_aacInfo;
@@ -1624,8 +1652,8 @@ static bool Cin_OpenAvc(void)
     SceAvcdecDecoderInfo info;
     memset(&info, 0, sizeof(info));
     rc = sceAvcdecQueryDecoderMemSize(SCE_VIDEODEC_TYPE_HW_AVCDEC, &query, &info);
-    if (rc < 0 || !GxmMem_Alloc(&s_avcFrameMem, info.frameMemSize, GXM_MEM_PHYCONT,
-                                SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE))
+    s_avcFrameBase = rc < 0 ? NULL : Cin_PhycontAlloc(&s_avcFrameUid, info.frameMemSize);
+    if (!s_avcFrameBase)
     {
         VitaSys_LogPrintf("cinematic: decoder memory 0x%08x (%u KB)\n", (unsigned)rc,
                           info.frameMemSize / 1024);
@@ -1634,25 +1662,25 @@ static bool Cin_OpenAvc(void)
     }
 
     memset(&s_avcCtrl, 0, sizeof(s_avcCtrl));
-    s_avcCtrl.frameBuf.pBuf = s_avcFrameMem.base;
-    s_avcCtrl.frameBuf.size = s_avcFrameMem.size;
+    s_avcCtrl.frameBuf.pBuf = s_avcFrameBase;
+    s_avcCtrl.frameBuf.size = (info.frameMemSize + 0xFFFFFu) & ~0xFFFFFu;
     rc = sceAvcdecCreateDecoder(SCE_VIDEODEC_TYPE_HW_AVCDEC, &s_avcCtrl, &query);
     if (rc < 0)
     {
         VitaSys_LogPrintf("cinematic: create decoder 0x%08x\n", (unsigned)rc);
-        GxmMem_Free(&s_avcFrameMem);
+        Cin_PhycontFree(&s_avcFrameUid, &s_avcFrameBase);
         sceVideodecTermLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC);
         return false;
     }
 
     s_avcPitch = alignW;
     s_avcRows = alignH;
-    if (!GxmMem_Alloc(&s_avcOutMem, alignW * alignH * 3 / 2, GXM_MEM_PHYCONT,
-                      SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE))
+    s_avcOutBase = Cin_PhycontAlloc(&s_avcOutUid, alignW * alignH * 3 / 2);
+    if (!s_avcOutBase)
     {
         VitaSys_LogPrintf("cinematic: no output frame memory\n");
         sceAvcdecDeleteDecoder(&s_avcCtrl);
-        GxmMem_Free(&s_avcFrameMem);
+        Cin_PhycontFree(&s_avcFrameUid, &s_avcFrameBase);
         sceVideodecTermLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC);
         return false;
     }
@@ -1759,7 +1787,7 @@ static void Cin_StageDecodedFrame(const SceAvcdecPicture *picture)
         s_stageH = height;
     }
 
-    const uint8_t *luma = (const uint8_t *)s_avcOutMem.base;
+    const uint8_t *luma = (const uint8_t *)s_avcOutBase;
     for (uint32_t row = 0; row < height; ++row)
         memcpy(s_stage[0] + row * width, luma + row * s_avcPitch, width);
 
@@ -1855,8 +1883,8 @@ static int Cin_WorkerThread(SceSize args, void *argp)
                 picture.frame.framePitch = s_avcPitch;
                 picture.frame.frameWidth = s_avcPitch;
                 picture.frame.frameHeight = s_avcRows;
-                picture.frame.pPicture[0] = s_avcOutMem.base;
-                picture.frame.pPicture[1] = (uint8_t *)s_avcOutMem.base + s_avcPitch * s_avcRows;
+                picture.frame.pPicture[0] = s_avcOutBase;
+                picture.frame.pPicture[1] = (uint8_t *)s_avcOutBase + s_avcPitch * s_avcRows;
 
                 SceAvcdecPicture *pictures[1] = { &picture };
                 SceAvcdecArrayPicture array;
@@ -1969,8 +1997,8 @@ void __cdecl R_Cinematic_StopPlayback()
     {
         sceAvcdecDeleteDecoder(&s_avcCtrl);
         sceVideodecTermLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC);
-        GxmMem_Free(&s_avcFrameMem);
-        GxmMem_Free(&s_avcOutMem);
+        Cin_PhycontFree(&s_avcFrameUid, &s_avcFrameBase);
+        Cin_PhycontFree(&s_avcOutUid, &s_avcOutBase);
         s_avcLive = false;
     }
     free(s_esBuf);

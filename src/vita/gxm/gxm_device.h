@@ -26,6 +26,7 @@ SceGxmSyncObject *GxmDevice_BackBufferSync(void);
 
 // every scene end stamps this rising value into notification memory
 const SceGxmNotification *GxmDevice_SceneNotification(void);
+const SceGxmNotification *GxmDevice_PeekSceneNotification(void);
 void GxmDevice_CancelScene(void);
 void GxmDevice_ResyncScenes(void);
 

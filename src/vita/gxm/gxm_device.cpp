@@ -396,6 +396,12 @@ SceGxmSyncObject *GxmDevice_BackBufferSync(void)
     return gxmDev.display[gxmDev.backBufferIndex].sync;
 }
 
+// read-only view for reporting; the allocator below is what hands out fence values
+const SceGxmNotification *GxmDevice_PeekSceneNotification(void)
+{
+    return &gxmDev.sceneNotification;
+}
+
 const SceGxmNotification *GxmDevice_SceneNotification(void)
 {
     ++gxmDev.sceneNotification.value;

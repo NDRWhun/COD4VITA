@@ -2778,11 +2778,13 @@ static void RB_ReportGxmCounters()
         return;
 
     const uint32_t draws = GxmDraw_DrawCount();
+    const SceGxmNotification *fence = GxmDevice_PeekSceneNotification();
     VitaSys_LogPrintf("gxm frame %u: %u draws since frame %u, %u dropped, %u blits dropped, "
-                      "%u scenes over budget\n",
+                      "%u scenes over budget, gpu lag %i scenes\n",
                       frame, draws - s_lastDraws, s_reportFrame,
                       GxmPipeline_UnresolvedDraws(), GxmBlit_DroppedBlits(),
-                      GxmRenderTarget_OverflowedScenes());
+                      GxmRenderTarget_OverflowedScenes(),
+                      fence->address ? (int)(fence->value - *fence->address) : -1);
 
     // which pool a failed allocation ran out of is otherwise only visible once it has failed
     SceKernelFreeMemorySizeInfo budget;

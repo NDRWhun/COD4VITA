@@ -1692,6 +1692,16 @@ void __cdecl CL_KeyEvent(int32_t localClientNum, int32_t key, int32_t down, uint
             if (clcState)
             {
                 kbb = keys[key].binding;
+#ifdef KISAK_VITA
+                // arrows against every other key: which branch swallowed the press
+                if (key >= 154 && key <= 157)
+                {
+                    static uint32_t s_bindLog;
+                    if (s_bindLog++ < 4)
+                        Com_Printf(14, "key %i clcState %i bind '%s'\n", key, clcState,
+                                   kbb ? kbb : "(none)");
+                }
+#endif
                 if (kbb)
                 {
                     if (*kbb == '+')
@@ -1960,6 +1970,16 @@ void __cdecl CL_KeyEvent(int32_t localClientNum, int32_t key, int32_t down, uint
             if (clcState)
             {
                 kbb = keys[key].binding;
+#ifdef KISAK_VITA
+                // arrows against every other key: which branch swallowed the press
+                if (key >= 154 && key <= 157)
+                {
+                    static uint32_t s_bindLog;
+                    if (s_bindLog++ < 4)
+                        Com_Printf(14, "key %i clcState %i bind '%s'\n", key, clcState,
+                                   kbb ? kbb : "(none)");
+                }
+#endif
                 if (kbb)
                 {
                     if (*kbb == '+')
