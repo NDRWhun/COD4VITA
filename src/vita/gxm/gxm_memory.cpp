@@ -121,6 +121,7 @@ bool GxmMem_AllocPooled(GxmAlloc *out, uint32_t size, GxmMemDomain domain, uint3
     memset(out, 0, sizeof(*out));
 
     const VitaMemArena arena = domain == GXM_MEM_CDRAM ? VITA_MEM_CDRAM
+                             : domain == GXM_MEM_PHYCONT ? VITA_MEM_PHYCONT
                              : domain == GXM_MEM_MAIN_UNCACHED ? VITA_MEM_MAIN_UNCACHED
                              : VITA_MEM_MAIN;
 

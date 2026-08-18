@@ -237,6 +237,8 @@ bool GxmDevice_Init(void)
                           SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE);
     VitaMem_SetGpuMapping(VITA_MEM_MAIN_UNCACHED, true,
                           SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE);
+    VitaMem_SetGpuMapping(VITA_MEM_PHYCONT, true,
+                          SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE);
     if (!GxmDevice_CreateContext())
         return false;
     if (!GxmDevice_CreateRenderTarget())
@@ -355,6 +357,7 @@ void GxmDevice_Shutdown(void)
     free(gxmDev.contextHostMem.base);
 
     // arena blocks outlive the device; their mappings do not, so drop them while GXM is alive
+    VitaMem_SetGpuMapping(VITA_MEM_PHYCONT, false, 0);
     VitaMem_SetGpuMapping(VITA_MEM_MAIN_UNCACHED, false, 0);
     VitaMem_SetGpuMapping(VITA_MEM_CDRAM, false, 0);
 

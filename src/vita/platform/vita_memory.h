@@ -10,6 +10,7 @@ enum VitaMemArena
     VITA_MEM_MAIN,              // CPU-cached
     VITA_MEM_MAIN_UNCACHED,     // write-combined, for data the CPU only writes
     VITA_MEM_CDRAM,             // video memory
+    VITA_MEM_PHYCONT,           // physically contiguous, a partition of its own
     VITA_MEM_ARENA_COUNT
 };
 

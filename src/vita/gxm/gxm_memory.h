@@ -9,6 +9,7 @@ enum GxmMemDomain
     GXM_MEM_MAIN,           // CPU-cached; GPU snoops the CPU caches
     GXM_MEM_MAIN_UNCACHED,  // CPU-uncached; for data written once and never re-read
     GXM_MEM_CDRAM,          // video memory, 256KB granularity
+    GXM_MEM_PHYCONT,        // physically contiguous, its own partition, 1MB granularity
     GXM_MEM_DOMAIN_COUNT
 };
 

@@ -13,10 +13,14 @@
 #include <universal/q_parse.h>
 #include <universal/timing.h>
 
+#include <psp2/kernel/sysmem.h>
+
 #include "vita_memory.h"
 #include "vita_selftest.h"
 #include "vita_system.h"
 #include "vita_threads.h"
+
+extern "C" unsigned int _newlib_heap_size_user;
 
 #define COMMAND_LINE_PATH "ux0:data/kisakcod/cmdline.txt"
 
@@ -83,6 +87,16 @@ int main(void)
     // configureGHz is upstream's benchmark score, not a clock, so neither figure is printed here
     VitaSys_LogPrintf("hardware: %i cpus, %i MB, gpu \"%s\"\n",
                       sys_info.logicalCpuCount, sys_info.sysMB, sys_info.gpuDescription);
+
+    // every partition the process is allowed, so the split is read off a run rather than guessed
+    SceKernelFreeMemorySizeInfo budget;
+    memset(&budget, 0, sizeof(budget));
+    budget.size = sizeof(budget);
+    if (sceKernelGetFreeMemorySize(&budget) >= 0)
+        VitaSys_LogPrintf("budget: user %u KB free, cdram %u KB, phycont %u KB, heap %u KB taken\n",
+                          (unsigned)(budget.size_user / 1024), (unsigned)(budget.size_cdram / 1024),
+                          (unsigned)(budget.size_phycont / 1024),
+                          (unsigned)(_newlib_heap_size_user / 1024));
 
     Sys_Milliseconds();
     Profile_Init();

@@ -166,12 +166,13 @@ static bool GxmTexture_Allocate(GxmTexture *texture, uint32_t imageFormat,
     if (!size)
         return false;
 
-    // pooled: a texture per memblock would round every one up to a 256KB CDRAM page
-    if (!GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_CDRAM, GXM_TEXTURE_ALIGNMENT))
+    // pooled: a texture per memblock would round every one up to a 256KB CDRAM page.
+    // phycont is a partition of its own, so it is spent before the main one the heap shares
+    if (!GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_CDRAM, GXM_TEXTURE_ALIGNMENT) &&
+        !GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_PHYCONT, GXM_TEXTURE_ALIGNMENT) &&
+        !GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_MAIN_UNCACHED, GXM_TEXTURE_ALIGNMENT))
     {
-        if (!GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_MAIN_UNCACHED,
-                                GXM_TEXTURE_ALIGNMENT))
-            return false;
+        return false;
     }
 
     texture->imageFormat = imageFormat;

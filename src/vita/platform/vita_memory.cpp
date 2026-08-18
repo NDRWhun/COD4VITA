@@ -8,6 +8,7 @@
 #define VITA_MEM_ALIGNMENT      16
 #define VITA_MEM_MAIN_PAGE      (4 * 1024)
 #define VITA_MEM_CDRAM_PAGE     (256 * 1024)
+#define VITA_MEM_PHYCONT_PAGE   (1024 * 1024)
 #define VITA_MEM_MAIN_GROWTH    (4 * 1024 * 1024)
 #define VITA_MEM_CDRAM_GROWTH   (4 * 1024 * 1024)
 #define VITA_MEM_GUARD          0x4B434F44u     // 'KCOD', to catch a foreign pointer
@@ -43,6 +44,7 @@ struct VitaMemArenaState
     VitaMemStats stats;
     bool gpuMapped;
     uint32_t gpuAttr;
+    bool neverGrew;             // the partition gave us nothing; stop asking per allocation
 };
 
 static VitaMemArenaState s_arenas[VITA_MEM_ARENA_COUNT];
@@ -56,6 +58,8 @@ static SceKernelMemBlockType VitaMem_BlockType(VitaMemArena arena)
         return SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW;
     case VITA_MEM_MAIN_UNCACHED:
         return SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE;
+    case VITA_MEM_PHYCONT:
+        return SCE_KERNEL_MEMBLOCK_TYPE_USER_MAIN_PHYCONT_NC_RW;
     default:
         return SCE_KERNEL_MEMBLOCK_TYPE_USER_RW;
     }
@@ -63,7 +67,12 @@ static SceKernelMemBlockType VitaMem_BlockType(VitaMemArena arena)
 
 static uint32_t VitaMem_PageSize(VitaMemArena arena)
 {
-    return arena == VITA_MEM_CDRAM ? VITA_MEM_CDRAM_PAGE : VITA_MEM_MAIN_PAGE;
+    if (arena == VITA_MEM_CDRAM)
+        return VITA_MEM_CDRAM_PAGE;
+    // the phycont partition is handed out a megabyte at a time
+    if (arena == VITA_MEM_PHYCONT)
+        return VITA_MEM_PHYCONT_PAGE;
+    return VITA_MEM_MAIN_PAGE;
 }
 
 static SceUID s_gpuLock = -1;
@@ -151,6 +160,11 @@ static bool VitaMem_Grow(VitaMemArena arena, uint32_t needed)
 {
     VitaMemArenaState *state = &s_arenas[arena];
 
+    // a partition that never yielded a block is not going to start; retrying costs a syscall
+    // on every allocation that falls through to it
+    if (state->neverGrew)
+        return false;
+
     const uint32_t growth = arena == VITA_MEM_CDRAM ? VITA_MEM_CDRAM_GROWTH : VITA_MEM_MAIN_GROWTH;
     const uint32_t page = VitaMem_PageSize(arena);
     uint32_t size = needed + sizeof(VitaMemBlock) + sizeof(VitaMemNode) + VITA_MEM_ALIGNMENT;
@@ -160,7 +174,10 @@ static bool VitaMem_Grow(VitaMemArena arena, uint32_t needed)
 
     SceUID uid = sceKernelAllocMemBlock("kcod_arena", VitaMem_BlockType(arena), size, NULL);
     if (uid < 0)
+    {
+        state->neverGrew = state->blocks == NULL;
         return false;
+    }
 
     void *base = NULL;
     if (sceKernelGetMemBlockBase(uid, &base) < 0)
