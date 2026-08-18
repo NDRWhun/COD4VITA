@@ -15,8 +15,9 @@
 #include <stdlib.h>
 
 // the engine's IDirect3DVertexBuffer9 * and IDirect3DIndexBuffer9 * are GxmBuffer * on Vita
-// a buffer the engine discard-locks every frame needs one region per frame in flight
-#define GXM_BUFFER_FRAMES 3
+// a buffer the engine discard-locks every frame needs one region per frame in flight; the pools
+// it rotates itself are two deep, and the memory does not stretch to more
+#define GXM_BUFFER_FRAMES 2
 
 static GxmBuffer *R_GxmCreateBuffer(int sizeInBytes, const char *what, uint32_t frames = 1)
 {
