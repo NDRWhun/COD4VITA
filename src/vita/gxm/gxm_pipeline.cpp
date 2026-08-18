@@ -14,6 +14,9 @@
 
 #define GFXS0_POLYMODE_LINE 0x80000000u
 
+// no GPU-visible allocation sits below this; anything lower is a wrapped or unconverted offset
+#define GXM_LOWEST_MAPPED 0x1000000u
+
 #define CLEAR_TARGET  1
 #define CLEAR_ZBUFFER 2
 #define CLEAR_STENCIL 4
@@ -491,6 +494,19 @@ static void GxmPipeline_ApplyTextures(void)
         else
         {
             slot->bound = *slot->source;
+
+            // a released image leaves a zeroed texture behind, which samples from low memory
+            if ((uintptr_t)sceGxmTextureGetData(&slot->bound) < GXM_LOWEST_MAPPED)
+            {
+                static uint32_t reported;
+                if (!reported++)
+                    VitaSys_LogPrintf("texture unit %u has data %p; using the dummy\n", unit,
+                                      sceGxmTextureGetData(&slot->bound));
+                GxmDraw_SetTexture(unit, NULL);
+                slot->dirty = false;
+                continue;
+            }
+
             GxmPipeline_ApplySampler(&slot->bound, slot->samplerState);
             GxmDraw_SetTexture(unit, &slot->bound);
         }
@@ -530,18 +546,31 @@ bool GxmPipeline_DrawIndexed(uint32_t firstIndex, uint32_t triangleCount)
     }
 
     // a stream an attribute reads would otherwise draw from whatever the slot last held; the
-    // count runs past unused streams below the highest, so only the mask may be demanded
+    // count runs past unused streams below the highest, so only the mask may be demanded.
+    // a wrapped offset lands in low memory, which the GPU faults on instead of ignoring
     for (uint32_t mask = s_layout->streamMask; mask; mask &= mask - 1)
     {
         const uint32_t i = (uint32_t)__builtin_ctz(mask);
-        if (!s_streamData[i])
+        if ((uintptr_t)s_streamData[i] < GXM_LOWEST_MAPPED)
         {
             if (!s_unresolvedDraws)
-                VitaSys_LogPrintf("draw dropped: stream %u unbound (mask %#x)\n", i,
-                                  (unsigned)s_layout->streamMask);
+                VitaSys_LogPrintf("draw dropped: stream %u is %p (mask %#x, vs %i, fs %#x)\n",
+                                  i, (const void *)s_streamData[i],
+                                  (unsigned)s_layout->streamMask, s_vertexShader,
+                                  (unsigned)s_fragmentHash);
             ++s_unresolvedDraws;
             return false;
         }
+    }
+
+    if ((uintptr_t)(s_indexBase + firstIndex) < GXM_LOWEST_MAPPED)
+    {
+        if (!s_unresolvedDraws)
+            VitaSys_LogPrintf("draw dropped: index %p + %u (vs %i, fs %#x)\n",
+                              (const void *)s_indexBase, firstIndex, s_vertexShader,
+                              (unsigned)s_fragmentHash);
+        ++s_unresolvedDraws;
+        return false;
     }
 
     for (uint32_t i = 0; i < GXM_MAX_VERTEX_STREAMS; ++i)

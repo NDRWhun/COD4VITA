@@ -636,14 +636,52 @@ void __cdecl TRACK_db_registry()
     track_static_alloc_internal(g_fileBuf, 0x80000, "g_fileBuf", 10);
 }
 
+#ifdef KISAK_VITA
+// geometry inflates into the gpu buffer itself, so base + (ptr - base) is handed straight to the
+// GPU; a pointer outside the block wraps into low memory and faults the whole pipeline there
+static bool DB_GeometryPointerInBlock(uint8_t zoneHandle, uint32_t blockIndex, const void *pointer)
+{
+    const XBlock *block = &g_zones[zoneHandle].mem.blocks[blockIndex];
+    const uint8_t *at = (const uint8_t *)pointer;
+    if (block->data && at >= block->data && at < block->data + block->size)
+        return true;
+
+    static uint32_t reported;
+    if (reported < 8)
+    {
+        ++reported;
+        VitaSys_LogPrintf("zone %u block %u: geometry pointer %p outside %p+%u\n",
+                          zoneHandle, blockIndex, pointer, block->data, block->size);
+        VitaSys_LogFlush();
+    }
+    return false;
+}
+#endif
+
 void __cdecl DB_GetIndexBufferAndBase(uint8_t zoneHandle, void *indices, void **ib, int32_t *baseIndex)
 {
+#ifdef KISAK_VITA
+    if (!DB_GeometryPointerInBlock(zoneHandle, 8, indices))
+    {
+        *ib = NULL;
+        *baseIndex = 0;
+        return;
+    }
+#endif
     *ib = g_zones[zoneHandle].mem.indexBuffer;
     *baseIndex = ((uint32_t)indices - (uint32_t)g_zones[zoneHandle].mem.blocks[8].data) >> 1;
 }
 
 void __cdecl DB_GetVertexBufferAndOffset(uint8_t zoneHandle, _BYTE *verts, void **vb, int32_t *vertexOffset)
 {
+#ifdef KISAK_VITA
+    if (!DB_GeometryPointerInBlock(zoneHandle, 7, verts))
+    {
+        *vb = NULL;
+        *vertexOffset = 0;
+        return;
+    }
+#endif
     *vertexOffset = verts - g_zones[zoneHandle].mem.blocks[7].data;
     *vb = g_zones[zoneHandle].mem.vertexBuffer;
 }
