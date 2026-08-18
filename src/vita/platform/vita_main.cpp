@@ -80,9 +80,9 @@ int main(void)
     Dvar_Init();
     InitTiming();
     VitaSys_FindInfo();
-    VitaSys_LogPrintf("hardware: %i cpus, %.2f GHz measured, %.2f GHz configure, %i MB, gpu \"%s\"\n",
-                      sys_info.logicalCpuCount, (double)sys_info.cpuGHz,
-                      (double)sys_info.configureGHz, sys_info.sysMB, sys_info.gpuDescription);
+    // configureGHz is upstream's benchmark score, not a clock, so neither figure is printed here
+    VitaSys_LogPrintf("hardware: %i cpus, %i MB, gpu \"%s\"\n",
+                      sys_info.logicalCpuCount, sys_info.sysMB, sys_info.gpuDescription);
 
     Sys_Milliseconds();
     Profile_Init();
