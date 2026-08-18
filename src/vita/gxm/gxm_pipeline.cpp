@@ -14,9 +14,6 @@
 
 #define GFXS0_POLYMODE_LINE 0x80000000u
 
-// no GPU-visible allocation sits below this; anything lower is a wrapped or unconverted offset
-#define GXM_LOWEST_MAPPED 0x1000000u
-
 #define CLEAR_TARGET  1
 #define CLEAR_ZBUFFER 2
 #define CLEAR_STENCIL 4

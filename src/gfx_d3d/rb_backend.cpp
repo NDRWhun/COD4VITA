@@ -40,7 +40,9 @@
 #ifdef KISAK_VITA
 #include <vita/gxm/gxm_blit.h>
 #include <vita/gxm/gxm_device.h>
+#include <vita/gxm/gxm_draw.h>
 #include <vita/gxm/gxm_fence.h>
+#include <vita/gxm/gxm_pipeline.h>
 #include <vita/gxm/gxm_rendertarget.h>
 #include <vita/platform/vita_system.h>
 #include <vita/gxm/gxm_texture.h>
@@ -2762,8 +2764,35 @@ void __cdecl RB_BeginFrame(const GfxBackEndData *data)
     }
 }
 
+#ifdef KISAK_VITA
+// a black frame and a full one look the same from outside, so the counters that tell them
+// apart go to the log on a slow cadence
+static void RB_ReportGxmCounters()
+{
+    static uint32_t s_reportFrame;
+    static uint32_t s_lastDraws;
+
+    const uint32_t frame = GxmDevice_FrameIndex();
+    if (frame - s_reportFrame < 300)
+        return;
+
+    const uint32_t draws = GxmDraw_DrawCount();
+    VitaSys_LogPrintf("gxm frame %u: %u draws since frame %u, %u dropped, %u blits dropped, "
+                      "%u scenes over budget\n",
+                      frame, draws - s_lastDraws, s_reportFrame,
+                      GxmPipeline_UnresolvedDraws(), GxmBlit_DroppedBlits(),
+                      GxmRenderTarget_OverflowedScenes());
+    s_reportFrame = frame;
+    s_lastDraws = draws;
+}
+#endif
+
 void __cdecl RB_EndFrame(char drawType)
 {
+#ifdef KISAK_VITA
+    RB_ReportGxmCounters();
+#endif
+
     if ((drawType & 2) != 0)
     {
         if (r_logFile->current.integer)

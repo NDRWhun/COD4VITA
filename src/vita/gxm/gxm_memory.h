@@ -13,6 +13,9 @@ enum GxmMemDomain
     GXM_MEM_DOMAIN_COUNT
 };
 
+// nothing the GPU may touch is mapped below this, so a lower address is a null or wrapped pointer
+#define GXM_LOWEST_MAPPED 0x1000000u
+
 enum GxmMapKind
 {
     GXM_MAP_PLAIN,

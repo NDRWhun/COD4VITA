@@ -7,6 +7,8 @@
 #include "gxm_state.h"
 #include "gxm_vertex.h"
 
+#include <vita/platform/vita_system.h>
+
 #include <string.h>
 
 #define GXM_BLIT_QUADS 64
@@ -134,6 +136,17 @@ bool GxmBlit_Rect(const SceGxmTexture *texture, int x, int y, int width, int hei
     if (!texture || width <= 0 || height <= 0 || !targetWidth || !targetHeight ||
         !GxmRenderTarget_SceneOpen() || !GxmBlit_Ready())
     {
+        ++s_droppedBlits;
+        return false;
+    }
+
+    // the pipeline substitutes a dummy for a texture the GPU cannot read, and this path has to
+    // refuse the same way: sampling an unmapped surface faults the whole context, not the draw
+    if ((uintptr_t)sceGxmTextureGetData(texture) < GXM_LOWEST_MAPPED)
+    {
+        if (!s_droppedBlits)
+            VitaSys_LogPrintf("blit dropped: texture data is %p (%ix%i at %i,%i)\n",
+                              sceGxmTextureGetData(texture), width, height, x, y);
         ++s_droppedBlits;
         return false;
     }
