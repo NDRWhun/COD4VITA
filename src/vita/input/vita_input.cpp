@@ -5,6 +5,7 @@
 #include <psp2/touch.h>
 #include <psp2/common_dialog.h>
 #include <string.h>
+#include <vita/platform/vita_system.h>
 
 // engine key codes (src/ui/keycodes.h); the engine has no pad codes of its own
 #define K_TAB        0x09
@@ -222,7 +223,17 @@ static void VitaInput_EmitStickKeys(void)
 
         s_stickKeys ^= 1u << i;
         if (s_keyFn)
+        {
+            // the first few presses go to the log, so a dead bind splits from a dead stick
+            static uint32_t s_logged;
+            if (s_logged < 8)
+            {
+                ++s_logged;
+                VitaSys_LogPrintf("input: stick key %#x %s in context %i\n", keys[i],
+                                  down ? "down" : "up", (int)s_context);
+            }
             s_keyFn(keys[i], down);
+        }
     }
 }
 

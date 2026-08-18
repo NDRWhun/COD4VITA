@@ -1308,6 +1308,7 @@ static bool s_finished;
 // the player reads inactive until it has demuxed enough to begin, which is not the end
 static bool s_everActive;
 static unsigned s_startMs;
+static uint32_t s_frameSeen;
 static char s_next[64];
 static uint32_t s_nextFlags;
 static bool s_hasNext;
@@ -1502,7 +1503,8 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
     init.memoryReplacement.deallocate = Cin_Free;
     init.memoryReplacement.allocateTexture = Cin_Alloc;
     init.memoryReplacement.deallocateTexture = Cin_Free;
-    init.basePriority = 160;
+    // the load pegs every core at higher priority, and a starved demuxer gives up
+    init.basePriority = 96;
     init.numOutputVideoFrameBuffers = 2;
     init.autoStart = SCE_TRUE;
 
@@ -1543,6 +1545,7 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
 
     VitaSys_LogPrintf("cinematic: playing %s\n", path);
     s_everActive = false;
+    s_frameSeen = 0;
     s_startMs = VitaSys_Milliseconds();
     s_started = true;
     s_finished = false;
@@ -1566,8 +1569,8 @@ void __cdecl R_Cinematic_UpdateFrame()
         // a player that never comes up must still end, or the loadscreen waits on it forever
         if (s_playerLive && (s_everActive || VitaSys_Milliseconds() - s_startMs > 5000))
         {
-            if (!s_everActive)
-                VitaSys_LogPrintf("cinematic: player never became active\n");
+            VitaSys_LogPrintf("cinematic: over after %u ms, %u frames shown\n",
+                              VitaSys_Milliseconds() - s_startMs, s_frameSeen);
             s_finished = true;
         }
         if (s_finished && s_hasNext)
@@ -1600,8 +1603,7 @@ void __cdecl R_Cinematic_UpdateFrame()
         const uint32_t width = frame.details.video.width;
         const uint32_t height = frame.details.video.height;
 
-        static uint32_t s_reported;
-        if (!s_reported++)
+        if (!s_frameSeen++)
             VitaSys_LogPrintf("cinematic: first frame %ux%u\n", width, height);
         if (width && height &&
             ((width != s_planeW || height != s_planeH) ? Cin_CreatePlanes(width, height) : true))

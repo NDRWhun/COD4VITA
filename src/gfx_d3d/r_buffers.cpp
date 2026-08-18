@@ -129,8 +129,8 @@ void *__cdecl R_AllocDynamicIndexBuffer(IDirect3DIndexBuffer9 **ib, uint32_t siz
         return 0;
 
 #ifdef KISAK_VITA
-    // sized at double the index count already, so a second region costs more than it is worth
-    *ib = (IDirect3DIndexBuffer9 *)R_GxmCreateBuffer((int)sizeInBytes, "dynamic index buffer");
+    // rewritten under the GPU every frame just like the vertex one, so it doubles too
+    *ib = (IDirect3DIndexBuffer9 *)R_GxmCreateBuffer((int)sizeInBytes, "dynamic index buffer", GXM_BUFFER_FRAMES);
     return 0;
 #else
     const char *v3; // eax
