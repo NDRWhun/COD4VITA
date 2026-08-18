@@ -164,8 +164,11 @@ char *__cdecl Dvar_InfoString(int localClientNum, char bit)
 {
     const char *UsernameForLocalClient; // eax
 
+    // the callback reads the mask as four bytes, which a char parameter cannot hold
+    uint32_t mask = (uint8_t)bit;
+
     info1[0] = 0;
-    Dvar_ForEach((void(__cdecl *)(const dvar_s *, void *))Dvar_InfoStringSingle, &bit);
+    Dvar_ForEach((void(__cdecl *)(const dvar_s *, void *))Dvar_InfoStringSingle, &mask);
 #ifdef KISAK_MP
     if ((bit & 2) != 0)
     {
