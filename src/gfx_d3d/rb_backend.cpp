@@ -38,6 +38,8 @@
 #include <setjmp.h>
 
 #ifdef KISAK_VITA
+#include <malloc.h>
+#include <psp2/kernel/sysmem.h>
 #include <vita/gxm/gxm_blit.h>
 #include <vita/gxm/gxm_device.h>
 #include <vita/gxm/gxm_draw.h>
@@ -2781,6 +2783,19 @@ static void RB_ReportGxmCounters()
                       frame, draws - s_lastDraws, s_reportFrame,
                       GxmPipeline_UnresolvedDraws(), GxmBlit_DroppedBlits(),
                       GxmRenderTarget_OverflowedScenes());
+
+    // which pool a failed allocation ran out of is otherwise only visible once it has failed
+    SceKernelFreeMemorySizeInfo budget;
+    memset(&budget, 0, sizeof(budget));
+    budget.size = sizeof(budget);
+    sceKernelGetFreeMemorySize(&budget);
+    const struct mallinfo heap = mallinfo();
+    VitaSys_LogPrintf("  free: user %u KB cdram %u KB phycont %u KB; heap %u KB used, "
+                      "%u KB free\n",
+                      (unsigned)(budget.size_user / 1024), (unsigned)(budget.size_cdram / 1024),
+                      (unsigned)(budget.size_phycont / 1024),
+                      (unsigned)(heap.uordblks / 1024), (unsigned)(heap.fordblks / 1024));
+
     s_reportFrame = frame;
     s_lastDraws = draws;
 }

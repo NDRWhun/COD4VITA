@@ -1,9 +1,47 @@
 #include "gxm_image.h"
 
+#include <vita/platform/vita_system.h>
+
 #include <stdlib.h>
 #include <string.h>
 
 static uint32_t s_imageCount;
+
+// a zone load swizzles thousands of levels, and a megabyte taken and returned each time leaves
+// the heap too broken up to serve the next one
+static void *s_stage;
+static uint32_t s_stageSize;
+static bool s_stageBusy;
+
+static void *GxmImage_StageAcquire(uint32_t size)
+{
+    // a second loader thread gets its own buffer rather than sharing this one mid-level
+    if (s_stageBusy)
+        return malloc(size);
+
+    if (size > s_stageSize)
+    {
+        void *grown = realloc(s_stage, size);
+        if (!grown)
+        {
+            VitaSys_LogPrintf("swizzle stage: %u bytes refused, holding %u\n", size, s_stageSize);
+            VitaSys_LogFlush();
+            return NULL;
+        }
+        s_stage = grown;
+        s_stageSize = size;
+    }
+    s_stageBusy = true;
+    return s_stage;
+}
+
+static void GxmImage_StageRelease(void *bits)
+{
+    if (bits == s_stage)
+        s_stageBusy = false;
+    else
+        free(bits);
+}
 
 static bool GxmImage_ImageFormat(uint32_t d3dFormat, uint32_t *imageFormat, bool *compressed)
 {
@@ -181,7 +219,7 @@ bool GxmImage_MapLevelWrite(const GxmImage *image, uint32_t mipLevel, uint32_t f
     if (!GxmImage_LevelNeedsSwizzle(&image->texture))
         return true;
 
-    void *stage = malloc(*slicePitch);
+    void *stage = GxmImage_StageAcquire(*slicePitch);
     if (!stage)
         return false;
     *bits = stage;
@@ -211,7 +249,7 @@ void GxmImage_UnmapLevelWrite(const GxmImage *image, uint32_t mipLevel, uint32_t
         h = (h + 3) / 4;
     }
     GxmTexture_SwizzleGrid((uint8_t *)real, (const uint8_t *)bits, w, h, elem);
-    free(bits);
+    GxmImage_StageRelease(bits);
 }
 
 uint32_t GxmImage_FormatOf(const GxmTexture *texture)
