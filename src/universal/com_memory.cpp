@@ -893,12 +893,6 @@ void* Hunk_UserAlloc(HunkUser* user, uint32_t size, int32_t alignment)
     iassert(!(alignment & (alignment - 1)));
     iassert(alignment <= HUNK_MAX_ALIGNEMT);
 
-#ifdef KISAK_VITA
-    // the script vm walks 8-byte records out of here, and ldrd faults on anything narrower
-    if (alignment < 8)
-        alignment = 8;
-#endif
-
     alignment = alignment - 1;
 
     for (current = user->current; ; current = newCurrent)
@@ -908,7 +902,9 @@ void* Hunk_UserAlloc(HunkUser* user, uint32_t size, int32_t alignment)
         if ((signed int)(size + result) <= current->end)
             break;
         if (user->fixed)
-            Com_Error(ERR_FATAL, "Hunk_UserAlloc: out of memory");
+            Com_Error(ERR_FATAL, "Hunk_UserAlloc: out of memory for '%s' (%i bytes of %i used, "
+                                 "wanted %u)", user->name ? user->name : "?",
+                      current->pos - (int)current->buf, user->maxSize, size);
 #ifdef KISAK_VITA
         // a reserve costs its whole size here, so the chain grows by the request rather than
         // by another maxSize the caller has not asked for
