@@ -1,5 +1,6 @@
 #include "gxm_rendertarget.h"
 #include "gxm_device.h"
+#include "gxm_pipeline.h"
 #include <psp2/kernel/sysmem.h>
 #include <vita/platform/vita_memory.h>
 #include <vita/platform/vita_system.h>
@@ -116,6 +117,13 @@ void GxmRenderTarget_ShutdownShared(void)
     VitaMem_GpuUnlock();
     s_sharedCount = 0;
     s_sharedDriverBytes = 0;
+
+    // a restart builds a new device, so nothing cached from the old one may be reused
+    s_current = NULL;
+    s_registryCount = 0;
+    memset(s_registry, 0, sizeof(s_registry));
+    memset(&s_display, 0, sizeof(s_display));
+    s_displayDepthReady = false;
 }
 
 bool GxmDepthStencil_Create(GxmDepthStencil *depth, uint32_t width, uint32_t height)
@@ -299,6 +307,7 @@ bool GxmRenderTarget_Begin(GxmRenderTarget *rt)
                          rt->depth ? rt->depth : GxmRenderTarget_NoDepth()) < 0)
         return false;
 
+    GxmPipeline_SceneChanged();
     s_current = rt;
     return true;
 }

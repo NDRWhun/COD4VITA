@@ -14,6 +14,9 @@ void GxmPipeline_Shutdown(void);
 // pushes the state the pipeline owns to the context and drops every cached binding
 void GxmPipeline_Reset(void);
 
+// GXM resets viewport and clip state per scene, so the caches must follow
+void GxmPipeline_SceneChanged(void);
+
 // R_ChangeState's two words; blend, colour mask and alpha test pick a fragment program
 void GxmPipeline_SetStateBits(uint32_t stateBits0, uint32_t stateBits1);
 

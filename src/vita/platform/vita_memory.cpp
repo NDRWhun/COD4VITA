@@ -103,8 +103,26 @@ static void VitaMem_Leave(void)
 
 void VitaMem_SetGpuMapping(VitaMemArena arena, bool mapped, uint32_t gpuAttr)
 {
-    s_arenas[arena].gpuMapped = mapped;
-    s_arenas[arena].gpuAttr = gpuAttr;
+    VitaMem_Enter();
+    VitaMemArenaState *state = &s_arenas[arena];
+
+    // a GXM restart drops every mapping, so grown blocks must follow the flag
+    if (state->gpuMapped != mapped)
+    {
+        VitaMem_GpuLock();
+        for (VitaMemBlock *block = state->blocks; block; block = block->next)
+        {
+            if (mapped)
+                sceGxmMapMemory(block->base, block->size, (SceGxmMemoryAttribFlags)gpuAttr);
+            else
+                sceGxmUnmapMemory(block->base);
+        }
+        VitaMem_GpuUnlock();
+    }
+
+    state->gpuMapped = mapped;
+    state->gpuAttr = gpuAttr;
+    VitaMem_Leave();
 }
 
 static void VitaMem_PushFree(VitaMemArenaState *state, VitaMemNode *node)

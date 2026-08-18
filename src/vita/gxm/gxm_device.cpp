@@ -354,6 +354,10 @@ void GxmDevice_Shutdown(void)
     GxmMem_Free(&gxmDev.vdmRing);
     free(gxmDev.contextHostMem.base);
 
+    // arena blocks outlive the device; their mappings do not, so drop them while GXM is alive
+    VitaMem_SetGpuMapping(VITA_MEM_MAIN_UNCACHED, false, 0);
+    VitaMem_SetGpuMapping(VITA_MEM_CDRAM, false, 0);
+
     sceGxmTerminate();
     memset(&gxmDev, 0, sizeof(gxmDev));
 }

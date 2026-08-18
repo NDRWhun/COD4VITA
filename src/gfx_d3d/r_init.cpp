@@ -34,7 +34,9 @@
 #endif
 
 #ifdef KISAK_VITA
+#include <vita/gxm/gxm_blit.h>
 #include <vita/gxm/gxm_device.h>
+#include <vita/gxm/gxm_draw.h>
 #include <vita/gxm/gxm_pipeline.h>
 #include <vita/gxm/gxm_program.h>
 #include <vita/gxm/gxm_rendertarget.h>
@@ -2916,8 +2918,14 @@ void R_ShutdownDirect3D()
     dx.windows[0].hwnd = 0;
     dx.device = 0;
     dx.d3d9 = 0;
+
+    // every module holding a GXM handle releases before the patcher and the device go
+    GxmBlit_Shutdown();
+    GxmDraw_Shutdown();
+    GxmRenderTarget_ShutdownShared();
     GxmPipeline_Shutdown();
     GxmProgram_Shutdown();
+    GxmShaderArchive_Unload();
     GxmDevice_Shutdown();
 }
 #else
@@ -4100,6 +4108,14 @@ char __cdecl R_CreateDevice(const GfxWindowParms *wndParms)
         GxmDevice_Shutdown();
         return 0;
     }
+    if (!GxmDraw_Init())
+    {
+        Com_Printf(8, "Couldn't initialize the GXM draw layer\n");
+        GxmPipeline_Shutdown();
+        GxmProgram_Shutdown();
+        GxmDevice_Shutdown();
+        return 0;
+    }
 
     // every draw resolves its program through this, so a missing archive renders nothing;
     // the packaged copy is the default and the data directory overrides it
@@ -4107,6 +4123,7 @@ char __cdecl R_CreateDevice(const GfxWindowParms *wndParms)
         && !GxmShaderArchive_Load("ux0:data/kisakcod/shaders.kgxp"))
     {
         Com_Printf(8, "Couldn't load shaders.kgxp from app0: or ux0:data/kisakcod\n");
+        GxmDraw_Shutdown();
         GxmPipeline_Shutdown();
         GxmProgram_Shutdown();
         GxmDevice_Shutdown();

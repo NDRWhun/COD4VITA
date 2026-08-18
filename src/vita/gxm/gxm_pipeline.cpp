@@ -128,6 +128,22 @@ bool GxmPipeline_Init(void)
     s_indexBase = NULL;
     s_unresolvedDraws = 0;
 
+    // the patcher programs behind these caches die with the device, so a hit would dangle
+    s_vertexShader = -1;
+    s_layout = NULL;
+    s_fragmentHash = 0;
+    s_hasFragmentHash = false;
+    s_cachedVertexShader = -1;
+    s_cachedLayout = NULL;
+    s_cachedVertexProgram = NULL;
+    memset(s_cachedStrides, 0, sizeof(s_cachedStrides));
+    s_cachedFragmentHash = 0;
+    s_cachedAlphaTest = 0xFFFFFFFFu;
+    s_cachedFragmentShader = -1;
+    s_cachedProgramKey = 0xFFFFFFFFu;
+    s_cachedProgramVertex = -1;
+    s_cachedFragmentProgram = NULL;
+
     if (!GxmPipeline_InitClear())
         return false;
 
@@ -153,6 +169,11 @@ static void GxmPipeline_Invalidate(void)
         s_streamApplied[i] = false;
     for (uint32_t i = 0; i < GXM_PIPELINE_TEXTURE_UNITS; ++i)
         s_units[i].dirty = true;
+}
+
+void GxmPipeline_SceneChanged(void)
+{
+    GxmPipeline_Invalidate();
 }
 
 void GxmPipeline_Reset(void)
@@ -494,6 +515,16 @@ bool GxmPipeline_DrawIndexed(uint32_t firstIndex, uint32_t triangleCount)
     {
         GxmPipeline_ApplyViewport(context);
         s_viewportApplied = true;
+    }
+
+    // a declared stream with no data would draw from whatever the slot last held
+    for (uint32_t i = 0; i < s_layout->streamCount; ++i)
+    {
+        if (!s_streamData[i])
+        {
+            ++s_unresolvedDraws;
+            return false;
+        }
     }
 
     for (uint32_t i = 0; i < GXM_MAX_VERTEX_STREAMS; ++i)
