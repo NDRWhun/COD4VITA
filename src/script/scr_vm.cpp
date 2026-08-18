@@ -620,9 +620,9 @@ char* __cdecl Scr_GetNextCodepos(VariableValue* top, const char* pos, int opcode
             }
             do
             {
-                v11 = *(_DWORD*)posa;
+                memcpy(&v11, posa, sizeof(v11));
                 posc = posa + 4;
-                v10 = *(const char**)posc;
+                memcpy(&v10, posc, sizeof(v10));
                 posa = posc + 4;
                 if (v11 == caseValue)
                 {
@@ -1635,30 +1635,36 @@ uint32_t __cdecl GetDummyFieldValue()
     return scrVarPub.tempVariable;
 }
 
+// the compiler emits these packed to the byte, so a typed read would both be undefined and let
+// the compiler pair two of them into an ldrd, which needs an alignment the stream never has
 const char *Scr_ReadCodePos(const char **pos)
 {
-    const char *value = *(reinterpret_cast<const char **>(const_cast<char *>(*pos)));
+    const char *value;
+    memcpy(&value, *pos, sizeof(value));
     *pos += sizeof(const char *);
     return value;
 }
 
 uintptr_t Scr_ReadUnsigned(const char **pos)
 {
-    uintptr_t value = *(reinterpret_cast<const uintptr_t *>(*pos));
+    uintptr_t value;
+    memcpy(&value, *pos, sizeof(value));
     *pos += sizeof(uintptr_t);
     return value;
 }
 
 int Scr_ReadInt(const char **pos)
 {
-    int value = *(int *)*pos;
+    int value;
+    memcpy(&value, *pos, sizeof(value));
     *pos += sizeof(int);
     return value;
 }
 
 unsigned short Scr_ReadUnsignedShort(const char **pos)
 {
-    unsigned short value = *(reinterpret_cast<const unsigned short *>(*pos));
+    unsigned short value;
+    memcpy(&value, *pos, sizeof(value));
     *pos += sizeof(unsigned short);
     return value;
 }
@@ -1674,7 +1680,8 @@ const uint32_t *Scr_ReadIntArray(const char **pos, int count)
 
 float Scr_ReadFloat(const char **pos)
 {
-    float value = *(reinterpret_cast<const float *>(*pos));
+    float value;
+    memcpy(&value, *pos, sizeof(value));
     *pos += sizeof(float);
     return value;
 }
