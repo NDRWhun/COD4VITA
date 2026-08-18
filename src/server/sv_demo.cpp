@@ -21,7 +21,7 @@
 #include <cgame/cg_main.h> // replay_time
 #include <game/savedevice.h>
 
-unsigned __int8 g_buf[2][3145728];
+alignas(8) unsigned __int8 g_buf[2][3145728];
 unsigned __int8 g_msgBuf[10485760];
 FileSkip g_fileSkips[3600]{ 0 };
 FileMarkSkip g_fileMarkSkips[50];
@@ -79,13 +79,21 @@ int __cdecl SV_GetBufferIndex(unsigned __int8 *ptr)
     return 0;
 }
 
+// the carve was byte-packed, which x86 read happily; the savegame writers store words into
+// whatever it hands out, and a word store to an odd address faults on ARM. rounding both ends
+// of the pair keeps the free strictly LIFO.
+static int SV_HistoryStride(int size)
+{
+    return (size + 7) & ~7;
+}
+
 void __cdecl SV_HistoryFree(unsigned __int8 *ptr, int size)
 {
     int BufferIndex; // r3
     int v5; // r10
 
     BufferIndex = SV_GetBufferIndex(ptr);
-    v5 = g_bufSize[BufferIndex] - size;
+    v5 = g_bufSize[BufferIndex] - SV_HistoryStride(size);
     g_bufSize[BufferIndex] = v5;
     if (ptr != &g_buf[BufferIndex][v5])
         MyAssertHandler(
@@ -118,8 +126,8 @@ int __cdecl SV_HistoryAlloc(server_demo_history_t *history, unsigned __int8 **pD
     HistoryIndex = SV_GetHistoryIndex(history);
     v7 = HistoryIndex;
     v8 = g_bufSize[HistoryIndex];
-    v9 = v8 + size;
-    if ((unsigned int)(v8 + size) > 0x300000)
+    v9 = v8 + SV_HistoryStride(size);
+    if ((unsigned int)v9 > 0x300000)
     {
         Com_PrintError(1, "SV_HistoryAlloc failed. Needed %d more memory\n", v9 - 3145728);
         return 0;
