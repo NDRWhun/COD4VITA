@@ -32,6 +32,7 @@ set(VITA_STUB_LIBS
     SceIme_stub
     SceKernelDmacMgr_stub
     ScePower_stub
-    SceAvPlayer_stub
+    SceVideodec_stub
+    SceAudiodec_stub
     SceSysmodule_stub
 )

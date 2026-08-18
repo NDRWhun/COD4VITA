@@ -632,10 +632,11 @@ void __cdecl R_InitModelLightingImage()
 #ifdef KISAK_VITA
     iassert(modelLightGlob.totalEntryLimit);
 
-    // r_altModelLightingUpdate stages through a second memory pool that Vita has not got
+    // two images: the GPU samples one while the patches land in the other
     modelLightGlob.lightImages[0] = Image_AllocProg(12, 4u, 1u);
     Image_SetupAndLoad(modelLightGlob.lightImages[0], 256, modelLightGlob.imageHeight, 4, 0xA, D3DFMT_A8R8G8B8);
-    modelLightGlob.lightImages[1] = 0;
+    modelLightGlob.lightImages[1] = Image_AllocProg(13, 4u, 1u);
+    Image_SetupAndLoad(modelLightGlob.lightImages[1], 256, modelLightGlob.imageHeight, 4, 0xA, D3DFMT_A8R8G8B8);
     modelLightGlob.image = modelLightGlob.lightImages[0];
 #else
     bool useAltUpdate; // [esp+1h] [ebp-1h]
@@ -710,12 +711,25 @@ void __cdecl RB_PatchModelLighting(const GfxModelLightingPatch *patchList, uint3
 
     iassert(modelLightGlob.lockedBox.pBits == NULL);
 
-    GfxImage *lightImage = modelLightGlob.lightImages[0];
+    // patches land in the image the GPU is not sampling, seeded from the one it is
+    GfxImage *front = modelLightGlob.image ? modelLightGlob.image : modelLightGlob.lightImages[0];
+    GfxImage *lightImage = (front == modelLightGlob.lightImages[0] && modelLightGlob.lightImages[1])
+                               ? modelLightGlob.lightImages[1] : modelLightGlob.lightImages[0];
     iassert(lightImage);
 
     const GxmTexture *volume = (const GxmTexture *)lightImage->texture.volmap;
     iassert(volume);
     iassert(volume->depth == lightImage->depth);
+
+    if (lightImage != front)
+    {
+        const GxmTexture *source = (const GxmTexture *)front->texture.volmap;
+        if (source && source->memory.base && volume->memory.base &&
+            source->memory.size == volume->memory.size)
+        {
+            Com_Memcpy(volume->memory.base, source->memory.base, volume->memory.size);
+        }
+    }
 
     // the volume is a vertical strip, so a slice is a contiguous run of rows
     const uint32_t rowPitch = GxmTexture_LevelSizeEx(volume->imageFormat, volume->width, 1,
@@ -755,6 +769,7 @@ void __cdecl RB_PatchModelLighting(const GfxModelLightingPatch *patchList, uint3
     }
 
     modelLightGlob.lockedBox.pBits = 0;
+    modelLightGlob.image = lightImage;
 }
 #else
 void __cdecl RB_PatchModelLighting(const GfxModelLightingPatch *patchList, uint32_t patchCount)
