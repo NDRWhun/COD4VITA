@@ -202,3 +202,31 @@ uint32_t GxmMem_FreeCdram(void)
     info.size = sizeof(info);
     return sceKernelGetFreeMemorySize(&info) < 0 ? 0 : info.size_cdram;
 }
+
+// held from boot so a level's one huge contiguous buffer always has a hole to land in
+static GxmAlloc s_ballast;
+static bool s_ballastHeld;
+
+void GxmMem_BallastInit(void)
+{
+    if (!s_ballastHeld)
+        s_ballastHeld = GxmMem_Alloc(&s_ballast, GXM_CDRAM_BALLAST, GXM_MEM_CDRAM,
+                                     SCE_GXM_MEMORY_ATTRIB_READ);
+}
+
+bool GxmMem_BallastRelease(void)
+{
+    if (!s_ballastHeld)
+        return false;
+    GxmMem_Free(&s_ballast);
+    s_ballastHeld = false;
+    return true;
+}
+
+uint32_t GxmMem_FreePhycont(void)
+{
+    SceKernelFreeMemorySizeInfo info;
+    memset(&info, 0, sizeof(info));
+    info.size = sizeof(info);
+    return sceKernelGetFreeMemorySize(&info) < 0 ? 0 : (uint32_t)info.size_phycont;
+}

@@ -166,15 +166,16 @@ static bool GxmTexture_Allocate(GxmTexture *texture, uint32_t imageFormat,
     if (!size)
         return false;
 
-    // only geometry needs a contiguous block this large, so textures leave CDRAM for it
-    const bool sparecdram = GxmMem_FreeCdram() > size + GXM_CDRAM_GEOMETRY_RESERVE;
+    // textures spare the CDRAM geometry reserve and the movie decoder's phycont
+    const bool cdramSpare = GxmMem_FreeCdram() > size + GXM_CDRAM_GEOMETRY_RESERVE;
+    const bool phySpare = GxmMem_FreePhycont() > size + GXM_PHYCONT_DECODER_RESERVE;
 
     // pooled: a texture per memblock would round every one up to a 256KB CDRAM page
-    if ((!sparecdram ||
-         !GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_CDRAM, GXM_TEXTURE_ALIGNMENT)) &&
-        !GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_PHYCONT, GXM_TEXTURE_ALIGNMENT) &&
-        !GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_MAIN_UNCACHED, GXM_TEXTURE_ALIGNMENT) &&
-        !GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_CDRAM, GXM_TEXTURE_ALIGNMENT))
+    if (!((cdramSpare && GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_CDRAM, GXM_TEXTURE_ALIGNMENT)) ||
+          (phySpare && GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_PHYCONT, GXM_TEXTURE_ALIGNMENT)) ||
+          GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_MAIN_UNCACHED, GXM_TEXTURE_ALIGNMENT) ||
+          GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_CDRAM, GXM_TEXTURE_ALIGNMENT) ||
+          GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_PHYCONT, GXM_TEXTURE_ALIGNMENT)))
     {
         return false;
     }

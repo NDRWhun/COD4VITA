@@ -32,16 +32,19 @@ bool GxmBuffer_Create(GxmBuffer *buffer, uint32_t size, bool cpuCached)
     }
     else
     {
-        // small buffers leave the CDRAM reserve for the zone's one large geometry block
-        const bool spare = size >= GXM_CDRAM_GEOMETRY_RESERVE / 4 ||
-                           GxmMem_FreeCdram() > size + GXM_CDRAM_GEOMETRY_RESERVE;
-        if ((!spare || !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_CDRAM, 4)) &&
-            !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_PHYCONT, 4) &&
-            !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_MAIN_UNCACHED, 4) &&
-            !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_CDRAM, 4))
-        {
+        // small buffers leave the CDRAM reserve alone; the movie decoder keeps its phycont
+        const bool cdramSpare = GxmMem_FreeCdram() > size + GXM_CDRAM_GEOMETRY_RESERVE;
+        const bool phySpare = GxmMem_FreePhycont() > size + GXM_PHYCONT_DECODER_RESERVE;
+        bool ok = (cdramSpare && GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_CDRAM, 4)) ||
+                  (phySpare && GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_PHYCONT, 4)) ||
+                  GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_MAIN_UNCACHED, 4) ||
+                  GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_CDRAM, 4);
+
+        // the ballast opens a contiguous hole that only a buffer this large may take
+        if (!ok && size >= 8u * 1024u * 1024u && GxmMem_BallastRelease())
+            ok = GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_CDRAM, 4);
+        if (!ok && !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_PHYCONT, 4))
             return false;
-        }
     }
 
     buffer->size = buffer->memory.size;
@@ -80,8 +83,12 @@ void GxmBuffer_Free(GxmBuffer *buffer)
 {
     if (!buffer->memory.base)
         return;
+    const bool wasLarge = buffer->memory.size >= 8u * 1024u * 1024u;
     GxmMem_Free(&buffer->memory);
     memset(buffer, 0, sizeof(*buffer));
+    // a level's big buffer just left, so the hole it came from is held again
+    if (wasLarge)
+        GxmMem_BallastInit();
 }
 
 void GxmBuffer_SwapColorBytes(void *vertices, uint32_t vertexCount, uint32_t stride,

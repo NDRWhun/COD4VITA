@@ -257,6 +257,7 @@ bool GxmDevice_Init(void)
     // the region keeps whatever the last process left there, and both fence tests read it
     if (gxmDev.sceneNotification.address)
         *gxmDev.sceneNotification.address = 0;
+    GxmMem_BallastInit();
     gxmDev.initialized = true;
     return true;
 }

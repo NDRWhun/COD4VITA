@@ -17,7 +17,7 @@ enum GxmMemDomain
 #define GXM_LOWEST_MAPPED 0x1000000u
 
 // CDRAM held back for a zone's geometry buffers together, sized for the heaviest level's set
-#define GXM_CDRAM_GEOMETRY_RESERVE (60u * 1024u * 1024u)
+#define GXM_CDRAM_GEOMETRY_RESERVE (32u * 1024u * 1024u)
 
 enum GxmMapKind
 {
@@ -51,3 +51,11 @@ uint32_t GxmMem_BytesPeak(GxmMemDomain domain);
 
 uint32_t GxmMem_FreeMain(void);
 uint32_t GxmMem_FreeCdram(void);
+
+// the movie decoder allocates from phycont internally, so spill leaves it this much room
+#define GXM_PHYCONT_DECODER_RESERVE (16u * 1024u * 1024u)
+#define GXM_CDRAM_BALLAST (20u * 1024u * 1024u)
+
+void GxmMem_BallastInit(void);
+bool GxmMem_BallastRelease(void);
+uint32_t GxmMem_FreePhycont(void);
