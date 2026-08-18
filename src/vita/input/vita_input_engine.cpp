@@ -67,7 +67,8 @@ static void IN_VitaRegisterDvars()
         binds = fopen("ux0:data/kisakcod/raw/vita_controls.cfg", "w");
         if (binds)
         {
-            fputs("// vita controls; AUX1-4 cross/circle/square/triangle, AUX5-6 L/R,\n"
+            // a semicolon separates commands even inside a comment, so the text carries none
+            fputs("// vita controls: AUX1-4 cross/circle/square/triangle, AUX5-6 L/R,\n"
                   "// AUX7-10 dpad up/down/left/right, AUX11 select, AUX12-13 rear touch left/right\n"
                   "bind AUX1 \"+gostand\"\n"
                   "bind AUX2 \"togglecrouch\"\n"
