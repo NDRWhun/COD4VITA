@@ -1293,6 +1293,7 @@ bool R_Cinematic_IsPending()
 #include <psp2/avplayer.h>
 #include <psp2/audioout.h>
 #include <psp2/sysmodule.h>
+#include <psp2/kernel/sysmem.h>
 #include <psp2/kernel/threadmgr.h>
 #include <vita/gxm/gxm_image.h>
 #include <vita/platform/vita_system.h>
@@ -1322,10 +1323,18 @@ static SceUID s_audioThread = -1;
 static int s_audioPort = -1;
 static volatile bool s_audioRun;
 
+static uint32_t s_allocFailures;
+static uint32_t s_allocBytes;
+
 static void *Cin_Alloc(void *arg, uint32_t alignment, uint32_t size)
 {
     (void)arg;
-    return memalign(alignment ? alignment : 16, size);
+    void *p = memalign(alignment ? alignment : 16, size);
+    if (p)
+        s_allocBytes += size;
+    else
+        ++s_allocFailures;
+    return p;
 }
 
 static void Cin_Free(void *arg, void *ptr)
@@ -1507,7 +1516,14 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
         return;
     }
     s_playerLive = true;
-    sceAvPlayerAddSource(s_player, path);
+    const int added = sceAvPlayerAddSource(s_player, path);
+
+    SceKernelFreeMemorySizeInfo pools;
+    memset(&pools, 0, sizeof(pools));
+    pools.size = sizeof(pools);
+    sceKernelGetFreeMemorySize(&pools);
+    VitaSys_LogPrintf("cinematic: addsource 0x%08x, phycont %i KB user %i KB free\n",
+                      (unsigned)added, pools.size_phycont / 1024, pools.size_user / 1024);
 
     s_volume = volume;
     s_audioRun = true;
@@ -1565,6 +1581,17 @@ void __cdecl R_Cinematic_UpdateFrame()
     }
 
     s_everActive = true;
+
+    // one line every 2 s while live, so a silent decoder names itself
+    static unsigned s_lastReport;
+    const unsigned now = VitaSys_Milliseconds();
+    if (now - s_lastReport > 2000)
+    {
+        s_lastReport = now;
+        VitaSys_LogPrintf("cinematic: t=%lli ms, %u KB allocated, %u alloc failures\n",
+                          (long long)sceAvPlayerCurrentTime(s_player),
+                          s_allocBytes / 1024, s_allocFailures);
+    }
 
     SceAvPlayerFrameInfo frame;
     memset(&frame, 0, sizeof(frame));

@@ -17,7 +17,7 @@ enum GxmMemDomain
 #define GXM_LOWEST_MAPPED 0x1000000u
 
 // CDRAM held back for a zone's geometry buffers together, sized for the heaviest level's set
-#define GXM_CDRAM_GEOMETRY_RESERVE (40u * 1024u * 1024u)
+#define GXM_CDRAM_GEOMETRY_RESERVE (60u * 1024u * 1024u)
 
 enum GxmMapKind
 {
