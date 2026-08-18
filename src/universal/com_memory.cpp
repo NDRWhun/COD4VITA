@@ -903,7 +903,14 @@ void* Hunk_UserAlloc(HunkUser* user, uint32_t size, int32_t alignment)
             break;
         if (user->fixed)
             Com_Error(ERR_FATAL, "Hunk_UserAlloc: out of memory");
+#ifdef KISAK_VITA
+        // a reserve costs its whole size here, so the chain grows by the request rather than
+        // by another maxSize the caller has not asked for
+        const int32_t grow = (int32_t)((size + offsetof(HunkUser, buf) + 0xFFFFFu) & ~0xFFFFFu);
+        newCurrent = Hunk_UserCreate(grow, user->name, 0, user->tempMem, user->type);
+#else
         newCurrent = Hunk_UserCreate(user->maxSize, user->name, 0, user->tempMem, user->type);
+#endif
         user->current = newCurrent;
         current->next = newCurrent;
     }
