@@ -83,7 +83,8 @@ static const VitaButtonMapping s_menuMap[] =
 };
 
 // in game the sticks feed CL_GamepadMove as analog axes; only the menus want key repeats
-static const int s_menuStickKeys[STICK_DIR_COUNT] = { K_UPARROW, K_DOWNARROW, K_LEFTARROW, K_RIGHTARROW };
+// the menu walks its items with these; in game the same push drives whatever they are bound to
+static const int s_stickDirKeys[STICK_DIR_COUNT] = { K_UPARROW, K_DOWNARROW, K_LEFTARROW, K_RIGHTARROW };
 
 static VitaInputKeyFn s_keyFn;
 static VitaInputCharFn s_charFn;
@@ -206,9 +207,7 @@ static void VitaInput_PollTouch(void)
 // the release threshold sits below the press threshold so a stick held near it cannot chatter
 static void VitaInput_EmitStickKeys(void)
 {
-    if (s_context != VITA_INPUT_MENU)
-        return;
-    const int *keys = s_menuStickKeys;
+    const int *keys = s_stickDirKeys;
     const float deflection[STICK_DIR_COUNT] =
     {
         s_state.moveForward, -s_state.moveForward, -s_state.moveSide, s_state.moveSide
@@ -242,7 +241,7 @@ static void VitaInput_ReleaseHeld(void)
         for (uint32_t i = 0; i < STICK_DIR_COUNT; ++i)
         {
             if (s_stickKeys & (1u << i))
-                s_keyFn(s_menuStickKeys[i], false);
+                s_keyFn(s_stickDirKeys[i], false);
         }
         for (uint32_t i = 0; i < 2; ++i)
         {

@@ -9,6 +9,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #define KEYCATCH_CONSOLE 0x1
@@ -61,11 +62,33 @@ static void IN_VitaRegisterDvars()
         "vita_deadZone", 0.25f, 0.05f, 0.9f, DVAR_ARCHIVE,
         "Stick deflection ignored as rest position; raise it for a stick that drifts");
 
+    // the left stick pushed past the movement threshold reports as these
+    static const char *const moveBinds =
+        "bind UPARROW \"+forward\"\n"
+        "bind DOWNARROW \"+back\"\n"
+        "bind LEFTARROW \"+moveleft\"\n"
+        "bind RIGHTARROW \"+moveright\"\n";
+
     // written once; the player edits it freely
     mkdir("ux0:data/kisakcod/raw", 0777);
     FILE *binds = fopen("ux0:data/kisakcod/raw/vita_controls.cfg", "r");
     if (binds)
+    {
+        // a file written before the stick was bindable gets the movement lines appended
+        char text[4096];
+        const size_t got = fread(text, 1, sizeof(text) - 1, binds);
+        text[got] = 0;
         fclose(binds);
+        if (!strstr(text, "UPARROW"))
+        {
+            binds = fopen("ux0:data/kisakcod/raw/vita_controls.cfg", "a");
+            if (binds)
+            {
+                fputs(moveBinds, binds);
+                fclose(binds);
+            }
+        }
+    }
     else
     {
         binds = fopen("ux0:data/kisakcod/raw/vita_controls.cfg", "w");
@@ -87,6 +110,7 @@ static void IN_VitaRegisterDvars()
                   "bind AUX11 \"+breath_sprint\"\n"
                   "bind AUX12 \"+breath_sprint\"\n"
                   "bind AUX13 \"+melee\"\n", binds);
+            fputs(moveBinds, binds);
             fclose(binds);
         }
     }
