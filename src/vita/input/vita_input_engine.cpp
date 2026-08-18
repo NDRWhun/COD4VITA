@@ -24,6 +24,7 @@ static const dvar_s *vita_lookPower;
 static const dvar_s *vita_cursorSpeed;
 static const dvar_s *vita_moveThreshold;
 static const dvar_s *vita_touchCursor;
+static const dvar_s *vita_deadZone;
 
 static uint32_t s_lastFrameTime;
 static float s_lookRemainderX;
@@ -56,6 +57,9 @@ static void IN_VitaRegisterDvars()
     vita_touchCursor = Dvar_RegisterBool(
         "vita_touchCursor", 1, DVAR_ARCHIVE,
         "Drive the menu cursor from the front touch screen");
+    vita_deadZone = Dvar_RegisterFloat(
+        "vita_deadZone", 0.25f, 0.05f, 0.9f, DVAR_ARCHIVE,
+        "Stick deflection ignored as rest position; raise it for a stick that drifts");
 
     // written once; the player edits it freely
     mkdir("ux0:data/kisakcod/raw", 0777);
@@ -147,6 +151,7 @@ void __cdecl IN_Frame()
     const bool consoleActive = Key_IsCatcherActive(0, KEYCATCH_CONSOLE);
 
     VitaInput_SetMoveThreshold(vita_moveThreshold->current.value);
+    VitaInput_SetDeadZone(vita_deadZone->current.value);
     VitaInput_SetContext(uiActive || consoleActive ? VITA_INPUT_MENU : VITA_INPUT_GAME);
     VitaInput_Frame();
 
@@ -158,10 +163,20 @@ void __cdecl IN_Frame()
     if (msec > 250)
         msec = 250;
 
+    // the menus refocus whatever sits under the cursor, so drift here undoes every d-pad press
+    float stickX = state->lookYaw;
+    float stickY = state->lookPitch;
+    if (uiActive && stickX * stickX + stickY * stickY <
+        vita_moveThreshold->current.value * vita_moveThreshold->current.value)
+    {
+        stickX = 0.0f;
+        stickY = 0.0f;
+    }
+
     const dvar_s *speedDvar = uiActive ? vita_cursorSpeed : vita_lookSpeed;
     const float speed = speedDvar->current.value * (float)msec * 0.001f;
-    s_lookRemainderX += IN_VitaStickResponse(state->lookYaw) * speed;
-    s_lookRemainderY += IN_VitaStickResponse(state->lookPitch) * speed;
+    s_lookRemainderX += IN_VitaStickResponse(stickX) * speed;
+    s_lookRemainderY += IN_VitaStickResponse(stickY) * speed;
 
     int dx = (int)s_lookRemainderX;
     int dy = (int)s_lookRemainderY;

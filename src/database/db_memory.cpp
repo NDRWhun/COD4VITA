@@ -5,6 +5,10 @@
 #include <qcommon/qcommon.h>
 #include <gfx_d3d/r_buffers.h>
 
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_pipeline.h>
+#endif
+
 int32_t g_block_mem_type[9] =
 { 0, 1, 1, 2, 1, 1, 2, 2, 2 };
 
@@ -57,6 +61,11 @@ void __cdecl DB_ReleaseGeometryBuffers(XZoneMemory *zoneMem)
 {
     IDirect3DVertexBuffer9 *vb; // [esp+0h] [ebp-8h]
     IDirect3DIndexBuffer9 *ib; // [esp+4h] [ebp-4h]
+
+#ifdef KISAK_VITA
+    // the zone owns this gpu memory, so a cached stream or index pointer must not outlive it
+    GxmPipeline_DropBuffers();
+#endif
 
     if (zoneMem->vertexBuffer)
     {

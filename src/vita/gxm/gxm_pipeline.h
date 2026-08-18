@@ -41,6 +41,9 @@ void GxmPipeline_SetStream(uint32_t index, const void *base, uint32_t offsetInBy
                            uint32_t stride);
 void GxmPipeline_SetIndexBuffer(const void *base);
 
+// zone geometry lives in gpu buffers now, so freeing one must drop every pointer into it
+void GxmPipeline_DropBuffers(void);
+
 bool GxmPipeline_DrawIndexed(uint32_t firstIndex, uint32_t triangleCount);
 
 // GXM has no clear entry point; the quad sits at the far plane, so other depths are refused

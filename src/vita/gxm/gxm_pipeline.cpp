@@ -173,6 +173,13 @@ static void GxmPipeline_Invalidate(void)
         s_units[i].dirty = true;
 }
 
+void GxmPipeline_DropBuffers(void)
+{
+    memset(s_streamData, 0, sizeof(s_streamData));
+    memset(s_streamApplied, 0, sizeof(s_streamApplied));
+    s_indexBase = NULL;
+}
+
 void GxmPipeline_SceneChanged(void)
 {
     GxmPipeline_Invalidate();
