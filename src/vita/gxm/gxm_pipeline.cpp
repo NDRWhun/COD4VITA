@@ -73,6 +73,10 @@ static const uint16_t *s_indexBase;
 
 static GxmSamplerUnit s_units[GXM_PIPELINE_TEXTURE_UNITS];
 
+// a slot the program fetches but nothing bound holds whatever the context had, which is null
+// on a fresh one; parking every free slot here keeps that fetch inside mapped memory
+static GxmBuffer s_dummyStream;
+
 static GxmBuffer s_clearVertices;
 static GxmBuffer s_clearIndices;
 static SceGxmVertexProgram *s_clearVertexProgram;
@@ -146,6 +150,11 @@ bool GxmPipeline_Init(void)
     s_cachedProgramVertex = -1;
     s_cachedFragmentProgram = NULL;
 
+    // large enough that a fetch off a slot nothing bound stays inside it at any usable stride
+    if (!GxmBuffer_Create(&s_dummyStream, 64 * 1024, false))
+        return false;
+    memset(s_dummyStream.memory.base, 0, s_dummyStream.memory.size);
+
     if (!GxmPipeline_InitClear())
         return false;
 
@@ -155,6 +164,7 @@ bool GxmPipeline_Init(void)
 
 void GxmPipeline_Shutdown(void)
 {
+    GxmBuffer_Free(&s_dummyStream);
     GxmBuffer_Free(&s_clearIndices);
     GxmBuffer_Free(&s_clearVertices);
     s_clearVertexProgram = NULL;
@@ -572,9 +582,9 @@ bool GxmPipeline_DrawIndexed(uint32_t firstIndex, uint32_t triangleCount)
 
     for (uint32_t i = 0; i < GXM_MAX_VERTEX_STREAMS; ++i)
     {
-        if (s_streamApplied[i] || !s_streamData[i])
+        if (s_streamApplied[i])
             continue;
-        GxmDraw_SetStream(i, s_streamData[i]);
+        GxmDraw_SetStream(i, s_streamData[i] ? s_streamData[i] : s_dummyStream.memory.base);
         s_streamApplied[i] = true;
     }
 
