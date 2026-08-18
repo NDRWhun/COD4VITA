@@ -244,55 +244,6 @@ bool GxmTexture_Create3D(GxmTexture *texture, uint32_t imageFormat,
     return true;
 }
 
-bool GxmTexture_Upload(GxmTexture *texture, uint32_t mipLevel, uint32_t face,
-                       const void *src, uint32_t srcSize)
-{
-    if (!texture->memory.base || !src || mipLevel >= texture->mipCount)
-        return false;
-
-    const uint32_t faces = texture->isCube ? 6 : 1;
-    if (face >= faces)
-        return false;
-
-    const bool linearLayout = GxmTexture_IsLinearLayout(texture);
-    uint32_t offset = 0;
-    for (uint32_t f = 0; f < faces; ++f)
-    {
-        uint32_t w = texture->width, h = texture->height;
-        for (uint32_t level = 0; level < texture->mipCount; ++level)
-        {
-            const uint32_t size = GxmTexture_LevelSizeEx(texture->imageFormat, w, h, linearLayout);
-            if (f == face && level == mipLevel)
-            {
-                uint8_t *dst = (uint8_t *)texture->memory.base + offset;
-                const uint32_t tightPitch = GxmTexture_LevelSize(texture->imageFormat, w, 1);
-                const uint32_t dstPitch = GxmTexture_LevelSizeEx(texture->imageFormat, w, 1,
-                                                                 linearLayout);
-                if (dstPitch == tightPitch)
-                {
-                    if (srcSize > size)
-                        return false;
-                    memcpy(dst, src, srcSize);
-                    return true;
-                }
-                // tight source rows spread out to the padded stride
-                const uint8_t *from = (const uint8_t *)src;
-                for (uint32_t rows = srcSize / tightPitch; rows; --rows)
-                {
-                    memcpy(dst, from, tightPitch);
-                    dst += dstPitch;
-                    from += tightPitch;
-                }
-                return true;
-            }
-            offset += size;
-            w = w > 1 ? w / 2 : 1;
-            h = h > 1 ? h / 2 : 1;
-        }
-    }
-    return false;
-}
-
 void GxmTexture_SetFilter(GxmTexture *texture, bool linear, bool clampToEdge)
 {
     const SceGxmTextureFilter filter = linear

@@ -46,10 +46,6 @@ bool GxmTexture_Create(GxmTexture *texture, uint32_t imageFormat,
 bool GxmTexture_Create3D(GxmTexture *texture, uint32_t imageFormat,
                          uint32_t width, uint32_t height, uint32_t depth);
 
-// uploads one mip; src is tightly packed in the engine's layout
-bool GxmTexture_Upload(GxmTexture *texture, uint32_t mipLevel, uint32_t face,
-                       const void *src, uint32_t srcSize);
-
 void GxmTexture_SetFilter(GxmTexture *texture, bool linear, bool clampToEdge);
 void GxmTexture_Free(GxmTexture *texture);
 
