@@ -166,11 +166,17 @@ static bool GxmTexture_Allocate(GxmTexture *texture, uint32_t imageFormat,
     if (!size)
         return false;
 
-    // pooled: a texture per memblock would round every one up to a 256KB CDRAM page.
-    // phycont is a partition of its own, so it is spent before the main one the heap shares
-    if (!GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_CDRAM, GXM_TEXTURE_ALIGNMENT) &&
+    // zone geometry needs one contiguous block of tens of megabytes and CDRAM is the only pool
+    // that can still hold one late in a load, so textures stop drawing from it before it runs
+    // dry and take the pools they can be scattered across instead
+    const bool sparecdram = GxmMem_FreeCdram() > size + GXM_CDRAM_GEOMETRY_RESERVE;
+
+    // pooled: a texture per memblock would round every one up to a 256KB CDRAM page
+    if ((!sparecdram ||
+         !GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_CDRAM, GXM_TEXTURE_ALIGNMENT)) &&
         !GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_PHYCONT, GXM_TEXTURE_ALIGNMENT) &&
-        !GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_MAIN_UNCACHED, GXM_TEXTURE_ALIGNMENT))
+        !GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_MAIN_UNCACHED, GXM_TEXTURE_ALIGNMENT) &&
+        !GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_CDRAM, GXM_TEXTURE_ALIGNMENT))
     {
         return false;
     }

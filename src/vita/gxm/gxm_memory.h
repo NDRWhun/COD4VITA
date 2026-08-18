@@ -16,6 +16,9 @@ enum GxmMemDomain
 // nothing the GPU may touch is mapped below this, so a lower address is a null or wrapped pointer
 #define GXM_LOWEST_MAPPED 0x1000000u
 
+// CDRAM textures leave behind, so a zone's one large contiguous geometry buffer still has a home
+#define GXM_CDRAM_GEOMETRY_RESERVE (28u * 1024u * 1024u)
+
 enum GxmMapKind
 {
     GXM_MAP_PLAIN,
