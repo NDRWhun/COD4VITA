@@ -130,7 +130,9 @@ void *__cdecl R_AllocDynamicIndexBuffer(IDirect3DIndexBuffer9 **ib, uint32_t siz
         return 0;
 
 #ifdef KISAK_VITA
-    *ib = (IDirect3DIndexBuffer9 *)R_GxmCreateBuffer((int)sizeInBytes, "dynamic index buffer", GXM_BUFFER_FRAMES);
+    // this one is allocated at double the index count already, so a second region costs twice
+    // what the vertex buffer's does and the memory is not there for it
+    *ib = (IDirect3DIndexBuffer9 *)R_GxmCreateBuffer((int)sizeInBytes, "dynamic index buffer");
     return 0;
 #else
     const char *v3; // eax
