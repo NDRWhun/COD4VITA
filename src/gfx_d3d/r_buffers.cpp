@@ -9,6 +9,7 @@
 #include <universal/profile.h>
 
 #ifdef KISAK_VITA
+#include <psp2/kernel/sysmem.h>
 #include <vita/gxm/gxm_buffer.h>
 
 #include <stdlib.h>
@@ -24,7 +25,14 @@ static GxmBuffer *R_GxmCreateBuffer(int sizeInBytes, const char *what)
     if (!GxmBuffer_Create(buffer, (uint32_t)sizeInBytes, false))
     {
         free(buffer);
-        R_FatalInitError(va("GXM didn't create a %i-byte %s\n", sizeInBytes, what));
+        SceKernelFreeMemorySizeInfo budget;
+        memset(&budget, 0, sizeof(budget));
+        budget.size = sizeof(budget);
+        sceKernelGetFreeMemorySize(&budget);
+        R_FatalInitError(va("GXM didn't create a %i-byte %s; free user %u KB cdram %u KB phycont %u KB\n",
+                            sizeInBytes, what, (unsigned)(budget.size_user / 1024),
+                            (unsigned)(budget.size_cdram / 1024),
+                            (unsigned)(budget.size_phycont / 1024)));
     }
     return buffer;
 }

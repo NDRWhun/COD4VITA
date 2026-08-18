@@ -30,9 +30,10 @@ bool GxmBuffer_Create(GxmBuffer *buffer, uint32_t size, bool cpuCached)
         if (!GxmMem_Alloc(&buffer->memory, size, GXM_MEM_MAIN, SCE_GXM_MEMORY_ATTRIB_READ))
             return false;
     }
-    // zone geometry is written once and then only read by the GPU, so it belongs in the
-    // partition nothing else competes for before falling back to the shared one
-    else if (!GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_PHYCONT, 4) &&
+    // zone geometry is written once and then only read by the GPU, so it goes to video memory
+    // first and reaches the partition the heap shares only when both dedicated pools are full
+    else if (!GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_CDRAM, 4) &&
+             !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_PHYCONT, 4) &&
              !GxmMem_AllocPooled(&buffer->memory, size, GXM_MEM_MAIN_UNCACHED, 4))
     {
         return false;
