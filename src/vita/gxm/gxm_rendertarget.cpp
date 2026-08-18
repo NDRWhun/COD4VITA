@@ -256,6 +256,17 @@ GxmDepthStencil *GxmRenderTarget_DisplayDepth(void)
     return &s_displayDepth;
 }
 
+// every other target gets its texture at creation, but the display's colour is a back buffer
+// that rotates each frame, so its view is rebuilt whenever the surface is
+static void GxmRenderTarget_ViewDisplay(GxmRenderTarget *rt)
+{
+    void *base = sceGxmColorSurfaceGetData(&rt->color);
+    if (!base)
+        return;
+    sceGxmTextureInitLinearStrided(&rt->texture, base, SCE_GXM_TEXTURE_FORMAT_A8B8G8R8,
+                                   rt->width, rt->height, rt->strideInPixels * 4);
+}
+
 GxmRenderTarget *GxmRenderTarget_Display(void)
 {
     if (!s_display.isDisplay)
@@ -265,6 +276,8 @@ GxmRenderTarget *GxmRenderTarget_Display(void)
         s_display.height = GXM_SCREEN_HEIGHT;
         s_display.strideInPixels = GXM_SCREEN_WIDTH;
         s_display.depth = &GxmRenderTarget_DisplayDepth()->surface;
+        s_display.color = *GxmDevice_BackBufferSurface();
+        GxmRenderTarget_ViewDisplay(&s_display);
         GxmRenderTarget_Register(&s_display);
     }
     return &s_display;
@@ -300,6 +313,7 @@ bool GxmRenderTarget_Begin(GxmRenderTarget *rt)
         rt->color = *GxmDevice_BackBufferSurface();
         if (!rt->depth)
             rt->depth = &GxmRenderTarget_DisplayDepth()->surface;
+        GxmRenderTarget_ViewDisplay(rt);
     }
 
     if (!rt->target)

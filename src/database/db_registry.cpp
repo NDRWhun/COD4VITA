@@ -1279,6 +1279,9 @@ XAssetHeader __cdecl DB_FindXAssetHeader(XAssetType type, const char *name)
     uint32_t start; // [esp+14h] [ebp-Ch]
     XAssetEntry *assetEntry; // [esp+18h] [ebp-8h]
     XAssetEntry *newEntry; // [esp+1Ch] [ebp-4h]
+#ifdef KISAK_VITA
+    uint32_t reported = 0;
+#endif
 
     iassert(IsFastFileLoad());
 
@@ -1325,6 +1328,16 @@ XAssetHeader __cdecl DB_FindXAssetHeader(XAssetType type, const char *name)
         {
             if (Sys_IsMainThread())
                 KISAK_NULLSUB();
+#ifdef KISAK_VITA
+            // the wait is only reported once it ends, so one that never ends says nothing at all
+            if (start && Sys_Milliseconds() - start - reported >= 5000)
+            {
+                reported = Sys_Milliseconds() - start;
+                Com_Printf(10, "Still waiting %u msec for asset '%s' of type '%s'.\n",
+                           reported, name, g_assetNames[type]);
+                VitaSys_LogFlush();
+            }
+#endif
             suspendedThread = Sys_HaveSuspendedDatabaseThread(THREAD_OWNER_DATABASE);
             if (suspendedThread)
                 Sys_ResumeDatabaseThread(THREAD_OWNER_DATABASE);

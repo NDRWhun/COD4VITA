@@ -77,9 +77,29 @@ static void VitaSys_MakeParentDirs(const char *path)
 // newlib's default buffer is a kilobyte, so boot would still reach the card hundreds of times
 static char s_logBuffer[128 * 1024];
 
+// the run that has to be read is usually the one before the reboot, so it is kept aside
+static void VitaSys_KeepPreviousLog(const char *path)
+{
+    const char *extension = strrchr(path, '.');
+    if (!extension)
+        return;
+
+    char previous[256];
+    const size_t stem = (size_t)(extension - path);
+    if (stem + sizeof(".prev.log") > sizeof(previous))
+        return;
+
+    memcpy(previous, path, stem);
+    memcpy(previous + stem, ".prev.log", sizeof(".prev.log"));
+
+    remove(previous);
+    rename(path, previous);
+}
+
 bool VitaSys_LogOpen(const char *path)
 {
     VitaSys_MakeParentDirs(path);
+    VitaSys_KeepPreviousLog(path);
     s_logMutex = sceKernelCreateMutex("kcod_log", SCE_KERNEL_MUTEX_ATTR_RECURSIVE, 0, NULL);
     s_log = fopen(path, "w");
     if (s_log)
