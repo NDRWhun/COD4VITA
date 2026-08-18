@@ -2008,6 +2008,13 @@ void  Scr_EvalShiftRight(VariableValue* value1, VariableValue* value2)
 	else
 		Scr_UnmatchingTypesError(value1, value2);
 }
+// a vector constant sits at a byte offset in the script bytecode, where a float load faults
+static float Scr_VectorAt(int base, int index)
+{
+	float value;
+	memcpy(&value, (const char *)(uintptr_t)base + index * 4, sizeof(value));
+	return value;
+}
 void  Scr_EvalPlus(VariableValue* value1, VariableValue* value2)
 {
 	const char* v2; // eax
@@ -2067,9 +2074,9 @@ void  Scr_EvalPlus(VariableValue* value1, VariableValue* value2)
 		break;
 	case 4:
 		v11 = Scr_AllocVector();
-		*v11 = *(float*)value1->u.intValue + *(float*)value2->u.intValue;
-		v11[1] = *(float*)(value1->u.intValue + 4) + *(float*)(value2->u.intValue + 4);
-		v11[2] = *(float*)(value1->u.intValue + 8) + *(float*)(value2->u.intValue + 8);
+		*v11 = Scr_VectorAt(value1->u.intValue, 0) + Scr_VectorAt(value2->u.intValue, 0);
+		v11[1] = Scr_VectorAt(value1->u.intValue, 1) + Scr_VectorAt(value2->u.intValue, 1);
+		v11[2] = Scr_VectorAt(value1->u.intValue, 2) + Scr_VectorAt(value2->u.intValue, 2);
 		RemoveRefToVector(value1->u.vectorValue);
 		RemoveRefToVector(value2->u.vectorValue);
 		value1->u.intValue = (int)v11;
@@ -2099,9 +2106,9 @@ void  Scr_EvalMinus(VariableValue* value1, VariableValue* value2)
 	{
 	case 4:
 		tempVector = Scr_AllocVector();
-		*tempVector = *(float*)value1->u.intValue - *(float*)value2->u.intValue;
-		tempVector[1] = *(float*)(value1->u.intValue + 4) - *(float*)(value2->u.intValue + 4);
-		tempVector[2] = *(float*)(value1->u.intValue + 8) - *(float*)(value2->u.intValue + 8);
+		*tempVector = Scr_VectorAt(value1->u.intValue, 0) - Scr_VectorAt(value2->u.intValue, 0);
+		tempVector[1] = Scr_VectorAt(value1->u.intValue, 1) - Scr_VectorAt(value2->u.intValue, 1);
+		tempVector[2] = Scr_VectorAt(value1->u.intValue, 2) - Scr_VectorAt(value2->u.intValue, 2);
 		RemoveRefToVector(value1->u.vectorValue);
 		RemoveRefToVector(value2->u.vectorValue);
 		value1->u.intValue = (int)tempVector;
@@ -2129,9 +2136,9 @@ void  Scr_EvalMultiply(VariableValue* value1, VariableValue* value2)
 	{
 	case 4:
 		tempVector = Scr_AllocVector();
-		*tempVector = *(float*)value1->u.intValue * *(float*)value2->u.intValue;
-		tempVector[1] = *(float*)(value1->u.intValue + 4) * *(float*)(value2->u.intValue + 4);
-		tempVector[2] = *(float*)(value1->u.intValue + 8) * *(float*)(value2->u.intValue + 8);
+		*tempVector = Scr_VectorAt(value1->u.intValue, 0) * Scr_VectorAt(value2->u.intValue, 0);
+		tempVector[1] = Scr_VectorAt(value1->u.intValue, 1) * Scr_VectorAt(value2->u.intValue, 1);
+		tempVector[2] = Scr_VectorAt(value1->u.intValue, 2) * Scr_VectorAt(value2->u.intValue, 2);
 		RemoveRefToVector(value1->u.vectorValue);
 		RemoveRefToVector(value2->u.vectorValue);
 		value1->u.intValue = (int)tempVector;
@@ -2161,9 +2168,9 @@ void  Scr_EvalDivide(VariableValue* value1, VariableValue* value2)
 	{
 	case 4:
 		tempVector = Scr_AllocVector();
-		if (*(float*)value2->u.intValue == 0.0
-			|| *(float*)(value2->u.intValue + 4) == 0.0
-			|| *(float*)(value2->u.intValue + 8) == 0.0)
+		if (Scr_VectorAt(value2->u.intValue, 0) == 0.0
+			|| Scr_VectorAt(value2->u.intValue, 1) == 0.0
+			|| Scr_VectorAt(value2->u.intValue, 2) == 0.0)
 		{
 			*tempVector = 0.0;
 			tempVector[1] = 0.0;
@@ -2175,9 +2182,9 @@ void  Scr_EvalDivide(VariableValue* value1, VariableValue* value2)
 		}
 		else
 		{
-			*tempVector = *(float*)value1->u.intValue / *(float*)value2->u.intValue;
-			tempVector[1] = *(float*)(value1->u.intValue + 4) / *(float*)(value2->u.intValue + 4);
-			tempVector[2] = *(float*)(value1->u.intValue + 8) / *(float*)(value2->u.intValue + 8);
+			*tempVector = Scr_VectorAt(value1->u.intValue, 0) / Scr_VectorAt(value2->u.intValue, 0);
+			tempVector[1] = Scr_VectorAt(value1->u.intValue, 1) / Scr_VectorAt(value2->u.intValue, 1);
+			tempVector[2] = Scr_VectorAt(value1->u.intValue, 2) / Scr_VectorAt(value2->u.intValue, 2);
 			RemoveRefToVector(value1->u.vectorValue);
 			RemoveRefToVector(value2->u.vectorValue);
 			value1->u.intValue = (int)tempVector;
@@ -2676,9 +2683,9 @@ void  Scr_EvalEquality(VariableValue* value1, VariableValue* value2)
 		break;
 	case VAR_VECTOR:
 		value1->type = VAR_INTEGER;
-		v2 = *(float*)value2->u.intValue == *(float*)value1->u.intValue
-			&& *(float*)(value2->u.intValue + 4) == *(float*)(value1->u.intValue + 4)
-			&& *(float*)(value2->u.intValue + 8) == *(float*)(value1->u.intValue + 8);
+		v2 = Scr_VectorAt(value2->u.intValue, 0) == Scr_VectorAt(value1->u.intValue, 0)
+			&& Scr_VectorAt(value2->u.intValue, 1) == Scr_VectorAt(value1->u.intValue, 1)
+			&& Scr_VectorAt(value2->u.intValue, 2) == Scr_VectorAt(value1->u.intValue, 2);
 		RemoveRefToVector(value1->u.vectorValue);
 		RemoveRefToVector(value2->u.vectorValue);
 		value1->u.intValue = v2;
