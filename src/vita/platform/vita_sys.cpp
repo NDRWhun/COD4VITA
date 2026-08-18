@@ -68,8 +68,13 @@ void *VirtualAlloc(void *address, SIZE_T size, DWORD type, DWORD protect)
         memset(memory, 0, (size_t)size);
 
     if (memory && size >= 0x100000)
-        VitaSys_LogPrintf("VirtualAlloc %u KB from %p\n", (unsigned)(size / 1024),
-                          __builtin_return_address(0));
+    {
+        // these bypass the Z_ tally, so their running total is the only view of what they hold
+        static uint32_t s_reservedKB;
+        s_reservedKB += (uint32_t)(size / 1024);
+        VitaSys_LogPrintf("VirtualAlloc %u KB from %p, %u KB reserved so far\n",
+                          (unsigned)(size / 1024), __builtin_return_address(0), s_reservedKB);
+    }
     else if (!memory)
     {
         const struct mallinfo heap = mallinfo();

@@ -65,6 +65,8 @@ int main(void)
     // rate-limited in VitaSys_LogFlushLine, so boot pays a handful of writes rather than hundreds
     VitaSys_LogSetLineFlush(true);
     VitaSys_LogPrintf("KisakCOD single player, Vita, built %s %s\n", __DATE__, __TIME__);
+    // the module moves every run, so every %p logged below resolves against this one
+    VitaSys_LogPrintf("module: main at %p\n", (const void *)&main);
 
     if (!VitaMem_Init())
         VitaSys_Fatal("Boot failed", "The memory arenas could not be created.");
