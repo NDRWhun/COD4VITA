@@ -117,6 +117,7 @@ bool GxmVertex_BuildLayout(const SceGxmProgram *vertexProgram,
             out->bgraMask |= 1u << out->attributeCount;
 
         streamUsed[source->stream] = true;
+        out->streamMask |= 1u << source->stream;
         ++out->attributeCount;
     }
 

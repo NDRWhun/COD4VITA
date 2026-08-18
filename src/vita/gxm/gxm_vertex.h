@@ -28,6 +28,9 @@ struct GxmVertexLayout
     uint32_t attributeCount;
     uint32_t streamCount;
 
+    // streams an attribute actually reads; the count runs past unused ones below the highest
+    uint32_t streamMask;
+
     // attributes fed from a D3DCOLOR field, which is BGRA in memory
     uint32_t bgraMask;
 };

@@ -99,6 +99,9 @@ void __cdecl DB_AllocXZoneMemory(
             {
                 zoneMem->lockedVertexData = (uint8_t *)R_AllocStaticVertexBuffer(
                     (IDirect3DVertexBuffer9 **)&zoneMem->vertexBuffer, size);
+                if (!zoneMem->lockedVertexData)
+                    Com_Error(ERR_DROP, "Could not allocate %.2f MB of vertex memory for zone '%s'",
+                              (double)size * 0.00000095367431640625, filename);
                 zoneMem->blocks[7].size = size;
                 zoneMem->blocks[7].data = zoneMem->lockedVertexData;
                 continue;
@@ -107,6 +110,9 @@ void __cdecl DB_AllocXZoneMemory(
             {
                 zoneMem->lockedIndexData = (uint8_t *)R_AllocStaticIndexBuffer(
                     (IDirect3DIndexBuffer9 **)&zoneMem->indexBuffer, size);
+                if (!zoneMem->lockedIndexData)
+                    Com_Error(ERR_DROP, "Could not allocate %.2f MB of index memory for zone '%s'",
+                              (double)size * 0.00000095367431640625, filename);
                 zoneMem->blocks[8].size = size;
                 zoneMem->blocks[8].data = zoneMem->lockedIndexData;
                 continue;

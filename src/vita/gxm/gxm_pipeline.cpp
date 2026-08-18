@@ -8,6 +8,8 @@
 #include "gxm_shader_archive.h"
 #include "gxm_state.h"
 
+#include <vita/platform/vita_system.h>
+
 #include <string.h>
 
 #define GFXS0_POLYMODE_LINE 0x80000000u
@@ -498,6 +500,9 @@ bool GxmPipeline_DrawIndexed(uint32_t firstIndex, uint32_t triangleCount)
     {
         if (!GxmPipeline_ResolvePrograms())
         {
+            if (!s_unresolvedDraws)
+                VitaSys_LogPrintf("draw dropped: no program for vertex %i fragment %#x\n",
+                                  s_vertexShader, (unsigned)s_fragmentHash);
             ++s_unresolvedDraws;
             return false;
         }
@@ -517,11 +522,16 @@ bool GxmPipeline_DrawIndexed(uint32_t firstIndex, uint32_t triangleCount)
         s_viewportApplied = true;
     }
 
-    // a declared stream with no data would draw from whatever the slot last held
-    for (uint32_t i = 0; i < s_layout->streamCount; ++i)
+    // a stream an attribute reads would otherwise draw from whatever the slot last held; the
+    // count runs past unused streams below the highest, so only the mask may be demanded
+    for (uint32_t mask = s_layout->streamMask; mask; mask &= mask - 1)
     {
+        const uint32_t i = (uint32_t)__builtin_ctz(mask);
         if (!s_streamData[i])
         {
+            if (!s_unresolvedDraws)
+                VitaSys_LogPrintf("draw dropped: stream %u unbound (mask %#x)\n", i,
+                                  (unsigned)s_layout->streamMask);
             ++s_unresolvedDraws;
             return false;
         }
