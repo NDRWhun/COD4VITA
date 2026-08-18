@@ -1296,6 +1296,7 @@ bool R_Cinematic_IsPending()
 #include <psp2/sysmodule.h>
 #include <psp2/kernel/sysmem.h>
 #include <psp2/kernel/threadmgr.h>
+#include <psp2/kernel/dmac.h>
 #include <vita/gxm/gxm_image.h>
 #include <vita/platform/vita_system.h>
 #include <malloc.h>
@@ -1387,6 +1388,7 @@ static uint8_t *s_aacPcm;
 
 // the worker stages a converted frame here; the render thread uploads it to the planes
 static uint8_t *s_stage[3];
+static uint8_t *s_bounce;
 static uint32_t s_stageW, s_stageH;
 static volatile uint32_t s_stageSerial;
 static uint32_t s_shownSerial;
@@ -1787,23 +1789,27 @@ static void Cin_StageDecodedFrame(const SceAvcdecPicture *picture)
         s_stageH = height;
     }
 
-    const uint8_t *luma = (const uint8_t *)s_avcOutBase;
-    for (uint32_t row = 0; row < height; ++row)
-        memcpy(s_stage[0] + row * width, luma + row * s_avcPitch, width);
+    // the output block is uncached, so the bulk moves by dma before the cpu touches rows
+    const uint32_t lumaBytes = s_avcPitch * s_avcRows;
+    if (!s_bounce)
+        s_bounce = (uint8_t *)memalign(64, lumaBytes * 3 / 2);
+    if (!s_bounce)
+        return;
+    if (sceDmacMemcpy(s_bounce, s_avcOutBase, lumaBytes * 3 / 2) < 0)
+        memcpy(s_bounce, s_avcOutBase, lumaBytes * 3 / 2);
 
-    // chroma follows the padded luma as interleaved cb/cr rows
-    const uint8_t *uv = luma + s_avcPitch * s_avcRows;
+    for (uint32_t row = 0; row < height; ++row)
+        memcpy(s_stage[0] + row * width, s_bounce + row * s_avcPitch, width);
+
+    // raster output carries planar chroma: a cb plane then a cr plane at half pitch
+    const uint8_t *cbPlane = s_bounce + lumaBytes;
+    const uint32_t chromaPitch = s_avcPitch / 2;
+    const uint8_t *crPlane = cbPlane + chromaPitch * (s_avcRows / 2);
     const uint32_t chromaW = width / 2, chromaH = height / 2;
     for (uint32_t row = 0; row < chromaH; ++row)
     {
-        const uint8_t *src = uv + row * s_avcPitch;
-        uint8_t *cb = s_stage[1] + row * chromaW;
-        uint8_t *cr = s_stage[2] + row * chromaW;
-        for (uint32_t x = 0; x < chromaW; ++x)
-        {
-            cb[x] = src[x * 2];
-            cr[x] = src[x * 2 + 1];
-        }
+        memcpy(s_stage[1] + row * chromaW, cbPlane + row * chromaPitch, chromaW);
+        memcpy(s_stage[2] + row * chromaW, crPlane + row * chromaPitch, chromaW);
     }
     ++s_stageSerial;
 }
@@ -1817,11 +1823,12 @@ static int Cin_WorkerThread(SceSize args, void *argp)
 
     while (s_workerRun && (s_vid.next < s_vid.count || s_aud.next < s_aud.count))
     {
-        const unsigned now = VitaSys_Milliseconds() - begin;
+        const uint32_t vidBefore = s_vid.next;
+        const uint32_t audBefore = s_aud.next;
 
         // audio first: its blocking output paces the loop; video still runs each pass
-        if (s_aacLive && s_aud.next < s_aud.count &&
-            s_aud.samples[s_aud.next].ptsMs <= now + 30)
+        while (s_aacLive && s_aud.next < s_aud.count &&
+               s_aud.samples[s_aud.next].ptsMs <= VitaSys_Milliseconds() - begin + 30)
         {
             const CinSample *sample = &s_aud.samples[s_aud.next++];
             if (sample->size <= s_esBufSize &&
@@ -1907,7 +1914,8 @@ static int Cin_WorkerThread(SceSize args, void *argp)
             /* next burst */;
         }
 
-        sceKernelDelayThread(2000);
+        if (s_vid.next == vidBefore && s_aud.next == audBefore)
+            sceKernelDelayThread(2000);
     }
 
     s_workerDone = true;
@@ -2016,6 +2024,8 @@ void __cdecl R_Cinematic_StopPlayback()
         free(s_stage[i]);
         s_stage[i] = NULL;
     }
+    free(s_bounce);
+    s_bounce = NULL;
     s_stageW = s_stageH = 0;
     s_stageSerial = s_shownSerial = 0;
     if (s_mp4)

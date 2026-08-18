@@ -177,6 +177,9 @@ static bool GxmTexture_Allocate(GxmTexture *texture, uint32_t imageFormat,
           GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_CDRAM, GXM_TEXTURE_ALIGNMENT) ||
           GxmMem_AllocPooled(&texture->memory, size, GXM_MEM_PHYCONT, GXM_TEXTURE_ALIGNMENT)))
     {
+        VitaSys_LogPrintf("texture %u KB refused: cdram %u phycont %u user %u KB free\n",
+                          size / 1024, GxmMem_FreeCdram() / 1024, GxmMem_FreePhycont() / 1024,
+                          GxmMem_FreeMain() / 1024);
         return false;
     }
 
