@@ -43,7 +43,7 @@ void __cdecl R_ChangeIndices(GfxCmdBufPrimState *state, IDirect3DIndexBuffer9 *i
 #ifdef KISAK_VITA
     iassert( ib != state->indexBuffer );
     state->indexBuffer = ib;
-    GxmPipeline_SetIndexBuffer(ib ? ((const GxmBuffer *)ib)->memory.base : NULL);
+    GxmPipeline_SetIndexBuffer(ib ? GxmBuffer_Base((const GxmBuffer *)ib) : NULL);
 #else
     const char *v2; // eax
     int hr; // [esp+0h] [ebp-8h]
@@ -93,7 +93,7 @@ void __cdecl R_ChangeStreamSource(
     state->streams[streamIndex].stride = vertexStride;
 
 #ifdef KISAK_VITA
-    GxmPipeline_SetStream(streamIndex, vb ? ((const GxmBuffer *)vb)->memory.base : NULL,
+    GxmPipeline_SetStream(streamIndex, vb ? GxmBuffer_Base((const GxmBuffer *)vb) : NULL,
                           vertexOffset, vertexStride);
 #else
     int hr; // [esp+0h] [ebp-8h]

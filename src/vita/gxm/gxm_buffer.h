@@ -11,9 +11,24 @@ struct GxmBuffer
     GxmAlloc memory;
     uint32_t size;
     uint32_t used;
+
+    // a discard-locked buffer is rewritten every frame, so it holds one region per frame in
+    // flight and hands the GPU the one the CPU has finished with
+    uint32_t regionSize;
+    uint32_t regionCount;
+    uint32_t region;
 };
 
 bool GxmBuffer_Create(GxmBuffer *buffer, uint32_t size, bool cpuCached);
+
+// size is the caller's buffer size; the allocation is that many times larger
+bool GxmBuffer_CreateFramed(GxmBuffer *buffer, uint32_t size, uint32_t frames);
+
+// the region the CPU may write and the GPU is not reading
+void *GxmBuffer_Base(const GxmBuffer *buffer);
+
+// call once per lock that discards the previous contents
+void GxmBuffer_Discard(GxmBuffer *buffer);
 void GxmBuffer_Free(GxmBuffer *buffer);
 
 // D3DCOLOR is ARGB in a dword, so a byte-order read gives BGRA; this puts it right

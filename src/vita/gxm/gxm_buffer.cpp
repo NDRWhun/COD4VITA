@@ -40,7 +40,35 @@ bool GxmBuffer_Create(GxmBuffer *buffer, uint32_t size, bool cpuCached)
     }
 
     buffer->size = buffer->memory.size;
+    buffer->regionSize = buffer->memory.size;
+    buffer->regionCount = 1;
+    buffer->region = 0;
     return true;
+}
+
+bool GxmBuffer_CreateFramed(GxmBuffer *buffer, uint32_t size, uint32_t frames)
+{
+    if (!frames)
+        frames = 1;
+    if (!GxmBuffer_Create(buffer, size * frames, false))
+        return false;
+
+    buffer->size = size;
+    buffer->regionSize = size;
+    buffer->regionCount = frames;
+    buffer->region = 0;
+    return true;
+}
+
+void *GxmBuffer_Base(const GxmBuffer *buffer)
+{
+    return (uint8_t *)buffer->memory.base + buffer->region * buffer->regionSize;
+}
+
+void GxmBuffer_Discard(GxmBuffer *buffer)
+{
+    if (buffer->regionCount > 1)
+        buffer->region = (buffer->region + 1) % buffer->regionCount;
 }
 
 void GxmBuffer_Free(GxmBuffer *buffer)

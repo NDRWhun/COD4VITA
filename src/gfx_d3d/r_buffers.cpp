@@ -15,14 +15,17 @@
 #include <stdlib.h>
 
 // the engine's IDirect3DVertexBuffer9 * and IDirect3DIndexBuffer9 * are GxmBuffer * on Vita
-static GxmBuffer *R_GxmCreateBuffer(int sizeInBytes, const char *what)
+// a buffer the engine discard-locks every frame needs one region per frame in flight
+#define GXM_BUFFER_FRAMES 3
+
+static GxmBuffer *R_GxmCreateBuffer(int sizeInBytes, const char *what, uint32_t frames = 1)
 {
     GxmBuffer *buffer = (GxmBuffer *)malloc(sizeof(GxmBuffer));
     if (!buffer)
         R_FatalInitError(va("Out of memory for a %i-byte %s\n", sizeInBytes, what));
 
     // uncached: the CPU streams writes into these and never reads them back
-    if (!GxmBuffer_Create(buffer, (uint32_t)sizeInBytes, false))
+    if (!GxmBuffer_CreateFramed(buffer, (uint32_t)sizeInBytes, frames))
     {
         free(buffer);
         SceKernelFreeMemorySizeInfo budget;
@@ -65,7 +68,7 @@ void *__cdecl R_AllocDynamicVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeIn
         return 0;
 
 #ifdef KISAK_VITA
-    *vb = (IDirect3DVertexBuffer9 *)R_GxmCreateBuffer(sizeInBytes, "dynamic vertex buffer");
+    *vb = (IDirect3DVertexBuffer9 *)R_GxmCreateBuffer(sizeInBytes, "dynamic vertex buffer", GXM_BUFFER_FRAMES);
     return 0;
 #else
     int hr; // [esp+0h] [ebp-4h]
@@ -126,7 +129,7 @@ void *__cdecl R_AllocDynamicIndexBuffer(IDirect3DIndexBuffer9 **ib, uint32_t siz
         return 0;
 
 #ifdef KISAK_VITA
-    *ib = (IDirect3DIndexBuffer9 *)R_GxmCreateBuffer((int)sizeInBytes, "dynamic index buffer");
+    *ib = (IDirect3DIndexBuffer9 *)R_GxmCreateBuffer((int)sizeInBytes, "dynamic index buffer", GXM_BUFFER_FRAMES);
     return 0;
 #else
     const char *v3; // eax
@@ -428,8 +431,11 @@ void *__cdecl R_LockVertexBuffer(IDirect3DVertexBuffer9 *handle, int offset, int
 
 #ifdef KISAK_VITA
     (void)bytes;
-    (void)lockFlags;
-    return (uint8_t *)((GxmBuffer *)handle)->memory.base + offset;
+    // D3DLOCK_DISCARD: the caller is replacing the contents, so it gets the region the GPU is
+    // not reading rather than the one it is
+    if (lockFlags & 0x2000)
+        GxmBuffer_Discard((GxmBuffer *)handle);
+    return (uint8_t *)GxmBuffer_Base((GxmBuffer *)handle) + offset;
 #else
     int hr; // [esp+0h] [ebp-8h]
     void *bufferData; // [esp+4h] [ebp-4h] BYREF
@@ -641,8 +647,11 @@ void *__cdecl R_LockIndexBuffer(IDirect3DIndexBuffer9 *handle, int offset, int b
 
 #ifdef KISAK_VITA
     (void)bytes;
-    (void)lockFlags;
-    return (uint8_t *)((GxmBuffer *)handle)->memory.base + offset;
+    // D3DLOCK_DISCARD: the caller is replacing the contents, so it gets the region the GPU is
+    // not reading rather than the one it is
+    if (lockFlags & 0x2000)
+        GxmBuffer_Discard((GxmBuffer *)handle);
+    return (uint8_t *)GxmBuffer_Base((GxmBuffer *)handle) + offset;
 #else
     int hr; // [esp+0h] [ebp-8h]
     void *bufferData; // [esp+4h] [ebp-4h] BYREF
