@@ -166,9 +166,7 @@ static bool GxmTexture_Allocate(GxmTexture *texture, uint32_t imageFormat,
     if (!size)
         return false;
 
-    // zone geometry needs one contiguous block of tens of megabytes and CDRAM is the only pool
-    // that can still hold one late in a load, so textures stop drawing from it before it runs
-    // dry and take the pools they can be scattered across instead
+    // only geometry needs a contiguous block this large, so textures leave CDRAM for it
     const bool sparecdram = GxmMem_FreeCdram() > size + GXM_CDRAM_GEOMETRY_RESERVE;
 
     // pooled: a texture per memblock would round every one up to a 256KB CDRAM page

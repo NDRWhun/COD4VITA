@@ -906,8 +906,7 @@ void* Hunk_UserAlloc(HunkUser* user, uint32_t size, int32_t alignment)
                                  "wanted %u)", user->name ? user->name : "?",
                       current->pos - (int)current->buf, user->maxSize, size);
 #ifdef KISAK_VITA
-        // a reserve costs its whole size here, so the chain grows by the request rather than
-        // by another maxSize the caller has not asked for
+        // a reserve costs its whole size here, so the chain grows by the request
         const int32_t grow = (int32_t)((size + offsetof(HunkUser, buf) + 0xFFFFFu) & ~0xFFFFFu);
         newCurrent = Hunk_UserCreate(grow, user->name, 0, user->tempMem, user->type);
 #else

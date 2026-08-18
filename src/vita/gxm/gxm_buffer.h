@@ -12,8 +12,7 @@ struct GxmBuffer
     uint32_t size;
     uint32_t used;
 
-    // a discard-locked buffer is rewritten every frame, so it holds one region per frame in
-    // flight and hands the GPU the one the CPU has finished with
+    // one region per frame in flight, for a buffer rewritten every frame
     uint32_t regionSize;
     uint32_t regionCount;
     uint32_t region;

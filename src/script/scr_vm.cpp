@@ -1635,8 +1635,7 @@ uint32_t __cdecl GetDummyFieldValue()
     return scrVarPub.tempVariable;
 }
 
-// the compiler emits these packed to the byte, so a typed read would both be undefined and let
-// the compiler pair two of them into an ldrd, which needs an alignment the stream never has
+// the stream is packed to the byte, where a typed read is undefined and pairs into an ldrd
 const char *Scr_ReadCodePos(const char **pos)
 {
     const char *value;

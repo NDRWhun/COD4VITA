@@ -1304,8 +1304,7 @@ static bool s_playerLive;
 static bool s_moduleLoaded;
 static bool s_started;
 static bool s_finished;
-// the player reports inactive until it has demuxed enough to begin, so "not active" only means
-// the movie ended once it has run at least one frame
+// the player reads inactive until it has demuxed enough to begin, which is not the end
 static bool s_everActive;
 static unsigned s_startMs;
 static char s_next[64];

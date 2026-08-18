@@ -15,8 +15,7 @@
 #include <stdlib.h>
 
 // the engine's IDirect3DVertexBuffer9 * and IDirect3DIndexBuffer9 * are GxmBuffer * on Vita
-// a buffer the engine discard-locks every frame needs one region per frame in flight; the pools
-// it rotates itself are two deep, and the memory does not stretch to more
+// regions for a discard-locked buffer, matching the depth the engine rotates its own pools at
 #define GXM_BUFFER_FRAMES 2
 
 static GxmBuffer *R_GxmCreateBuffer(int sizeInBytes, const char *what, uint32_t frames = 1)
@@ -130,8 +129,7 @@ void *__cdecl R_AllocDynamicIndexBuffer(IDirect3DIndexBuffer9 **ib, uint32_t siz
         return 0;
 
 #ifdef KISAK_VITA
-    // this one is allocated at double the index count already, so a second region costs twice
-    // what the vertex buffer's does and the memory is not there for it
+    // sized at double the index count already, so a second region costs more than it is worth
     *ib = (IDirect3DIndexBuffer9 *)R_GxmCreateBuffer((int)sizeInBytes, "dynamic index buffer");
     return 0;
 #else
@@ -434,8 +432,7 @@ void *__cdecl R_LockVertexBuffer(IDirect3DVertexBuffer9 *handle, int offset, int
 
 #ifdef KISAK_VITA
     (void)bytes;
-    // D3DLOCK_DISCARD: the caller is replacing the contents, so it gets the region the GPU is
-    // not reading rather than the one it is
+    // D3DLOCK_DISCARD: hand back the region the GPU is not reading
     if (lockFlags & 0x2000)
         GxmBuffer_Discard((GxmBuffer *)handle);
     return (uint8_t *)GxmBuffer_Base((GxmBuffer *)handle) + offset;
@@ -650,8 +647,7 @@ void *__cdecl R_LockIndexBuffer(IDirect3DIndexBuffer9 *handle, int offset, int b
 
 #ifdef KISAK_VITA
     (void)bytes;
-    // D3DLOCK_DISCARD: the caller is replacing the contents, so it gets the region the GPU is
-    // not reading rather than the one it is
+    // D3DLOCK_DISCARD: hand back the region the GPU is not reading
     if (lockFlags & 0x2000)
         GxmBuffer_Discard((GxmBuffer *)handle);
     return (uint8_t *)GxmBuffer_Base((GxmBuffer *)handle) + offset;

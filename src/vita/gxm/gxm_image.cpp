@@ -7,8 +7,7 @@
 
 static uint32_t s_imageCount;
 
-// a zone load swizzles thousands of levels, and a megabyte taken and returned each time leaves
-// the heap too broken up to serve the next one
+// one buffer for every swizzle: a megabyte per level would break the heap up
 static void *s_stage;
 static uint32_t s_stageSize;
 static bool s_stageBusy;
