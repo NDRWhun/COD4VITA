@@ -321,6 +321,10 @@ void __cdecl Load_Texture(GfxTexture *remoteLoadDef, GfxImage *image)
             {
                 Image_GetPicmip(image, &image->picmip);
                 mipSkip = image->picmip.platform[0];
+                // noPicmip and exempt semantics still obey the panel's ceiling
+                while (loadDef->dimensions[0] >> mipSkip > 512
+                       || loadDef->dimensions[1] >> mipSkip > 512)
+                    ++mipSkip;
                 while (mipSkip
                        && (loadDef->levelCount <= mipSkip
                            || loadDef->dimensions[0] >> mipSkip < 32

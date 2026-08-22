@@ -15,6 +15,10 @@ include(${PLATFORM_DIR}/${KISAK_PLATFORM}/platform.cmake)
 # vita_create_self reads from the target's own binary dir, the root sends binaries to bin/
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+# the banner's __DATE__/__TIME__ only move when this file recompiles, so it always does
+add_custom_target(kisak_buildstamp
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_SOURCE_DIR}/src/vita/platform/vita_main.cpp)
+
 # excluded: WIN32_SRC, SOUND, SOUND_BACKEND, BINKLIB, MSSLIB, SPEEX, STEAM_HEADERS, src/radiant
 # src/sound comes in through VITA_SOUND instead, minus the Miles and OpenAL backends
 add_executable(${PROJECT_NAME}
@@ -47,6 +51,7 @@ add_executable(${PROJECT_NAME}
     ${VITA_INPUT}
     ${VITA_SOUND}
 )
+add_dependencies(${PROJECT_NAME} kisak_buildstamp)
 
 # CINEMA stays off: deps/binklib is not linked here
 target_compile_definitions(${PROJECT_NAME} PRIVATE KISAK_VITA KISAK_SP)
