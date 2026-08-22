@@ -63,6 +63,8 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:-include;${SRC_DIR}/vita/platform/vita_prefix.h>"
     # __FILE__ otherwise bakes the build machine's absolute paths into the shipped eboot
     "-ffile-prefix-map=${CMAKE_SOURCE_DIR}=."
+    # msvc chars are signed; arm gcc defaults unsigned and flips every `char < 0` test
+    "-fsigned-char"
 )
 
 # dr_wav/dr_mp3 generate their implementations in this one translation unit

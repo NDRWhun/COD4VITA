@@ -1803,7 +1803,7 @@ uint8_t __cdecl FX_ProcessEmitting(
     while (1)
     {
         distLastEmit = distNextEmit;
-        distNextEmit = (double)rand() * 0.000030517578125 * elemDef->emitDistVariance.amplitude
+        distNextEmit = (double)random() * elemDef->emitDistVariance.amplitude
             + baseDistPerEmit
             + distNextEmit;
         if (distInUpdate < (double)distNextEmit)
