@@ -1328,12 +1328,13 @@ void __cdecl Dvar_SetVariant(dvar_s *dvar, DvarValue value, DvarSetSource source
 {
 #ifdef KISAK_VITA
     // every write to the run-speed dvar names itself, whatever channel it came through
-    if (dvar && dvar->name && !I_stricmp(dvar->name, "g_speed"))
+    if (dvar && dvar->name
+        && (!I_stricmp(dvar->name, "g_speed") || !I_stricmp(dvar->name, "hud_drawhud")))
     {
         static uint32_t s_speedLog;
-        if (s_speedLog++ < 12)
-            Com_Printf(16, "g_speed write: %i -> %i (source %i, type %i, flags %#x)\n",
-                       dvar->current.integer, value.integer, (int)source,
+        if (s_speedLog++ < 16)
+            Com_Printf(16, "%s write: %i -> %i (source %i, type %i, flags %#x)\n",
+                       dvar->name, dvar->current.integer, value.integer, (int)source,
                        (int)dvar->type, (unsigned)dvar->flags);
     }
 #endif

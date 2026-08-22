@@ -217,7 +217,8 @@ int __cdecl G_MaterialIndex(const char *name)
     do
     {
         v3 = *(unsigned __int8 *)v2;
-        (v2++)[v5 - name] = v3;
+        v5[v2 - name] = v3;
+        ++v2;
     } while (v3);
     I_strlwr(v5);
     return G_FindConfigstringIndex(v5, 2551, 128, level.initializing, "material"); // CS_SERVER_MATERIALS (PC SP, was Xbox 2583)

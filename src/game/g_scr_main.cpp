@@ -1542,9 +1542,7 @@ void GScr_SetDvar()
     const char *String; // r30
     unsigned int NumParam; // r3
     char *v2; // r3
-    char *v3; // r11
     int i; // r9
-    char v5; // r10
     const char *v6; // r3
     const dvar_s *Var; // r3
     const dvar_s *v8; // r31
@@ -1553,6 +1551,9 @@ void GScr_SetDvar()
     char v11[1056]; // [sp+450h] [-420h] BYREF
 
     String = Scr_GetString(0);
+    int probeType = Scr_GetType(1);
+    int probeInt = probeType == VAR_INTEGER ? Scr_GetInt(1)
+                 : probeType == VAR_FLOAT ? (int)Scr_GetFloat(1) : -999999;
     if (Scr_GetType(1) == 3)
     {
         NumParam = Scr_GetNumParam();
@@ -1563,18 +1564,11 @@ void GScr_SetDvar()
     {
         v2 = (char *)Scr_GetString(1);
     }
-    v3 = v10;
-    for (i = 0; i < 1023; ++i)
-    {
-        v5 = v3[v2 - v10];
-        if (!v5)
-            break;
-        *v3 = v5;
-        if (v5 == 34)
-            *v3 = 39;
-        ++v3;
-    }
-    *v3 = 0;
+    for (i = 0; i < 1023 && v2[i]; ++i)
+        v10[i] = v2[i] == 34 ? 39 : v2[i];
+    v10[i] = 0;
+    if (!I_stricmp(String, "g_speed") || !I_stricmp(String, "hud_drawhud"))
+        Com_Printf(14, "GScr_SetDvar '%s' <- '%s' (ptype %i pint %i)\n", String, v10, probeType, probeInt);
     if (!Dvar_IsValidName(String))
     {
         v6 = va("Dvar %s has an invalid dvar name", String);
@@ -1619,8 +1613,6 @@ void GScr_SetSavedDvar()
     unsigned int NumParam; // r3
     char *v2; // r31
     int i; // r9
-    char *v4; // r11
-    char v5; // r10
     const char *v6; // r3
     const dvar_s *Var; // r3
     const char *v8; // r3
@@ -1628,6 +1620,9 @@ void GScr_SetSavedDvar()
     char v10[1056]; // [sp+450h] [-420h] BYREF
 
     String = Scr_GetString(0);
+    int probeType = Scr_GetType(1);
+    int probeInt = probeType == VAR_INTEGER ? Scr_GetInt(1)
+                 : probeType == VAR_FLOAT ? (int)Scr_GetFloat(1) : -999999;
     if (Scr_GetType(1) == 3)
     {
         NumParam = Scr_GetNumParam();
@@ -1639,16 +1634,10 @@ void GScr_SetSavedDvar()
         v2 = (char *)Scr_GetString(1);
     }
     memset(v9, 0, sizeof(v9));
-    for (i = 0; i < 0x2000; ++i)
-    {
-        v4 = &v9[i];
-        v5 = v9[i + v2 - v9];
-        if (!v5)
-            break;
-        *v4 = v5;
-        if (v5 == 34)
-            *v4 = 39;
-    }
+    for (i = 0; i < (int)sizeof(v9) - 1 && v2[i]; ++i)
+        v9[i] = v2[i] == 34 ? 39 : v2[i];
+    if (!I_stricmp(String, "g_speed") || !I_stricmp(String, "hud_drawhud"))
+        Com_Printf(14, "GScr_SetSavedDvar '%s' <- '%s' (ptype %i pint %i)\n", String, v9, probeType, probeInt);
     if (Dvar_IsValidName(String))
     {
         Var = Dvar_FindVar(String);

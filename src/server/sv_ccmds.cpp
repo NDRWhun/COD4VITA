@@ -313,7 +313,8 @@ int __cdecl ExtractMapStringFromSaveGame(const char *filename, char *mapname)
     do
     {
         v6 = (unsigned __int8)*v5;
-        (v5++)[mapname - v8.mapName] = v6;
+        mapname[v5 - v8.mapName] = v6;
+        ++v5;
     } while (v6);
     v7 = Dvar_RegisterString("ui_campaign", "american", 0x1000u, "Campaign");
     Dvar_SetString(v7, v8.campaign);
@@ -431,7 +432,8 @@ int __cdecl CheckForSaveGame(char *mapname, char *filename)
     do
     {
         v5 = (unsigned __int8)*v4;
-        (v4++)[filename - sv_save_filename] = v5;
+        filename[v4 - sv_save_filename] = v5;
+        ++v4;
     } while (v5);
     sv_save_filename[0] = 0;
     if ((unsigned __int8)SaveMemory_IsCommittedSaveAvailable(filename, sv.checksum))
@@ -446,7 +448,8 @@ int __cdecl CheckForSaveGame(char *mapname, char *filename)
         do
         {
             v9 = (unsigned __int8)*v8;
-            (v8++)[mapname - lastCommittedHeader->mapName] = v9;
+            mapname[v8 - lastCommittedHeader->mapName] = v9;
+            ++v8;
         } while (v9);
         G_SetPendingLoadName(filename);
         return 1;
@@ -457,7 +460,8 @@ int __cdecl CheckForSaveGame(char *mapname, char *filename)
         do
         {
             v12 = (unsigned __int8)*v11;
-            (v11++)[mapname - v13.mapName] = v12;
+            mapname[v11 - v13.mapName] = v12;
+            ++v11;
         } while (v12);
         G_SetPendingLoadName(filename);
         return 1;

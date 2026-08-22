@@ -23,6 +23,7 @@ def convert(ffmpeg, src, dst, crf, audio_rate):
         "-vf", SCALE,
         "-c:v", "libx264",
         "-profile:v", "main", "-level", "3.1",   # what the hardware decoder accepts
+        "-bf", "0",                              # decode order == display order for the player
         "-pix_fmt", "yuv420p",
         "-crf", str(crf),
         "-c:a", "aac", "-b:a", "%dk" % audio_rate, "-ac", "2",

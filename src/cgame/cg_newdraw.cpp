@@ -791,7 +791,8 @@ int __cdecl CG_ServerMaterialName(int localClientNum, int index, char *materialN
     do
     {
         v10 = *(unsigned __int8 *)v7;
-        (v7++)[materialName - ConfigString] = v10;
+        materialName[v7 - ConfigString] = v10;
+        ++v7;
     } while (v10);
     return 1;
 }

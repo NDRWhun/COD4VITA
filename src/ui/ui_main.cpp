@@ -1397,7 +1397,6 @@ char *__cdecl UI_SafeTranslateString(const char *reference)
     char *v3; // r10
     const char *v4; // r11
     int v5; // ctr
-    char *v6; // r11
     int v7; // r10
 
     v1 = reference;
@@ -1430,12 +1429,13 @@ char *__cdecl UI_SafeTranslateString(const char *reference)
     }
     else
     {
-        v6 = (char*)v1;
-        do
+        for (v5 = 0; ; ++v5)
         {
-            v7 = *(unsigned __int8 *)v6;
-            (v6++)[errorString - v1] = v7;
-        } while (v7);
+            v7 = *(unsigned __int8 *)&v1[v5];
+            errorString[v5] = v7;
+            if (!v7)
+                break;
+        }
     }
     return errorString;
 }

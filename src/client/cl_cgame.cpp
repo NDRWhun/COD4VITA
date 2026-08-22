@@ -1013,7 +1013,7 @@ char *__cdecl CL_TimeDemoLogBaseName(const char *mapname)
     if (!v1)
         return (char *)v2;
     result = va("%s", v2);
-    v1[result - v2] = 0;
+    result[v1 - v2] = 0;
     return result;
 }
 

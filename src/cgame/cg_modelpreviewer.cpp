@@ -124,7 +124,8 @@ void __cdecl CG_ModPrvPushMruEntry(
     do
     {
         v11 = *(unsigned __int8 *)v10;
-        (v10++)[v16 - entry] = v11;
+        v16[v10 - entry] = v11;
+        ++v10;
     } while (v11);
     v12 = 0;
     v13 = mruDvars;
