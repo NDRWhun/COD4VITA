@@ -1536,6 +1536,18 @@ static void CalculateWeaponAxis(cg_s *cgameGlob, float (*axis)[3])
 
     CalculateWeaponPosition_GunRecoil(cgameGlob, angles);
     CalculateWeaponPosition_SwayAngles(cgameGlob, angles);
+#ifdef KISAK_VITA
+    if (I_fabs(angles[0]) > 15.0f)
+    {
+        static uint32_t s_kickLog;
+        if (s_kickLog++ < 20)
+            Com_Printf(14, "weapang %.1f %.1f %.1f | dmgT %i vdmg %.1f | gun %.1f kick %.1f sway %.1f frac %.2f\n",
+                       angles[0], angles[1], angles[2], cgameGlob->damageTime,
+                       cgameGlob->v_dmg_pitch, cgameGlob->vGunOffset[0],
+                       cgameGlob->kickAngles[0], cgameGlob->swayAngles[0],
+                       cgameGlob->predictedPlayerState.fWeaponPosFrac);
+    }
+#endif
     AnglesToAxis(angles, localAxis);
     MatrixMultiply((const mat3x3&)*localAxis, (const mat3x3&)*cgameGlob->viewModelAxis, (mat3x3&)*axis);
     CalculateWeaponPosition_SaveOffsetAngles(cgameGlob, axis);
