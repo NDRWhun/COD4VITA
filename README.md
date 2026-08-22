@@ -14,7 +14,7 @@ directly — no emulation, no wrapper.
 
 | Part | State |
 | --- | --- |
-| Engine | boots, menus work, level loads run; reaching stable gameplay is the current fight |
+| Engine | boots, menus work, level loads run; reaching stable gameplay is the current goal |
 | Renderer | native sceGxm; the game's 609 shaders translated offline and registered on device |
 | Movies | hardware AVC decode (sceVideodec) with AAC audio |
 | Sound | full mixer, load-time IMA-ADPCM; music and streams play |
