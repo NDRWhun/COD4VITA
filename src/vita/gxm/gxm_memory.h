@@ -54,7 +54,7 @@ uint32_t GxmMem_FreeCdram(void);
 
 // the movie decoder allocates from phycont internally, so spill leaves it this much room
 #define GXM_PHYCONT_DECODER_RESERVE (12u * 1024u * 1024u)
-#define GXM_CDRAM_BALLAST (20u * 1024u * 1024u)
+#define GXM_CDRAM_BALLAST (24u * 1024u * 1024u)
 
 void GxmMem_BallastInit(void);
 bool GxmMem_BallastRelease(void);
