@@ -28,16 +28,11 @@ jobs:
 
       # the shader archive and livearea artwork come from the user's own game files,
       # so ci proves the tree builds and ships a fallback-shader vpk
-      - name: Configure
-        run: |
-          cmake -S . -B build -G Ninja -DKISAK_PLATFORM=vita \
-                -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake
-
       - name: Build
-        run: cmake --build build
+        run: bash tools/build.sh
 
       - uses: actions/upload-artifact@v4
         with:
           name: COD4VITA-vpk
-          path: build/scripts/vita/COD4VITA.vpk
+          path: build/COD4VITA.vpk
           if-no-files-found: error
