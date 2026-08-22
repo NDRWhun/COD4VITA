@@ -1380,6 +1380,20 @@ static void Cin_PhycontFree(SceUID *uid, void **base)
     *uid = -1;
     *base = NULL;
 }
+
+// textures spill into phycont, so what the decoder needs is taken once and kept
+static uint32_t s_avcFrameSize;
+static uint32_t s_avcOutSize;
+
+static bool Cin_HoldPhycont(SceUID *uid, void **base, uint32_t *held, uint32_t size)
+{
+    if (*base && *held >= size)
+        return true;
+    Cin_PhycontFree(uid, base);
+    *base = Cin_PhycontAlloc(uid, size);
+    *held = *base ? ((size + 0xFFFFFu) & ~0xFFFFFu) : 0;
+    return *base != NULL;
+}
 static uint32_t s_avcPitch, s_avcRows;
 static SceAudiodecCtrl s_aacCtrl;
 static SceAudiodecInfo s_aacInfo;
@@ -1654,8 +1668,9 @@ static bool Cin_OpenAvc(void)
     SceAvcdecDecoderInfo info;
     memset(&info, 0, sizeof(info));
     rc = sceAvcdecQueryDecoderMemSize(SCE_VIDEODEC_TYPE_HW_AVCDEC, &query, &info);
-    s_avcFrameBase = rc < 0 ? NULL : Cin_PhycontAlloc(&s_avcFrameUid, info.frameMemSize);
-    if (!s_avcFrameBase)
+    if (rc >= 0)
+        Cin_HoldPhycont(&s_avcFrameUid, &s_avcFrameBase, &s_avcFrameSize, info.frameMemSize);
+    if (rc < 0 || !s_avcFrameBase)
     {
         VitaSys_LogPrintf("cinematic: decoder memory 0x%08x (%u KB)\n", (unsigned)rc,
                           info.frameMemSize / 1024);
@@ -1665,24 +1680,22 @@ static bool Cin_OpenAvc(void)
 
     memset(&s_avcCtrl, 0, sizeof(s_avcCtrl));
     s_avcCtrl.frameBuf.pBuf = s_avcFrameBase;
-    s_avcCtrl.frameBuf.size = (info.frameMemSize + 0xFFFFFu) & ~0xFFFFFu;
+    s_avcCtrl.frameBuf.size = s_avcFrameSize;
     rc = sceAvcdecCreateDecoder(SCE_VIDEODEC_TYPE_HW_AVCDEC, &s_avcCtrl, &query);
     if (rc < 0)
     {
         VitaSys_LogPrintf("cinematic: create decoder 0x%08x\n", (unsigned)rc);
-        Cin_PhycontFree(&s_avcFrameUid, &s_avcFrameBase);
         sceVideodecTermLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC);
         return false;
     }
 
     s_avcPitch = alignW;
     s_avcRows = alignH;
-    s_avcOutBase = Cin_PhycontAlloc(&s_avcOutUid, alignW * alignH * 3 / 2);
-    if (!s_avcOutBase)
+    if (!Cin_HoldPhycont(&s_avcOutUid, &s_avcOutBase, &s_avcOutSize,
+                         alignW * alignH * 3 / 2))
     {
         VitaSys_LogPrintf("cinematic: no output frame memory\n");
         sceAvcdecDeleteDecoder(&s_avcCtrl);
-        Cin_PhycontFree(&s_avcFrameUid, &s_avcFrameBase);
         sceVideodecTermLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC);
         return false;
     }
@@ -1821,7 +1834,8 @@ static int Cin_WorkerThread(SceSize args, void *argp)
     uint32_t audioGrain = 0;
     uint32_t decodeErrors = 0;
 
-    while (s_workerRun && (s_vid.next < s_vid.count || s_aud.next < s_aud.count))
+    while (s_workerRun && ((s_avcLive && s_vid.next < s_vid.count) ||
+                           (s_aacLive && s_aud.next < s_aud.count)))
     {
         const uint32_t vidBefore = s_vid.next;
         const uint32_t audBefore = s_aud.next;
@@ -2005,8 +2019,6 @@ void __cdecl R_Cinematic_StopPlayback()
     {
         sceAvcdecDeleteDecoder(&s_avcCtrl);
         sceVideodecTermLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC);
-        Cin_PhycontFree(&s_avcFrameUid, &s_avcFrameBase);
-        Cin_PhycontFree(&s_avcOutUid, &s_avcOutBase);
         s_avcLive = false;
     }
     free(s_esBuf);
@@ -2080,14 +2092,15 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
     s_esBufSize = maxSample + s_spsPpsLen + 64;
     s_esBuf = (uint8_t *)memalign(64, s_esBufSize);
 
-    if (!s_esBuf || !Cin_OpenAvc())
+    const bool haveVideo = s_esBuf && Cin_OpenAvc();
+    const bool haveAudio = s_esBuf && Cin_OpenAac();
+    if (!haveVideo && !haveAudio)
     {
         R_Cinematic_StopPlayback();
         s_started = true;
         s_finished = true;
         return;
     }
-    Cin_OpenAac();
 
     if (!s_plane[0] && !Cin_CreatePlanes(16, 16))
     {
@@ -2105,8 +2118,9 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
     if (s_workerThread >= 0)
         sceKernelStartThread(s_workerThread, 0, NULL);
 
-    VitaSys_LogPrintf("cinematic: playing %s (%ux%u, %u video + %u audio samples)\n",
-                      path, s_vidW, s_vidH, s_vid.count, s_aud.count);
+    VitaSys_LogPrintf("cinematic: playing %s (%ux%u, %u video + %u audio samples, video %s audio %s)\n",
+                      path, s_vidW, s_vidH, s_vid.count, s_aud.count,
+                      haveVideo ? "on" : "OFF", haveAudio ? "on" : "OFF");
     s_frameSeen = 0;
     s_startMs = VitaSys_Milliseconds();
     s_started = true;
@@ -2181,7 +2195,14 @@ void __cdecl R_Cinematic_DrawStretchPic_Letterboxed()
                            white, rgp.cinematicMaterial);
 }
 
-void __cdecl R_Cinematic_Shutdown() { R_Cinematic_StopPlayback(); }
+void __cdecl R_Cinematic_Shutdown()
+{
+    R_Cinematic_StopPlayback();
+    Cin_PhycontFree(&s_avcFrameUid, &s_avcFrameBase);
+    Cin_PhycontFree(&s_avcOutUid, &s_avcOutBase);
+    s_avcFrameSize = 0;
+    s_avcOutSize = 0;
+}
 void __cdecl R_Cinematic_StartNextPlayback()
 {
     if (s_hasNext)
