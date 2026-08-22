@@ -3562,6 +3562,22 @@ void __cdecl BG_WeaponFireRecoil(const playerState_s *ps, float *vGunSpeed, floa
     weapDef = BG_GetWeaponDef(weapIndex);
     fPosLerp = ps->fWeaponPosFrac;
 
+#ifdef KISAK_VITA
+    static int s_loggedWeap = -1;
+    if (weapIndex != s_loggedWeap)
+    {
+        s_loggedWeap = weapIndex;
+        Com_Printf(14, "recoil '%s' hipVK %.1f..%.1f adsVK %.1f..%.1f center %.0f/%.0f "
+                       "gunKick %.1f..%.1f max %.1f\n",
+                   weapDef->szInternalName,
+                   weapDef->fHipViewKickPitchMin, weapDef->fHipViewKickPitchMax,
+                   weapDef->fAdsViewKickPitchMin, weapDef->fAdsViewKickPitchMax,
+                   weapDef->fHipViewKickCenterSpeed, weapDef->fAdsViewKickCenterSpeed,
+                   weapDef->fHipGunKickPitchMin, weapDef->fHipGunKickPitchMax,
+                   weapDef->fGunMaxPitch);
+    }
+#endif
+
     fReducePercent = 1.0;
     if (ps->weaponRestrictKickTime > 0)
     {

@@ -211,6 +211,10 @@ int __cdecl SV_ProcessPendingSave(PendingSave *pendingSave)
 
     if (!pendingSave)
         MyAssertHandler("c:\\trees\\cod3\\cod3src\\src\\server\\sv_main.cpp", 292, 0, "%s", "pendingSave");
+#ifdef KISAK_VITA
+    Com_Printf(15, "save '%s' on %s thread\n", pendingSave->filename,
+               Sys_IsMainThread() ? "main" : Sys_IsDatabaseThread() ? "database" : "other");
+#endif
     checksum = SV_GetCheckSum();
     result = G_SaveGame(pendingSave, checksum);
     if (!pendingSave)
