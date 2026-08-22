@@ -1932,7 +1932,16 @@ void __cdecl Com_Frame_Try_Block_Function()
     iassert(msec > 0);
     msec = Com_ModifyMsec(msec);
     iassert(msec > 0);
+#ifdef KISAK_VITA
+    // once the frame is slow, this names the thread phase that ate it
+    static uint32_t s_phaseAccum[4], s_phaseFrames;
+    uint32_t phaseT0 = Sys_Milliseconds();
+#endif
     msec = SV_Frame(msec);
+#ifdef KISAK_VITA
+    uint32_t phaseT1 = Sys_Milliseconds();
+    s_phaseAccum[0] += phaseT1 - phaseT0;
+#endif
 
 #ifdef KISAK_MP
     Com_DedicatedModified();
@@ -1982,7 +1991,15 @@ void __cdecl Com_Frame_Try_Block_Function()
         dvar_modifiedFlags &= ~2u;
         Com_UpdateMenu();
 #endif
+#ifdef KISAK_VITA
+        uint32_t phaseT2 = Sys_Milliseconds();
+        s_phaseAccum[1] += phaseT2 - phaseT1;
+#endif
         SCR_UpdateScreen();
+#ifdef KISAK_VITA
+        uint32_t phaseT3 = Sys_Milliseconds();
+        s_phaseAccum[2] += phaseT3 - phaseT2;
+#endif
         Ragdoll_Update(msec);
         iassert(Sys_IsMainThread());
 #ifdef KISAK_SP
@@ -1991,7 +2008,24 @@ void __cdecl Com_Frame_Try_Block_Function()
         deltaTime = cls.frametime * EQUAL_EPSILON;
         DevGui_Update(0, deltaTime);
         Com_Statmon();
+#ifdef KISAK_VITA
+        uint32_t phaseT4 = Sys_Milliseconds();
+#endif
         R_WaitEndTime();
+#ifdef KISAK_VITA
+        s_phaseAccum[3] += Sys_Milliseconds() - phaseT4;
+        if (++s_phaseFrames >= 128)
+        {
+            Com_Printf(16, "cpu ms/f over %u: sv %.1f cl %.1f scr %.1f wait %.1f\n",
+                       s_phaseFrames,
+                       s_phaseAccum[0] / (float)s_phaseFrames,
+                       s_phaseAccum[1] / (float)s_phaseFrames,
+                       s_phaseAccum[2] / (float)s_phaseFrames,
+                       s_phaseAccum[3] / (float)s_phaseFrames);
+            memset(s_phaseAccum, 0, sizeof(s_phaseAccum));
+            s_phaseFrames = 0;
+        }
+#endif
     }
 
 #ifdef KISAK_SP

@@ -736,7 +736,9 @@ void __cdecl R_SetPicmip()
     {
         if (r_picmip_manual->current.enabled)
         {
-            Com_Printf(8, "Picmip is set manually.\n");
+            Com_Printf(8, "Picmip is set manually: color %i bump %i spec %i.\n",
+                       r_picmip->current.integer, r_picmip_bump->current.integer,
+                       r_picmip_spec->current.integer);
             imageGlobals.picmip = r_picmip->current.integer;
             imageGlobals.picmipBump = r_picmip_bump->current.integer;
             imageGlobals.picmipSpec = r_picmip_spec->current.integer;
