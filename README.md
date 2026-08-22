@@ -1,18 +1,52 @@
-# COD4VITA
+<a id="readme-top"></a>
 
-**Call of Duty 4: Modern Warfare — single-player, on the PS Vita**
+<div align="center">
 
-[![platform](https://img.shields.io/badge/platform-PS%20Vita-4b6cb7)](https://vitasdk.org)&nbsp;[![renderer](https://img.shields.io/badge/renderer-native%20sceGxm-8a4fff)](src/vita/gxm)&nbsp;[![engine](https://img.shields.io/badge/engine-IW%203.0-5f3dc4)](https://en.wikipedia.org/wiki/IW_3.0)
+<img src="docs/logo-circle.png" alt="COD4VITA" width="128" height="128">
 
-A native port of Call of Duty 4's single-player campaign (IW 3.0 engine) to the PS Vita,
-built on [KisakCOD](https://github.com/SwagSoftware/KisakCOD). The renderer targets sceGxm
-directly. 
+<h3 align="center">COD4VITA</h3>
 
-**Consider this as a POC**
+<p align="center">
+  <b>Call of Duty 4: Modern Warfare — single-player, on the PS Vita</b>
+  <br />
+  <br />
+  A native port of Call of Duty 4's single-player campaign (IW 3.0 engine) to the PS Vita,
+  <br />
+  built on <a href="https://github.com/SwagSoftware/KisakCOD">KisakCOD</a> with a native sceGxm rendering backend.
+  <br />
+  <br />
+  <b>Consider this a proof of concept.</b>
+  <br />
+  <br />
+  <a href="#setup-for-players">Setup</a>
+  &nbsp;·&nbsp;
+  <a href="#controls">Controls</a>
+  &nbsp;·&nbsp;
+  <a href="../../issues">Report Bug</a>
+</p>
+
+[![build][build-shield]][build-url]&nbsp;[![issues][issues-shield]][issues-url]&nbsp;[![last commit][commit-shield]][commit-url]
+
+[![platform][platform-shield]][platform-url]&nbsp;[![renderer][renderer-shield]][renderer-url]&nbsp;[![engine][engine-shield]][engine-url]&nbsp;[![license][license-shield]][license-url]
+
+</div>
+
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li><a href="#status">Status</a></li>
+    <li><a href="#setup-for-players">Setup (for players)</a></li>
+    <li><a href="#controls">Controls</a></li>
+    <li><a href="#build-for-developers">Build (for developers)</a></li>
+    <li><a href="#credits">Credits</a></li>
+    <li><a href="#license">License</a></li>
+  </ol>
+</details>
 
 ## Status
 
-**In development — currently unplayable.** It boots and loads, but crashes and freezes stop it before or shortly after gameplay begins.
+**In development — currently unplayable.** It boots and loads, but crashes and freezes stop
+it before or shortly after gameplay begins.
 
 | Part | State |
 | --- | --- |
@@ -22,7 +56,6 @@ directly.
 | Sound | full mixer, load-time IMA-ADPCM; music and streams play |
 | Performance | CPU-bound; NPC-heavy scenes run well below 30 fps |
 | Known issues | NPC animation bugs under investigation, lighting artifacts on some maps, memory pressure on the biggest levels |
-
 
 Full build and asset-prep detail: [docs/BUILDING.md](docs/BUILDING.md).
 
@@ -36,56 +69,57 @@ You need your own copy of Call of Duty 4 (PC). Assets are prepared once on a PC:
    `ux0:data/kisakcod/main/`.
 4. Re-encode the cinematics with `scripts/vita/convert_video.py` (needs ffmpeg) into
    `ux0:data/kisakcod/video/`.
-5. Build `shaders.kgxp` (see below) and copy it to `ux0:data/kisakcod/`.
+5. Build `shaders.kgxp` (see [docs/BUILDING.md](docs/BUILDING.md)) and copy it to
+   `ux0:data/kisakcod/`.
 
 ## Controls
 
-Sticks: left moves, right looks. Menus: Cross confirms, Circle backs out.
+### Sticks
 
-| Control | Action |
-| --- | --- |
-| Cross | jump / stand |
-| Circle | crouch |
-| Square | use / reload |
-| Triangle | switch weapon |
-| L | aim down sights |
-| R | fire |
-| D-pad up | night vision |
-| D-pad down | prone |
-| D-pad left / right | smoke / frag grenade |
-| Select | sprint / hold breath |
-| Rear touch | left: sprint · right: melee |
-| Start | pause |
+| Stick | Action |
+|:--:|--------|
+| <img src="docs/icons/lstick.svg" width="20" alt="Left stick"> | Move |
+| <img src="docs/icons/rstick.svg" width="20" alt="Right stick"> | Look |
 
-Defaults are written to `ux0:data/kisakcod/raw/vita_controls.cfg` on first boot; every
-control is a bindable key (`AUX1`–`AUX13`), so edit that file to rebind.
+### Base layer (physical buttons)
+
+| Button | Action |
+|:--:|--------|
+| <img src="docs/icons/r.svg" width="20" alt="R"> | Fire |
+| <img src="docs/icons/l.svg" width="20" alt="L"> | Aim down sights |
+| <img src="docs/icons/cross.svg" width="18" alt="Cross"> | Jump / stand |
+| <img src="docs/icons/circle.svg" width="18" alt="Circle"> | Crouch |
+| <img src="docs/icons/square.svg" width="18" alt="Square"> | Use / reload |
+| <img src="docs/icons/triangle.svg" width="18" alt="Triangle"> | Switch weapon |
+| <img src="docs/icons/dpad-up.svg" width="18" alt="D-pad Up"> | Night vision |
+| <img src="docs/icons/dpad-down.svg" width="18" alt="D-pad Down"> | Prone |
+| <img src="docs/icons/dpad-left.svg" width="18" alt="D-pad Left"> <img src="docs/icons/dpad-right.svg" width="18" alt="D-pad Right"> | Smoke / frag grenade |
+| <img src="docs/icons/select.svg" height="18" alt="Select"> | Sprint / hold breath |
+| <img src="docs/icons/start.svg" height="18" alt="Start"> | Pause |
+
+### Rear touch panel
+
+| Zone | Action |
+|:--:|--------|
+| <img src="docs/icons/rear-tl.svg" width="20" alt="Rear left"> | Sprint |
+| <img src="docs/icons/rear-tr.svg" width="20" alt="Rear right"> | Melee |
+
+In menus, <img src="docs/icons/cross.svg" width="14" alt="Cross"> confirms and
+<img src="docs/icons/circle.svg" width="14" alt="Circle"> backs out. Defaults are written to
+`ux0:data/kisakcod/raw/vita_controls.cfg` on first boot; every control is a bindable key
+(`AUX1`–`AUX13`), so edit that file to rebind.
 
 ## Build (for developers)
 
 Needs [VitaSDK](https://vitasdk.org), CMake and Python 3. On Windows, run from Git Bash.
 
 ```bash
-export VITASDK=/path/to/vitasdk
-export PATH=$VITASDK/bin:$PATH
-
-cmake -S . -B build-vita -DKISAK_PLATFORM=vita \
-      -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake \
-      -DSHADER_ARCHIVE=/path/to/shaders.kgxp
-cmake --build build-vita -j8        # -> build-vita/scripts/vita/COD4VITA.vpk
+bash tools/build.sh -DSHADER_ARCHIVE=/path/to/shaders.kgxp   # -> build/COD4VITA.vpk
 ```
 
-### Generated files
-
-Built from game data this repository cannot carry:
-
-| File | Generated by | Needs |
-| --- | --- | --- |
-| `shaders.kgxp` | `ff_shader_scan.py`, `build_shaders.py`, `pack_shaders.py` | your CoD4 install and Sony's `psp2cgc` |
-| stripped `.iwd` archives | `iwi_strip.py` | your CoD4 install |
-| `video/*.mp4` | `convert_video.py` | your CoD4 install and ffmpeg |
-| `src/gfx_d3d/d3d9_shim.h` | `gen_d3d9_shim.py` | the DirectX SDK |
-
 A build without `SHADER_ARCHIVE` compiles with fallback shaders — that is what CI does.
+Asset generation (shaders, textures, video, LiveArea) is covered in
+[docs/BUILDING.md](docs/BUILDING.md).
 
 ## Credits
 
@@ -97,3 +131,25 @@ A build without `SHADER_ARCHIVE` compiles with fallback shaders — that is what
 
 GPLv3, matching upstream KisakCOD — see [LICENSE](LICENSE). No game assets are included; they
 must come from your own copy of Call of Duty 4.
+
+Unofficial, non-commercial fan port — not affiliated with or endorsed by Activision or
+Infinity Ward. *Call of Duty* is a trademark of its owners; you must own a legal copy to play.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- BADGES -->
+
+[build-shield]: https://img.shields.io/github/actions/workflow/status/NDRWhun/COD4VITA/build-vita.yml?branch=vita-port&label=build&style=flat-square
+[build-url]: ../../actions/workflows/build-vita.yml
+[issues-shield]: https://img.shields.io/github/issues/NDRWhun/COD4VITA?label=issues&style=flat-square
+[issues-url]: ../../issues
+[commit-shield]: https://img.shields.io/github/last-commit/NDRWhun/COD4VITA/vita-port?label=updated&style=flat-square
+[commit-url]: ../../commits/vita-port
+[platform-shield]: https://img.shields.io/badge/platform-PS%20Vita-4b6cb7?style=flat-square
+[platform-url]: https://vitasdk.org
+[renderer-shield]: https://img.shields.io/badge/renderer-native%20sceGxm-8a4fff?style=flat-square
+[renderer-url]: src/vita/gxm
+[engine-shield]: https://img.shields.io/badge/engine-IW%203.0-5f3dc4?style=flat-square
+[engine-url]: https://en.wikipedia.org/wiki/IW_engine
+[license-shield]: https://img.shields.io/badge/license-GPLv3-blue?style=flat-square
+[license-url]: LICENSE
