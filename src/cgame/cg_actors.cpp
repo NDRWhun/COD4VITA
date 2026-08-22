@@ -68,6 +68,26 @@ void __cdecl CG_Actor(int localClientNum, centity_s *cent)
         ClientDObj = Com_GetClientDObj(cent->nextState.number, 0);
         if (ClientDObj)
         {
+#ifdef KISAK_VITA
+            // the server animates these while the screen shows bind pose, so the
+            // client tree states its side once a second for the lowest actor
+            {
+                static uint32_t s_lastMs;
+                static uint32_t s_lines;
+                const uint32_t nowMs = cgArray[0].time;
+                if (s_lines < 14 && nowMs - s_lastMs > 1000)
+                {
+                    s_lastMs = nowMs;
+                    ++s_lines;
+                    const XAnimTree_s *tree = ClientDObj->tree;
+                    Com_Printf(14, "actor %i client tree %p anims %i w0 %.2f t0 %.2f\n",
+                               cent->nextState.number, (const void *)tree,
+                               tree ? (int)tree->children : -1,
+                               tree && tree->children ? XAnimGetWeight(tree, 0) : -1.0,
+                               tree && tree->children ? XAnimGetTime(tree, 0) : -1.0);
+                }
+            }
+#endif
             CG_Actor_PreControllers(cent);
             isRagdoll = cent->pose.isRagdoll;
             v10[0] = cent->pose.origin[0];
