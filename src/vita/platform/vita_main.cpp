@@ -95,8 +95,7 @@ static int VitaMain_Watchdog(SceSize args, void *argp)
         VitaSys_LogPrintf("watchdog: main stalled %us at frame time %i, status %i, "
                           "ranClocks +%llu\n",
                           stalled * 2, last, ti.status, (unsigned long long)ran);
-        // a sustained full-speed spin with a frozen frame counter is an infinite loop;
-        // aborting turns the silent freeze into a core dump naming it
+        // a sustained hot spin with a frozen frame counter is an infinite loop; abort into a core dump
         hot = (ran > (wall - lastWall) * 3 / 4) ? hot + 1 : 0;
         lastClocks = ti.runClocks;
         lastWall = wall;

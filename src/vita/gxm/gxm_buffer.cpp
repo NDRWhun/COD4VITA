@@ -23,8 +23,7 @@ bool GxmBuffer_Create(GxmBuffer *buffer, uint32_t size, bool cpuCached)
     if (!size)
         return false;
 
-    // pooled: a fastfile brings thousands of model buffers, and a memblock each is a kernel
-    // object per buffer rounded up to a page
+    // pooled: a memblock per model buffer would cost a kernel object and a page each
     if (cpuCached)
     {
         if (!GxmMem_Alloc(&buffer->memory, size, GXM_MEM_MAIN, SCE_GXM_MEMORY_ATTRIB_READ))

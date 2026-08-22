@@ -161,8 +161,7 @@ void VitaSys_LogFlush(void)
     fflush(s_log);
 }
 
-// the card is busy streaming fastfiles during boot, so a flush per line blocks long enough
-// for the system to kill the app; the interval bounds how much tail a kill can take with it
+// a flush per line during boot streaming stalls into a system kill; the interval bounds the lost tail
 static void VitaSys_LogFlushLine(void)
 {
     if (!s_log)
@@ -257,8 +256,7 @@ static long double VitaSys_BenchmarkGHz(void)
     return 0.1010328 / ((double)minTime * (double)msecPerRawTimerTick);
 }
 
-// the win32 path reports total physical memory, so the heap newlib already reserved has to be
-// added back to what is merely free by the time this runs
+// win32 reports total physical memory, so add back the heap newlib already reserved
 extern "C" unsigned int _newlib_heap_size_user;
 
 static int VitaSys_SystemMemoryMB(void)

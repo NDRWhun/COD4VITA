@@ -176,8 +176,7 @@ SceGxmFragmentProgram *GxmProgram_Fragment(int handle, const GxmProgramState *st
         }
     }
 
-    // a null blend info writes the output register straight out, colour mask included, so a
-    // masked write needs the blend info even with the blend funcs left at NONE
+    // a masked write needs blend info even at funcs NONE; a null one ignores the colour mask
     const SceGxmBlendInfo *blend =
         (state->blendEnabled || state->blend.colorMask != SCE_GXM_COLOR_MASK_ALL)
             ? &state->blend : NULL;

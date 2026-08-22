@@ -160,8 +160,7 @@ static bool VitaMem_Grow(VitaMemArena arena, uint32_t needed)
 {
     VitaMemArenaState *state = &s_arenas[arena];
 
-    // a partition that never yielded a block is not going to start; retrying costs a syscall
-    // on every allocation that falls through to it
+    // a partition that never yielded a block will not start; skip it rather than a syscall per fallthrough
     if (state->neverGrew)
         return false;
 

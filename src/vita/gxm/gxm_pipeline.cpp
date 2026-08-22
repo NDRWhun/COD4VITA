@@ -551,9 +551,7 @@ bool GxmPipeline_DrawIndexed(uint32_t firstIndex, uint32_t triangleCount)
         s_viewportApplied = true;
     }
 
-    // a stream an attribute reads would otherwise draw from whatever the slot last held; the
-    // count runs past unused streams below the highest, so only the mask may be demanded.
-    // a wrapped offset lands in low memory, which the GPU faults on instead of ignoring
+    // every stream up to the highest bound: a stale slot's wrapped offset faults in low memory
     for (uint32_t mask = s_layout->streamMask; mask; mask &= mask - 1)
     {
         const uint32_t i = (uint32_t)__builtin_ctz(mask);

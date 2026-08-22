@@ -83,8 +83,7 @@ static const VitaButtonMapping s_menuMap[] =
     { SCE_CTRL_RIGHT,    K_RIGHTARROW },
 };
 
-// in game the sticks feed CL_GamepadMove as analog axes; only the menus want key repeats
-// the menu walks its items with these; in game the same push drives whatever they are bound to
+// menus want stick key repeats to walk items; in game the same push drives whatever is bound
 static const int s_stickDirKeys[STICK_DIR_COUNT] = { K_UPARROW, K_DOWNARROW, K_LEFTARROW, K_RIGHTARROW };
 
 static VitaInputKeyFn s_keyFn;

@@ -231,8 +231,7 @@ bool GxmDevice_Init(void)
     if (!GxmDevice_InitLibrary())
         return false;
 
-    // pooled arenas map each block once, so every texture inside one is GPU-visible
-    // render targets are written by the GPU, so a read-only mapping would not carry them
+    // arenas map once and writable: render targets inside them are GPU-written
     VitaMem_SetGpuMapping(VITA_MEM_CDRAM, true,
                           SCE_GXM_MEMORY_ATTRIB_READ | SCE_GXM_MEMORY_ATTRIB_WRITE);
     VitaMem_SetGpuMapping(VITA_MEM_MAIN_UNCACHED, true,
@@ -413,8 +412,7 @@ void GxmDevice_CancelScene(void)
     --gxmDev.sceneNotification.value;
 }
 
-// after a finish the GPU has retired everything real, so a counter still ahead counted a scene
-// that never reached it; leaving it ahead makes every later fence unreachable
+// a counter still ahead after a finish counted a scene that never ran; left ahead, later fences never land
 void GxmDevice_ResyncScenes(void)
 {
     GxmDevice_Finish();

@@ -30,8 +30,7 @@ GxmVertexDecl *GxmMaterial_CreateVertexDecl(const GxmStreamSource *sources, uint
                                             uint32_t routingCount);
 void GxmMaterial_FreeVertexDecl(GxmVertexDecl *decl);
 
-// a vertex shader resolves now; a fragment shader stays a hash so the pipeline can pick the
-// alpha-test variant that matches the live state bits
+// vertex resolves now; fragment stays a hash so the pipeline picks the alpha-test variant per state
 GxmMaterialShader *GxmMaterial_CreateShader(const void *bytecode, uint32_t byteCount,
                                             GxmShaderStage stage);
 void GxmMaterial_FreeShader(GxmMaterialShader *shader);

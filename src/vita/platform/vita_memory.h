@@ -38,7 +38,6 @@ uint32_t VitaMem_SizeOf(const void *pointer);
 
 void VitaMem_GetStats(VitaMemArena arena, VitaMemStats *stats);
 
-// libgxm serialises nothing itself, and the database thread maps memory while the main thread
-// builds render targets; take this around every sceGxm call that changes driver state
+// take this around every driver-state sceGxm call: libgxm serialises nothing and two threads map memory
 void VitaMem_GpuLock(void);
 void VitaMem_GpuUnlock(void);
