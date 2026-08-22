@@ -974,10 +974,11 @@ void __cdecl CL_KeyMove(usercmd_s *cmd)
         kb[KEY_MOVELEFT].active || kb[KEY_MOVERIGHT].active)
     {
         static uint32_t s_moveLog;
-        if (s_moveLog++ < 12)
-            Com_Printf(14, "move: fwd %i side %i, frame_msec %u, ml act %i msec %u down %u now %u\n",
-                       forward, side, frame_msec, (int)kb[KEY_MOVELEFT].active,
-                       kb[KEY_MOVELEFT].msec, kb[KEY_MOVELEFT].downtime, com_frameTime);
+        if (s_moveLog++ < 20)
+            Com_Printf(14, "move: fwd %i side %i | ps speed %i pm_type %i pm_flags %#x vel %i\n",
+                       forward, side, clients[0].snap.ps.speed,
+                       (int)clients[0].snap.ps.pm_type, clients[0].snap.ps.pm_flags,
+                       (int)clients[0].snap.ps.velocity[0]);
     }
 #endif
 }
