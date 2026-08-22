@@ -232,6 +232,12 @@ int __cdecl SV_ProcessPendingSaves()
 	if (!pendingSaveGlob.count)
 		return 0;
 
+#ifdef KISAK_VITA
+	// serialization walks live script state, so only the thread that owns it may run saves
+	if (!Sys_IsMainThread() && !Sys_IsDatabaseThread())
+		return 0;
+#endif
+
 	if (Dvar_GetInt("g_reloading"))
 	{
 		Com_Printf(15, "savegame request ignored\n");

@@ -202,7 +202,8 @@ void __cdecl TRACK_com_math()
 
 float __cdecl random()
 {
-    return (rand() / 32768.0);
+    // msvc's RAND_MAX is 32767; newlib's is INT_MAX, so scale by the real range
+    return (float)((double)rand() / ((double)RAND_MAX + 1.0));
 }
 
 float __cdecl crandom()

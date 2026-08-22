@@ -2668,7 +2668,7 @@ void __cdecl DrawBulletImpacts(
             tracerStart[2] = gunOrient.origin[2];
             AngleVectors(viewang, orient.axis[0], orient.axis[1], orient.axis[2]);
         }
-        drawTracers = cg_firstPersonTracerChance->current.value * 32768.0 > (double)rand();
+        drawTracers = cg_firstPersonTracerChance->current.value > random();
         goto LABEL_33;
     }
     if (ent->nextState.eType != ET_PLAYER)
@@ -3863,7 +3863,7 @@ bool __cdecl ShouldSpawnTracer(int32_t localClientNum, int32_t sourceEntityNum)
         return 0;
     }
 
-    return cg_tracerChance->current.value * 32768.0 > (double)rand();
+    return cg_tracerChance->current.value > random();
 }
 
 void __cdecl CG_BulletHitClientEvent(
