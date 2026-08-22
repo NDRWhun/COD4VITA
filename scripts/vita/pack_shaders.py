@@ -25,7 +25,7 @@ ENTRY_SIZE = 16
 STAGE_VERTEX = 0
 STAGE_FRAGMENT = 1
 
-ALPHA_SUFFIX = {"": 0, "a1": 1, "a2": 2, "a3": 3}
+ALPHA_SUFFIX = {"": 0, "a1": 1, "a2": 2, "a3": 3, "c1": 1}
 
 
 def parse_name(name):

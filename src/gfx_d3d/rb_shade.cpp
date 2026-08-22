@@ -20,7 +20,8 @@ static const GxmMaterialShader *s_boundVertexShader;
 static void RB_BindVertexProgram()
 {
     const GxmVertexLayout *layout = GxmMaterial_Layout(s_boundVertexShader, s_boundDecl);
-    GxmPipeline_SetVertexShader(layout ? s_boundVertexShader->handle : -1, layout);
+    GxmPipeline_SetVertexShader(layout ? s_boundVertexShader->handle : -1,
+                                layout ? s_boundVertexShader->hash : 0, layout);
 }
 #endif
 

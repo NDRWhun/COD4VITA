@@ -48,6 +48,7 @@ static bool s_scissorEnabled;
 static uint32_t s_scissorMinX, s_scissorMinY, s_scissorMaxX, s_scissorMaxY;
 
 static int s_vertexShader = -1;
+static uint32_t s_vertexHash;
 static const GxmVertexLayout *s_layout;
 static uint32_t s_fragmentHash;
 static bool s_hasFragmentHash;
@@ -279,12 +280,13 @@ void GxmPipeline_SetScissor(bool enabled, int x, int y, int width, int height)
     s_viewportApplied = false;
 }
 
-void GxmPipeline_SetVertexShader(int shaderHandle, const GxmVertexLayout *layout)
+void GxmPipeline_SetVertexShader(int shaderHandle, uint32_t bytecodeHash, const GxmVertexLayout *layout)
 {
     if (s_vertexShader == shaderHandle && s_layout == layout)
         return;
 
     s_vertexShader = shaderHandle;
+    s_vertexHash = bytecodeHash;
     s_layout = layout;
     s_programsApplied = false;
 }
@@ -399,7 +401,16 @@ static bool GxmPipeline_ResolvePrograms(void)
     if (s_vertexShader < 0 || !s_layout || !s_hasFragmentHash)
         return false;
 
-    if (s_cachedVertexShader != s_vertexShader || s_cachedLayout != s_layout ||
+    // a ubyte4n colour decl reads rgba, so it takes the unswizzled shader variant
+    int vsHandle = s_vertexShader;
+    if (s_layout->plainColor)
+    {
+        const int alt = GxmShaderArchive_Lookup(s_vertexHash, GXM_STAGE_VERTEX, 1);
+        if (alt >= 0)
+            vsHandle = alt;
+    }
+
+    if (s_cachedVertexShader != vsHandle || s_cachedLayout != s_layout ||
         memcmp(s_cachedStrides, s_streamStride, sizeof(s_cachedStrides)) != 0)
     {
         GxmVertexLayout patched = *s_layout;
@@ -409,10 +420,10 @@ static bool GxmPipeline_ResolvePrograms(void)
                 patched.streams[i].stride = (uint16_t)s_streamStride[i];
         }
 
-        s_cachedVertexProgram = GxmProgram_Vertex(s_vertexShader, patched.attributes,
+        s_cachedVertexProgram = GxmProgram_Vertex(vsHandle, patched.attributes,
                                                   patched.attributeCount, patched.streams,
                                                   patched.streamCount);
-        s_cachedVertexShader = s_vertexShader;
+        s_cachedVertexShader = vsHandle;
         s_cachedLayout = s_layout;
         memcpy(s_cachedStrides, s_streamStride, sizeof(s_cachedStrides));
     }
@@ -434,17 +445,17 @@ static bool GxmPipeline_ResolvePrograms(void)
         return false;
 
     const uint32_t programKey = GxmState_ProgramKey(&s_program);
-    if (s_cachedProgramKey != programKey || s_cachedProgramVertex != s_vertexShader)
+    if (s_cachedProgramKey != programKey || s_cachedProgramVertex != vsHandle)
     {
         s_cachedFragmentProgram = GxmProgram_Fragment(s_cachedFragmentShader, &s_program,
-                                                      s_vertexShader);
+                                                      vsHandle);
         s_cachedProgramKey = programKey;
-        s_cachedProgramVertex = s_vertexShader;
+        s_cachedProgramVertex = vsHandle;
     }
     if (!s_cachedFragmentProgram)
         return false;
 
-    GxmDraw_SetVertexProgram(s_vertexShader, s_cachedVertexProgram);
+    GxmDraw_SetVertexProgram(vsHandle, s_cachedVertexProgram);
     GxmDraw_SetFragmentProgram(s_cachedFragmentShader, s_cachedFragmentProgram);
     return true;
 }

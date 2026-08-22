@@ -115,6 +115,8 @@ bool GxmVertex_BuildLayout(const SceGxmProgram *vertexProgram,
 
         if (source->type == 4)                  // D3DCOLOR reaches the shader as BGRA
             out->bgraMask |= 1u << out->attributeCount;
+        if (source->type == 8 && dest->usage == 10)
+            out->plainColor = true;
 
         streamUsed[source->stream] = true;
         out->streamMask |= 1u << source->stream;

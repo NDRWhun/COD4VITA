@@ -494,7 +494,7 @@ DebugGlobals *R_ToggleSmpFrame()
         CG_CalculateFPS();
     s_smpFrame = (s_smpFrame + 1) % 2;
     ++rg.frontEndFrameCount;
-    gfxBuf.dynamicBufferFrame = (gfxBuf.dynamicBufferFrame + 1) % 2;
+    gfxBuf.dynamicBufferFrame = (gfxBuf.dynamicBufferFrame + 1) % GFX_SKINNED_CACHE_FRAMES;
     gfxBuf.preTessBufferFrame = (gfxBuf.preTessBufferFrame + 1) % 2;
     frontEndDataOut = &s_backEndData[s_smpFrame];
     iassert( rg.frontEndFrameCount > 0 );

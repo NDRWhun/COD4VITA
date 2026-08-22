@@ -15,7 +15,8 @@ from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from sm3_to_cg import ALPHA_TEST_NONE, ALPHA_TEST_SUFFIX, Unsupported, translate
+from sm3_to_cg import (ALPHA_TEST_NONE, ALPHA_TEST_SUFFIX, INPUT, Shader,
+                       Unsupported, translate)
 
 CGC_FLAGS = ["-O3", "-fastmath", "-fastint"]
 
@@ -50,10 +51,22 @@ def main():
         with open(os.path.join(args.corpus, name), "rb") as f:
             data = f.read()
 
-        for variant in variants:
-            label = name + ALPHA_TEST_SUFFIX[variant]
+        # a vertex shader with a COLOR input also bakes a .c1 form without the
+        # d3dcolor unswizzle, for declarations that feed it ubyte4n
+        forms = [(v, True, ALPHA_TEST_SUFFIX[v]) for v in variants]
+        if ext == ".vs":
             try:
-                text, _ = translate(data, variant)
+                probe = Shader(data)
+                if any(rt == INPUT and usage == 10
+                       for (rt, num), (usage, index) in probe.decls.items()):
+                    forms.append((ALPHA_TEST_NONE, False, ".c1"))
+            except Unsupported:
+                pass
+
+        for variant, bgra, suffix in forms:
+            label = name + suffix
+            try:
+                text, _ = translate(data, variant, bgra_colors=bgra)
             except Unsupported as e:
                 translate_fail[str(e)] += 1
                 failures.append((label, "translate", str(e)))
@@ -63,7 +76,7 @@ def main():
                 failures.append((label, "translate", "%s: %s" % (type(e).__name__, e)))
                 continue
 
-            cg_path = os.path.join(args.outdir, stem + ALPHA_TEST_SUFFIX[variant] + ".cg")
+            cg_path = os.path.join(args.outdir, stem + suffix + ".cg")
             gxp_path = os.path.join(args.outdir, label + ".gxp")
             with open(cg_path, "w", newline="\n") as f:
                 f.write(text)

@@ -381,7 +381,7 @@ def semantic(usage, index):
     return "%s%d" % (name, index)
 
 
-def translate(data, alpha_test=ALPHA_TEST_NONE):
+def translate(data, alpha_test=ALPHA_TEST_NONE, bgra_colors=True):
     sh = Shader(data)
     em = Emitter(sh)
 
@@ -390,7 +390,7 @@ def translate(data, alpha_test=ALPHA_TEST_NONE):
     for (rtype, num), (usage, index) in sorted(sh.decls.items()):
         if rtype == INPUT:
             # D3DCOLOR attributes arrive as their raw BGRA bytes; d3d9 swizzled in hardware
-            if sh.is_vs and usage == 10:
+            if sh.is_vs and usage == 10 and bgra_colors:
                 params.append("float4 v%d_bgra : %s" % (num, semantic(usage, index)))
                 color_inputs.append(num)
             else:

@@ -33,6 +33,7 @@ struct GxmVertexLayout
 
     // attributes fed from a D3DCOLOR field, which is BGRA in memory
     uint32_t bgraMask;
+    bool plainColor;               // a COLOR attribute fed by UBYTE4N, already rgba
 };
 
 // strides are indexed by stream; a stream with no attributes is dropped

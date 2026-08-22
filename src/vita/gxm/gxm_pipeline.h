@@ -27,7 +27,7 @@ void GxmPipeline_SetViewport(int x, int y, int width, int height,
 void GxmPipeline_SetScissor(bool enabled, int x, int y, int width, int height);
 
 // layout comes from GxmVertex_BuildLayout for this shader and vertex declaration
-void GxmPipeline_SetVertexShader(int shaderHandle, const GxmVertexLayout *layout);
+void GxmPipeline_SetVertexShader(int shaderHandle, uint32_t bytecodeHash, const GxmVertexLayout *layout);
 
 // named by SM3 bytecode hash, because the alpha test mode picks the archive variant
 void GxmPipeline_SetFragmentShader(uint32_t bytecodeHash);
