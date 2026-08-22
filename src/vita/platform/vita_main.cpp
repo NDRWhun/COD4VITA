@@ -15,6 +15,7 @@
 
 #include <psp2/kernel/sysmem.h>
 #include <psp2/kernel/threadmgr.h>
+#include <psp2/kernel/processmgr.h>
 
 #include "vita_memory.h"
 #include "vita_selftest.h"
@@ -69,7 +70,9 @@ static int VitaMain_Watchdog(SceSize args, void *argp)
     const SceUID mainUid = *(SceUID *)argp;
     int last = 0;
     unsigned stalled = 0;
+    unsigned hot = 0;
     SceUInt64 lastClocks = 0;
+    SceUInt64 lastWall = sceKernelGetProcessTimeWide();
     while (1)
     {
         sceKernelDelayThread(2 * 1000 * 1000);
@@ -77,6 +80,7 @@ static int VitaMain_Watchdog(SceSize args, void *argp)
         {
             last = com_frameTime;
             stalled = 0;
+            hot = 0;
             continue;
         }
         if (!last)
@@ -86,11 +90,23 @@ static int VitaMain_Watchdog(SceSize args, void *argp)
         memset(&ti, 0, sizeof(ti));
         ti.size = sizeof(ti);
         sceKernelGetThreadInfo(mainUid, &ti);
+        SceUInt64 wall = sceKernelGetProcessTimeWide();
+        SceUInt64 ran = ti.runClocks - lastClocks;
         VitaSys_LogPrintf("watchdog: main stalled %us at frame time %i, status %i, "
                           "ranClocks +%llu\n",
-                          stalled * 2, last, ti.status,
-                          (unsigned long long)(ti.runClocks - lastClocks));
+                          stalled * 2, last, ti.status, (unsigned long long)ran);
+        // a sustained full-speed spin with a frozen frame counter is an infinite loop;
+        // aborting turns the silent freeze into a core dump naming it
+        hot = (ran > (wall - lastWall) * 3 / 4) ? hot + 1 : 0;
         lastClocks = ti.runClocks;
+        lastWall = wall;
+        if (hot >= 12)
+        {
+            VitaSys_LogPrintf("watchdog: main spun hot for %us, aborting for a core dump\n",
+                              hot * 2);
+            sceKernelDelayThread(200 * 1000);
+            abort();
+        }
     }
     return 0;
 }
