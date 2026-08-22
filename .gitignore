@@ -458,3 +458,4 @@ shaders.kgxp
 
 # out-of-source build trees
 build-smoke/
+*.psp2dmp

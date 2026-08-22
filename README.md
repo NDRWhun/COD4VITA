@@ -4,109 +4,101 @@
 
 [![platform](https://img.shields.io/badge/platform-PS%20Vita-4b6cb7)](https://vitasdk.org)&nbsp;[![renderer](https://img.shields.io/badge/renderer-native%20sceGxm-8a4fff)](src/vita/gxm)&nbsp;[![engine](https://img.shields.io/badge/engine-KisakCOD-555)](https://github.com/SwagSoftware/KisakCOD)&nbsp;[![license](https://img.shields.io/badge/license-GPLv3-blue)](LICENSE)
 
-A port of Call of Duty 4's single-player to the PS Vita, built on
+A port of Call of Duty 4's single-player campaign to the PS Vita, built on
 [KisakCOD](https://github.com/SwagSoftware/KisakCOD) with a native sceGxm rendering backend
-replacing Direct3D 9.
+replacing Direct3D 9. Nothing is emulated: the renderer, memory system, threading, audio
+mixer and video player are written against the Vita's own hardware and kernel.
 
 ## Status
 
-**The game does not run yet.** This is a port in progress, and the parts that exist are these:
+**In development — playable, not finished.** The game boots, menus work, and campaign levels
+load and play. It is not yet a polished experience:
 
 | Part | State |
 | --- | --- |
-| sceGxm renderer | draws on hardware — textures, blending, depth, state translation |
-| Shader pipeline | all 609 of the game's D3D9 shaders translate, compile and register on device |
-| Memory, threads, files, timing | implemented on the Vita kernel, checked by on-device self-tests |
-| Engine build target | configures and builds; 383 of 437 translation units compile for ARM |
-| Remaining failures | 54, almost all of them Direct3D 9 call sites still awaiting a GXM rewrite |
-| Link | fails — there is no Vita entry point yet, and the `src/win32` and `src/sound` exclusions leave gaps |
-| Boot | not reached; no fastfile has been loaded |
+| Engine | full SP engine builds and runs on device; scripts, AI, saves, autosaves work |
+| Renderer | native sceGxm; all 609 of the game's shaders translated and running on the USSE |
+| Movies | hardware AVC decode through sceVideodec, with AAC audio |
+| Sound | full mixer at load-time IMA-ADPCM; music and streams play |
+| Performance | CPU-bound; large outdoor levels are heavy for 3 ARM cores at 500 MHz |
+| Known issues | NPC animation bugs under investigation, lighting artifacts on some maps, memory pressure on the biggest levels |
 
-There is nothing playable to install. Follow the commits if you want to watch it come together.
+Progress is documented as it happens in [PORTING_NOTES.md](PORTING_NOTES.md), which carries
+every measured number and every trap this port has stepped in — including the two ARM
+miscompile classes (pointer-provenance folding and volatile-stripping alias macros) that
+anyone porting decompiled x86 code will eventually meet.
 
-## How it works
+## Setup (for players)
 
-The renderer is written directly against sceGxm rather than emulating D3D9. Two consequences drive
-most of the design:
+You need your own copy of Call of Duty 4 (PC). The game's assets are prepared on a PC and
+copied to the card once:
 
-- **Blend state is compiled, not set.** GXM bakes blend mode and colour mask into the fragment
-  program, so a material's state bits select a program instance instead of flipping device state.
-- **Shaders are translated offline.** The game ships D3D9 SM3 bytecode in its fastfiles, which USSE
-  cannot run and the Vita has no runtime compiler for. `scripts/vita/` extracts the bytecode from a
-  local install, translates it to Cg, compiles it with Sony's shader compiler and packs the result
-  into an archive the runtime looks up by bytecode hash.
+1. Install the release VPK.
+2. Copy `zone/english` from your install to `ux0:data/kisakcod/zone/`.
+3. Repack the texture archives with `scripts/vita/iwi_strip.py` (caps textures at what the
+   panel can show and roughly halves their size) and copy them to `ux0:data/kisakcod/main/`.
+4. Re-encode the Bink cinematics with `scripts/vita/convert_video.py` (needs ffmpeg) into
+   `ux0:data/kisakcod/video/`.
+5. Build `shaders.kgxp` from your install (see below) and copy it to `ux0:data/kisakcod/`.
 
-The translation is checked two ways: every instruction is diffed against `D3DXDisassembleShader`'s
-own output, and the bytecode and the generated Cg are executed on identical inputs and compared.
-Both pass across the whole corpus. Details and measurements are in [PORTING_NOTES.md](PORTING_NOTES.md).
+## Controls
+
+Sticks: left moves, right looks. In menus, Cross confirms and Circle backs out.
+
+| Control | Action |
+| --- | --- |
+| Cross | jump / stand |
+| Circle | crouch |
+| Square | use / reload |
+| Triangle | switch weapon |
+| L | aim down sights |
+| R | fire |
+| D-pad up | night vision |
+| D-pad down | prone |
+| D-pad left / right | smoke / frag grenade |
+| Select | sprint / hold breath |
+| Rear touch | left: sprint · right: melee |
+| Start | pause |
+
+Every control raises its own bindable key (`AUX1`–`AUX13`), and the defaults are written to
+`ux0:data/kisakcod/raw/vita_controls.cfg` on first boot — edit that file to rebind anything.
 
 ## Build (for developers)
 
-Needs [VitaSDK](https://vitasdk.org), cmake and python 3. **On Windows, run from Git Bash.**
+Needs [VitaSDK](https://vitasdk.org), CMake and Python 3. **On Windows, run from Git Bash.**
 
 ```bash
 export VITASDK=/path/to/vitasdk
 export PATH=$VITASDK/bin:$PATH
 
-cmake -S src/vita/test -B build -G "Unix Makefiles"
-cmake --build build           # -> build/gxm_smoke.vpk
-```
-
-That builds the renderer smoke test: it brings up the device, runs the memory, threading and
-filesystem self-tests, and draws a textured quad. It writes what it found to
-`ux0:data/kisakcod/smoke.log`.
-
-The engine target is separate, and does not link yet:
-
-```bash
-cmake -S . -B build-vita -G "Unix Makefiles" -DKISAK_PLATFORM=vita \
-      -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake
-cmake --build build-vita -j8
+cmake -S . -B build-vita -DKISAK_PLATFORM=vita \
+      -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake \
+      -DSHADER_ARCHIVE=/path/to/shaders.kgxp
+cmake --build build-vita -j8        # -> build-vita/scripts/vita/COD4VITA.vpk
 ```
 
 ### Generated files
 
-Three things are built from data this repository cannot carry, so they are generated locally:
+Some inputs are built from game data this repository cannot carry:
 
 | File | Generated by | Needs |
 | --- | --- | --- |
 | `shaders.kgxp` | `ff_shader_scan.py`, `build_shaders.py`, `pack_shaders.py` | your CoD4 install and Sony's `psp2cgc` |
-| `sce_sys/*.png` | `make_livearea.py` | artwork you supply |
+| stripped `.iwd` archives | `iwi_strip.py` | your CoD4 install |
+| `video/*.mp4` | `convert_video.py` | your CoD4 install and ffmpeg |
 | `src/gfx_d3d/d3d9_shim.h` | `gen_d3d9_shim.py` | the DirectX SDK, which KisakCOD already requires |
 
-```bash
-python scripts/vita/ff_shader_scan.py "<cod4>/zone/english" corpus/
-python scripts/vita/build_shaders.py corpus/ gxp/ --cgc "<sdk>/psp2cgc.exe"
-python scripts/vita/pack_shaders.py gxp/ shaders.kgxp
-python scripts/vita/make_livearea.py --background <image> --logo <image>
-python scripts/vita/gen_d3d9_shim.py --sdk "<dxsdk>/Include"
-
-cmake -S src/vita/test -B build -DSHADER_ARCHIVE=$PWD/shaders.kgxp
-```
-
-The build works without any of them; it just produces a VPK with no shader archive and the default
-LiveArea gate.
+A build without `SHADER_ARCHIVE` compiles but renders through fallback shaders; it exists so
+CI can prove the tree builds.
 
 ## Credits
 
-- [KisakCOD](https://github.com/SwagSoftware/KisakCOD) (SwagSoftware) — the open-source CoD4
-  reimplementation this builds on. Its own README is kept as
-  [README.upstream.md](README.upstream.md), and the Windows targets it describes still build.
-- Infinity Ward / Activision — the original *Call of Duty 4: Modern Warfare*.
-- [VitaSDK](https://vitasdk.org) — the toolchain and the homebrew import stubs the port links against.
-- [JAVITA](https://github.com/NDRWhun/JAVITA) — the sibling Jedi Academy port this one follows for
-  build and packaging layout.
+- [KisakCOD](https://github.com/SwagSoftware/KisakCOD) — the CoD4 single-player
+  reconstruction this port stands on
+- [VitaSDK](https://vitasdk.org) — toolchain and headers
+- Infinity Ward — the game
 
 ## License
 
-GPLv3 (see [LICENSE](LICENSE)), matching KisakCOD. Source under `src/vita/` and `scripts/vita/` is
-written for this port and carries the same licence; the rest of `src/` keeps its upstream copyright
-headers. Vendored third-party components are listed in [THIRD_PARTY.md](THIRD_PARTY.md).
-
-No Sony SDK code is included. The renderer links VitaSDK's import stubs; Sony's documentation and
-shader compiler are used at build time only and are not redistributable.
-
-Unofficial, non-commercial fan port — not affiliated with or endorsed by Activision or Infinity
-Ward. *Call of Duty* is a trademark of its owner. Game assets are not distributed and never will
-be: you need a legally-owned copy of Call of Duty 4, and everything derived from it is generated on
-your own machine.
+GPLv3, matching upstream KisakCOD — see [LICENSE](LICENSE). Game assets are not included
+and must come from your own copy of Call of Duty 4.

@@ -26,16 +26,18 @@ jobs:
       - name: Trust the workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      # the shader archive and livearea artwork are built from the user's own files, so
-      # ci builds the vpk without them
+      # the shader archive and livearea artwork come from the user's own game files,
+      # so ci proves the tree builds and ships a fallback-shader vpk
       - name: Configure
-        run: cmake -S src/vita/test -B build -G Ninja
+        run: |
+          cmake -S . -B build -G Ninja -DKISAK_PLATFORM=vita \
+                -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake
 
       - name: Build
         run: cmake --build build
 
       - uses: actions/upload-artifact@v4
         with:
-          name: gxm_smoke-vpk
-          path: build/gxm_smoke.vpk
+          name: COD4VITA-vpk
+          path: build/scripts/vita/COD4VITA.vpk
           if-no-files-found: error
