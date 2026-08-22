@@ -1058,17 +1058,38 @@ void __cdecl CL_GamepadMove(usercmd_s *cmd)
 
     // direct integration; aim assist's gamepad half is not ported
     static const dvar_s *lookPower;
+    static const dvar_s *lookYawSpeed;
+    static const dvar_s *lookPitchSpeed;
     if (!lookPower)
+    {
         lookPower = Dvar_RegisterFloat("vita_lookPower", 2.0f, 1.0f, 4.0f, DVAR_ARCHIVE,
                                        "Right stick response curve exponent; 1 is linear");
+        lookYawSpeed = Dvar_RegisterFloat("vita_lookYawSpeed", 240.0f, 40.0f, 720.0f, DVAR_ARCHIVE,
+                                          "Full-deflection yaw speed, degrees per second");
+        lookPitchSpeed = Dvar_RegisterFloat("vita_lookPitchSpeed", 140.0f, 40.0f, 720.0f, DVAR_ARCHIVE,
+                                            "Full-deflection pitch speed, degrees per second");
+    }
 
     const float dt = (float)(unsigned int)cls.frametime * 0.001f;
     const float power = lookPower->current.value;
     const float shapedPitch = powf(I_fabs(pitchAxis), power) * (pitchAxis < 0.0f ? -1.0f : 1.0f);
     const float shapedYaw = powf(I_fabs(yawAxis), power) * (yawAxis < 0.0f ? -1.0f : 1.0f);
 
-    clients[0].viewangles[0] += shapedPitch * clients[0].cgameMaxPitchSpeed * dt;
-    clients[0].viewangles[1] += shapedYaw * clients[0].cgameMaxYawSpeed * dt;
+    // a zero cgame cap means uncapped, so the base rate only clamps to a nonzero one
+    float pitchRate = lookPitchSpeed->current.value;
+    float yawRate = lookYawSpeed->current.value;
+    if (clients[0].cgameMaxPitchSpeed != 0.0f && pitchRate > clients[0].cgameMaxPitchSpeed)
+        pitchRate = clients[0].cgameMaxPitchSpeed;
+    if (clients[0].cgameMaxYawSpeed != 0.0f && yawRate > clients[0].cgameMaxYawSpeed)
+        yawRate = clients[0].cgameMaxYawSpeed;
+    if (clients[0].usingAds)
+    {
+        pitchRate *= 0.55f;
+        yawRate *= 0.55f;
+    }
+
+    clients[0].viewangles[0] += shapedPitch * pitchRate * dt;
+    clients[0].viewangles[1] += shapedYaw * yawRate * dt;
 }
 #else
 void __cdecl CL_GamepadMove(usercmd_s *cmd)
