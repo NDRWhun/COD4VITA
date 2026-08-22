@@ -61,6 +61,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR} ${DEPS_DIR})
 # vita_prefix.h uses extern "C", so the zlib and ode C files must not receive it
 target_compile_options(${PROJECT_NAME} PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:-include;${SRC_DIR}/vita/platform/vita_prefix.h>"
+    # __FILE__ otherwise bakes the build machine's absolute paths into the shipped eboot
+    "-ffile-prefix-map=${CMAKE_SOURCE_DIR}=."
 )
 
 # dr_wav/dr_mp3 generate their implementations in this one translation unit
