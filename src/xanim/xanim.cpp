@@ -1801,6 +1801,16 @@ void __cdecl XAnimProcessServerNotify(const DObj_s* obj, XAnimInfo* info, float 
                     if (notifyIndex >= parts->notifyCount)
                         MyAssertHandler(".\\xanim\\xanim.cpp", 1993, 0, "%s", "notifyIndex < parts->notifyCount");
                     notifyInfo = &parts->notify[notifyIndex];
+#ifdef KISAK_VITA
+                    {
+                        static uint32_t s_dispLog;
+                        if (s_dispLog++ < 12)
+                            Com_Printf(14, "anim fire '%s' notify %p n=%u idx %i [i]=%u t=%.3f\n",
+                                       parts->name, (void *)parts->notify,
+                                       (unsigned)parts->notifyCount, notifyIndex,
+                                       notifyInfo->name, notifyInfo->time);
+                    }
+#endif
                     if (info->state.currentAnimTime <= (double)time)
                     {
                         if (time == 1.0)

@@ -1354,6 +1354,19 @@ void __cdecl Load_XAnimParts(bool atStreamStart)
         varXAnimParts->notify = (XAnimNotifyInfo *)AllocLoad_FxElemVisStateSample();
         varXAnimNotifyInfo = varXAnimParts->notify;
         Load_XAnimNotifyInfoArray(1, varXAnimParts->notifyCount);
+#ifdef KISAK_VITA
+        // pairs with the dispatch-side line, so a moved pointer or changed entry shows itself
+        {
+            static uint32_t s_animLog;
+            const char *SL_ConvertToString(unsigned int);
+            if (s_animLog++ < 12 && varXAnimParts->notifyCount)
+                Com_Printf(16, "anim load '%s' notify %p n=%u [0]=%u '%s' t=%.3f\n",
+                           varXAnimParts->name, (void *)varXAnimParts->notify,
+                           varXAnimParts->notifyCount, varXAnimParts->notify[0].name,
+                           SL_ConvertToString(varXAnimParts->notify[0].name),
+                           varXAnimParts->notify[0].time);
+        }
+#endif
     }
     if (varXAnimParts->deltaPart)
     {
