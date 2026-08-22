@@ -6,7 +6,9 @@
 
 A native port of Call of Duty 4's single-player campaign (IW 3.0 engine) to the PS Vita,
 built on [KisakCOD](https://github.com/SwagSoftware/KisakCOD). The renderer targets sceGxm
-directly — no emulation, no wrapper.
+directly. 
+
+**Consider this as a POC**
 
 ## Status
 
