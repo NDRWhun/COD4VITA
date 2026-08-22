@@ -1936,9 +1936,9 @@ void __cdecl NotifyServerNotetrack(const DObj_s* obj, uint32_t notifyName, uint3
     // the tutorial hangs on animation notifies, so the first few name themselves
     static uint32_t s_noteLog;
     if (s_noteLog++ < 10)
-        Com_Printf(14, "anim notify ent %i '%s' -> '%s'\n",
+        Com_Printf(14, "anim notify ent %i '%s' -> '%s' (raw %u)\n",
                    obj->entnum - 1, SL_ConvertToString(notifyName),
-                   SL_ConvertToString(notetrackName));
+                   SL_ConvertToString(notetrackName), notetrackName);
 #endif
     Scr_AddConstString(notetrackName);
     Scr_NotifyNum(obj->entnum - 1, 0, notifyName, 1u);

@@ -1322,6 +1322,12 @@ static SceUID s_workerThread = -1;
 static int s_audioPort = -1;
 static volatile bool s_workerRun;
 static volatile bool s_workerDone;
+static SceUID s_audioThreadId = -1;
+static volatile bool s_audioDone;
+static FILE *s_audFile;
+static uint8_t *s_audEsBuf;
+static uint32_t s_audEsBufSize;
+static unsigned s_clockBegin;
 
 // one flat table per track, resolved from the mp4's chunk maps at open
 struct CinSample
@@ -1802,109 +1808,111 @@ static void Cin_StageDecodedFrame(const SceAvcdecPicture *picture)
 static int Cin_WorkerThread(SceSize args, void *argp)
 {
     (void)args; (void)argp;
-    const unsigned begin = VitaSys_Milliseconds();
-    uint32_t audioGrain = 0;
     uint32_t decodeErrors = 0;
 
-    while (s_workerRun && ((s_avcLive && s_vid.next < s_vid.count) ||
-                           (s_aacLive && s_aud.next < s_aud.count)))
+    while (s_workerRun && s_avcLive && s_vid.next < s_vid.count)
     {
-        const uint32_t vidBefore = s_vid.next;
-        const uint32_t audBefore = s_aud.next;
-
-        for (int burst = 0; burst < 2 && s_avcLive && s_vid.next < s_vid.count &&
-             s_vid.samples[s_vid.next].ptsMs <= VitaSys_Milliseconds() - begin; ++burst)
+        if (s_vid.samples[s_vid.next].ptsMs > VitaSys_Milliseconds() - s_clockBegin)
         {
-            const CinSample *sample = &s_vid.samples[s_vid.next++];
-            const uint32_t esLen = (sample->size + s_spsPpsLen <= s_esBufSize)
-                ? Cin_LoadVideoSample(sample) : 0;
-            if (esLen)
-            {
-                SceAvcdecAu au;
-                memset(&au, 0, sizeof(au));
-                au.pts.upper = 0xFFFFFFFFu;
-                au.pts.lower = 0xFFFFFFFFu;
-                au.dts.upper = 0xFFFFFFFFu;
-                au.dts.lower = 0xFFFFFFFFu;
-                au.es.pBuf = s_esBuf;
-                au.es.size = esLen;
-
-                SceAvcdecPicture picture;
-                memset(&picture, 0, sizeof(picture));
-                picture.size = sizeof(picture);
-                picture.frame.pixelType = SCE_AVCDEC_PIXELFORMAT_YUV420_RASTER;
-                picture.frame.framePitch = s_avcPitch;
-                picture.frame.frameWidth = s_avcPitch;
-                picture.frame.frameHeight = s_avcRows;
-                picture.frame.pPicture[0] = s_avcOutBase;
-                picture.frame.pPicture[1] = (uint8_t *)s_avcOutBase + s_avcPitch * s_avcRows;
-
-                SceAvcdecPicture *pictures[1] = { &picture };
-                SceAvcdecArrayPicture array;
-                memset(&array, 0, sizeof(array));
-                array.numOfElm = 1;
-                array.pPicture = pictures;
-
-                const int rc = sceAvcdecDecode(&s_avcCtrl, &au, &array);
-                if (rc < 0)
-                {
-                    if (decodeErrors++ < 3)
-                        VitaSys_LogPrintf("cinematic: decode 0x%08x at sample %u\n",
-                                          (unsigned)rc, s_vid.next - 1);
-                }
-                else if (array.numOfOutput && sample->ptsMs + 120 >= VitaSys_Milliseconds() - begin)
-                {
-                    Cin_StageDecodedFrame(&picture);
-                }
-            }
-            /* next burst */;
-        }
-
-        // last: its output blocks in real time, which absorbs the decode above
-        if (s_aacLive && s_aud.next < s_aud.count &&
-            s_aud.samples[s_aud.next].ptsMs <= VitaSys_Milliseconds() - begin + 30)
-        {
-            const CinSample *sample = &s_aud.samples[s_aud.next++];
-            if (sample->size <= s_esBufSize &&
-                fseek(s_mp4, (long)sample->offset, SEEK_SET) == 0 &&
-                fread(s_esBuf, 1, sample->size, s_mp4) == sample->size)
-            {
-                s_aacCtrl.pEs = s_esBuf;
-                s_aacCtrl.maxEsSize = sample->size;
-                s_aacCtrl.inputEsSize = sample->size;
-                if (sceAudiodecDecode(&s_aacCtrl) >= 0 &&
-                    s_aacCtrl.outputPcmSize)
-                {
-                    const uint32_t frames = s_aacCtrl.outputPcmSize / (2 * s_aacCh);
-                    if (s_audioPort < 0 && frames)
-                    {
-                        s_audioPort = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_BGM,
-                                                          (int)frames, (int)s_aacRate,
-                                                          s_aacCh == 1 ? SCE_AUDIO_OUT_MODE_MONO
-                                                                       : SCE_AUDIO_OUT_MODE_STEREO);
-                        audioGrain = frames;
-                        if (s_audioPort >= 0)
-                        {
-                            int volume[2];
-                            volume[0] = volume[1] = (int)(s_volume * SCE_AUDIO_VOLUME_0DB);
-                            sceAudioOutSetVolume(s_audioPort,
-                                                 (SceAudioOutChannelFlag)(SCE_AUDIO_VOLUME_FLAG_L_CH |
-                                                                          SCE_AUDIO_VOLUME_FLAG_R_CH),
-                                                 volume);
-                        }
-                    }
-                    if (s_audioPort >= 0 && frames == audioGrain)
-                        sceAudioOutOutput(s_audioPort, s_aacPcm);
-                }
-            }
-            /* fall through to video */;
-        }
-
-        if (s_vid.next == vidBefore && s_aud.next == audBefore)
             sceKernelDelayThread(2000);
+            continue;
+        }
+        const CinSample *sample = &s_vid.samples[s_vid.next++];
+        const uint32_t esLen = (sample->size + s_spsPpsLen <= s_esBufSize)
+            ? Cin_LoadVideoSample(sample) : 0;
+        if (!esLen)
+            continue;
+
+        SceAvcdecAu au;
+        memset(&au, 0, sizeof(au));
+        au.pts.upper = 0xFFFFFFFFu;
+        au.pts.lower = 0xFFFFFFFFu;
+        au.dts.upper = 0xFFFFFFFFu;
+        au.dts.lower = 0xFFFFFFFFu;
+        au.es.pBuf = s_esBuf;
+        au.es.size = esLen;
+
+        SceAvcdecPicture picture;
+        memset(&picture, 0, sizeof(picture));
+        picture.size = sizeof(picture);
+        picture.frame.pixelType = SCE_AVCDEC_PIXELFORMAT_YUV420_RASTER;
+        picture.frame.framePitch = s_avcPitch;
+        picture.frame.frameWidth = s_avcPitch;
+        picture.frame.frameHeight = s_avcRows;
+        picture.frame.pPicture[0] = s_avcOutBase;
+        picture.frame.pPicture[1] = (uint8_t *)s_avcOutBase + s_avcPitch * s_avcRows;
+
+        SceAvcdecPicture *pictures[1] = { &picture };
+        SceAvcdecArrayPicture array;
+        memset(&array, 0, sizeof(array));
+        array.numOfElm = 1;
+        array.pPicture = pictures;
+
+        const int rc = sceAvcdecDecode(&s_avcCtrl, &au, &array);
+        if (rc < 0)
+        {
+            if (decodeErrors++ < 3)
+                VitaSys_LogPrintf("cinematic: decode 0x%08x at sample %u\n",
+                                  (unsigned)rc, s_vid.next - 1);
+        }
+        else if (array.numOfOutput && sample->ptsMs + 120 >= VitaSys_Milliseconds() - s_clockBegin)
+        {
+            Cin_StageDecodedFrame(&picture);
+        }
     }
 
     s_workerDone = true;
+    return 0;
+}
+
+// its blocking output self-paces this thread; video never waits behind it again
+static int Cin_AudioThread(SceSize args, void *argp)
+{
+    (void)args; (void)argp;
+    uint32_t audioGrain = 0;
+
+    while (s_workerRun && s_aacLive && s_aud.next < s_aud.count)
+    {
+        if (s_aud.samples[s_aud.next].ptsMs > VitaSys_Milliseconds() - s_clockBegin + 30)
+        {
+            sceKernelDelayThread(2000);
+            continue;
+        }
+        const CinSample *sample = &s_aud.samples[s_aud.next++];
+        if (sample->size > s_audEsBufSize ||
+            fseek(s_audFile, (long)sample->offset, SEEK_SET) != 0 ||
+            fread(s_audEsBuf, 1, sample->size, s_audFile) != sample->size)
+            continue;
+
+        s_aacCtrl.pEs = s_audEsBuf;
+        s_aacCtrl.maxEsSize = sample->size;
+        s_aacCtrl.inputEsSize = sample->size;
+        if (sceAudiodecDecode(&s_aacCtrl) < 0 || !s_aacCtrl.outputPcmSize)
+            continue;
+
+        const uint32_t frames = s_aacCtrl.outputPcmSize / (2 * s_aacCh);
+        if (s_audioPort < 0 && frames)
+        {
+            s_audioPort = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_BGM,
+                                              (int)frames, (int)s_aacRate,
+                                              s_aacCh == 1 ? SCE_AUDIO_OUT_MODE_MONO
+                                                           : SCE_AUDIO_OUT_MODE_STEREO);
+            audioGrain = frames;
+            if (s_audioPort >= 0)
+            {
+                int volume[2];
+                volume[0] = volume[1] = (int)(s_volume * SCE_AUDIO_VOLUME_0DB);
+                sceAudioOutSetVolume(s_audioPort,
+                                     (SceAudioOutChannelFlag)(SCE_AUDIO_VOLUME_FLAG_L_CH |
+                                                              SCE_AUDIO_VOLUME_FLAG_R_CH),
+                                     volume);
+            }
+        }
+        if (s_audioPort >= 0 && frames == audioGrain)
+            sceAudioOutOutput(s_audioPort, s_aacPcm);
+    }
+
+    s_audioDone = true;
     return 0;
 }
 
@@ -1979,6 +1987,21 @@ void __cdecl R_Cinematic_StopPlayback()
         sceKernelDeleteThread(s_workerThread);
         s_workerThread = -1;
     }
+    if (s_audioThreadId >= 0)
+    {
+        sceKernelWaitThreadEnd(s_audioThreadId, NULL, NULL);
+        sceKernelDeleteThread(s_audioThreadId);
+        s_audioThreadId = -1;
+    }
+    if (s_audFile)
+    {
+        fclose(s_audFile);
+        s_audFile = NULL;
+    }
+    free(s_audEsBuf);
+    s_audEsBuf = NULL;
+    s_audEsBufSize = 0;
+    s_audioDone = false;
     if (s_audioPort >= 0)
     {
         sceAudioOutReleasePort(s_audioPort);
@@ -2084,11 +2107,30 @@ void __cdecl R_Cinematic_StartPlayback(char *name, uint32_t playbackFlags, float
 
     s_volume = volume;
     s_workerRun = true;
-    s_workerDone = false;
+    s_workerDone = !haveVideo;
+    s_audioDone = !haveAudio;
+    s_clockBegin = VitaSys_Milliseconds();
     s_workerThread = sceKernelCreateThread("kcod_cinematic", Cin_WorkerThread, 160, 64 * 1024,
                                            0, SCE_KERNEL_CPU_MASK_USER_ALL, NULL);
     if (s_workerThread >= 0)
         sceKernelStartThread(s_workerThread, 0, NULL);
+    if (haveAudio)
+    {
+        s_audFile = fopen(path, "rb");
+        uint32_t maxAud = 0;
+        for (uint32_t i = 0; i < s_aud.count; ++i)
+            if (s_aud.samples[i].size > maxAud)
+                maxAud = s_aud.samples[i].size;
+        s_audEsBufSize = maxAud + 64;
+        s_audEsBuf = (uint8_t *)memalign(64, s_audEsBufSize);
+        s_audioThreadId = (s_audFile && s_audEsBuf)
+            ? sceKernelCreateThread("kcod_cin_aud", Cin_AudioThread, 160, 32 * 1024,
+                                    0, SCE_KERNEL_CPU_MASK_USER_ALL, NULL) : -1;
+        if (s_audioThreadId >= 0)
+            sceKernelStartThread(s_audioThreadId, 0, NULL);
+        else
+            s_audioDone = true;
+    }
 
     VitaSys_LogPrintf("cinematic: playing %s (%ux%u, %u video + %u audio samples, video %s audio %s)\n",
                       path, s_vidW, s_vidH, s_vid.count, s_aud.count,
@@ -2146,7 +2188,7 @@ void __cdecl R_Cinematic_UpdateFrame()
         }
     }
 
-    if (s_workerDone && !s_finished)
+    if (s_workerDone && s_audioDone && !s_finished)
     {
         VitaSys_LogPrintf("cinematic: over after %u ms, %u frames shown\n",
                           VitaSys_Milliseconds() - s_startMs, s_frameSeen);

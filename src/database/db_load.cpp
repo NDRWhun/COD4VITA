@@ -1303,8 +1303,23 @@ void __cdecl Load_XAnimPartTrans(bool atStreamStart)
 void __cdecl Load_XAnimNotifyInfo(bool atStreamStart)
 {
     Load_Stream(atStreamStart, (uint8_t *)varXAnimNotifyInfo, 8);
+#ifdef KISAK_VITA
+    // the first few remaps show whether the notetrack ids survive the zone load
+    static uint32_t s_remapLog;
+    const uint16_t before = varXAnimNotifyInfo->name;
     varScriptString = &varXAnimNotifyInfo->name;
     Load_ScriptString(0);
+    if (s_remapLog++ < 8)
+    {
+        const char *SL_ConvertToString(unsigned int);
+        Com_Printf(16, "anim notetrack load: zone %u -> global %u '%s'\n",
+                   before, varXAnimNotifyInfo->name,
+                   SL_ConvertToString(varXAnimNotifyInfo->name));
+    }
+#else
+    varScriptString = &varXAnimNotifyInfo->name;
+    Load_ScriptString(0);
+#endif
 }
 
 void __cdecl Load_XAnimNotifyInfoArray(bool atStreamStart, int32_t count)
