@@ -12,12 +12,15 @@ struct GxmStage
     uint32_t constantWords;                     // how many words the array holds
     float shadow[GXM_MAX_CONSTANT_REGISTERS * 4];
     uint32_t highWater;                         // words worth uploading
+    const SceGxmProgramParameter *volumeParam[GXM_MAX_TEXTURE_UNITS];
+    bool hasVolumeParams;
     bool dirty;
 };
 
 static GxmStage s_vertex;
 static GxmStage s_fragment;
 static uint32_t s_drawCount;
+static float s_volumeLayout[GXM_MAX_TEXTURE_UNITS][2];
 static uint32_t s_droppedConstants;
 static GxmTexture s_dummyTexture;       // stands in for an unbound sampler unit
 
@@ -58,6 +61,16 @@ static void GxmDraw_BindStage(GxmStage *stage, int shaderHandle)
     stage->constants = sceGxmProgramFindParameterByName(program, "c");
     if (stage->constants)
         stage->constantWords = sceGxmProgramParameterGetArraySize(stage->constants) * 4;
+
+    stage->hasVolumeParams = false;
+    for (uint32_t unit = 0; unit < GXM_MAX_TEXTURE_UNITS; ++unit)
+    {
+        char name[24];
+        snprintf(name, sizeof(name), "volumeLayout_s%u", unit);
+        stage->volumeParam[unit] = sceGxmProgramFindParameterByName(program, name);
+        if (stage->volumeParam[unit])
+            stage->hasVolumeParams = true;
+    }
 }
 
 void GxmDraw_SetVertexProgram(int shaderHandle, const SceGxmVertexProgram *program)
@@ -143,7 +156,8 @@ void GxmDraw_SetStream(uint32_t streamIndex, const void *data)
 
 static bool GxmDraw_UploadConstants(GxmStage *stage, bool isVertex)
 {
-    if (!stage->constants || !stage->highWater)
+    const bool wantConstants = stage->constants && stage->highWater;
+    if (!wantConstants && !stage->hasVolumeParams)
         return true;
 
     SceGxmContext *context = GxmDevice_Context();
@@ -154,12 +168,33 @@ static bool GxmDraw_UploadConstants(GxmStage *stage, bool isVertex)
     if (result < 0 || !buffer)
         return false;
 
-    // never write past what the program declared, however much the engine set
-    uint32_t words = stage->highWater;
-    if (stage->constantWords && words > stage->constantWords)
-        words = stage->constantWords;
+    if (wantConstants)
+    {
+        // never write past what the program declared, however much the engine set
+        uint32_t words = stage->highWater;
+        if (stage->constantWords && words > stage->constantWords)
+            words = stage->constantWords;
+        if (sceGxmSetUniformDataF(buffer, stage->constants, 0, words, stage->shadow) < 0)
+            return false;
+    }
+    if (stage->hasVolumeParams)
+    {
+        for (uint32_t unit = 0; unit < GXM_MAX_TEXTURE_UNITS; ++unit)
+        {
+            if (stage->volumeParam[unit])
+                sceGxmSetUniformDataF(buffer, stage->volumeParam[unit], 0, 2,
+                                      s_volumeLayout[unit]);
+        }
+    }
+    return true;
+}
 
-    return sceGxmSetUniformDataF(buffer, stage->constants, 0, words, stage->shadow) >= 0;
+void GxmDraw_SetVolumeLayout(uint32_t unit, const float layout[2])
+{
+    if (unit >= GXM_MAX_TEXTURE_UNITS || !layout)
+        return;
+    s_volumeLayout[unit][0] = layout[0];
+    s_volumeLayout[unit][1] = layout[1];
 }
 
 bool GxmDraw_Indexed(SceGxmPrimitiveType primitive, const uint16_t *indices,

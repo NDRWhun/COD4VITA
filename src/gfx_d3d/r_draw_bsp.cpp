@@ -12,6 +12,7 @@
 #ifdef KISAK_VITA
 #include <vita/gxm/gxm_pipeline.h>
 #include <vita/gxm/gxm_texture.h>
+#include <vita/gxm/gxm_draw.h>
 #endif
 
 const int g_layerDataStride[16] = { 0, 0, 0, 8, 12, 16, 20, 24, 24, 28, 32, 32, 36, 40, 0, 0 }; // idb
@@ -40,6 +41,7 @@ void __cdecl R_HW_SetSamplerTexture(IDirect3DDevice9 *device, uint32_t samplerIn
     iassert(texture->basemap);
 
     GxmPipeline_SetTexture(samplerIndex, &((const GxmTexture *)texture->basemap)->texture);
+    GxmDraw_SetVolumeLayout(samplerIndex, ((const GxmTexture *)texture->basemap)->volumeLayout);
 #else
     int hr; // [esp+0h] [ebp-4h]
 

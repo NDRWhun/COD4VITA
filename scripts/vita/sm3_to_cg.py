@@ -386,9 +386,15 @@ def translate(data, alpha_test=ALPHA_TEST_NONE):
     em = Emitter(sh)
 
     params = []
+    color_inputs = []
     for (rtype, num), (usage, index) in sorted(sh.decls.items()):
         if rtype == INPUT:
-            params.append("float4 v%d : %s" % (num, semantic(usage, index)))
+            # D3DCOLOR attributes arrive as their raw BGRA bytes; d3d9 swizzled in hardware
+            if sh.is_vs and usage == 10:
+                params.append("float4 v%d_bgra : %s" % (num, semantic(usage, index)))
+                color_inputs.append(num)
+            else:
+                params.append("float4 v%d : %s" % (num, semantic(usage, index)))
         elif rtype in (OUTPUT, ATTROUT) and sh.is_vs:
             params.append("out float4 o%d : %s" % (num, semantic(usage, index)))
 
@@ -404,6 +410,8 @@ def translate(data, alpha_test=ALPHA_TEST_NONE):
             params.append("uniform float4 volumeLayout_s%d" % num)
 
     body = []
+    for num in color_inputs:
+        body.append("\tconst float4 v%d = v%d_bgra.zyxw;" % (num, num))
     if sh.temps:
         body.append("\tfloat4 %s;" % ", ".join("r%d" % n for n in sorted(sh.temps)))
     for num in sorted(sh.defs):

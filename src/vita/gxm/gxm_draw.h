@@ -24,6 +24,7 @@ void GxmDraw_SetFragmentConstants(uint32_t startRegister, const float *values,
 
 // a null texture binds a dummy rather than leaving the unit unbound, which would fault
 void GxmDraw_SetTexture(uint32_t unit, const SceGxmTexture *texture);
+void GxmDraw_SetVolumeLayout(uint32_t unit, const float layout[2]);
 void GxmDraw_UnbindTextures(void);
 void GxmDraw_SetStream(uint32_t streamIndex, const void *data);
 
