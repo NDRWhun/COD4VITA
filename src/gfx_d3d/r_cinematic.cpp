@@ -1401,7 +1401,6 @@ static bool s_aacLive;
 static uint8_t *s_aacPcm;
 
 // the worker stages a converted frame here; the render thread uploads it to the planes
-static uint8_t *s_stage[3];
 static uint8_t *s_bounce;
 static uint32_t s_stageW, s_stageH;
 static volatile uint32_t s_stageSerial;
@@ -1786,23 +1785,7 @@ static void Cin_StageDecodedFrame(const SceAvcdecPicture *picture)
     if (!width || !height)
         return;
 
-    if (s_stageW != width || s_stageH != height)
-    {
-        for (int i = 0; i < 3; ++i)
-        {
-            free(s_stage[i]);
-            s_stage[i] = NULL;
-        }
-        s_stage[0] = (uint8_t *)malloc(width * height);
-        s_stage[1] = (uint8_t *)malloc((width / 2) * (height / 2));
-        s_stage[2] = (uint8_t *)malloc((width / 2) * (height / 2));
-        if (!s_stage[0] || !s_stage[1] || !s_stage[2])
-            return;
-        s_stageW = width;
-        s_stageH = height;
-    }
-
-    // the output block is uncached, so the bulk moves by dma before the cpu touches rows
+    // one landing copy: the render thread takes its rows straight out of this
     const uint32_t lumaBytes = s_avcPitch * s_avcRows;
     if (!s_bounce)
         s_bounce = (uint8_t *)memalign(64, lumaBytes * 3 / 2);
@@ -1811,19 +1794,8 @@ static void Cin_StageDecodedFrame(const SceAvcdecPicture *picture)
     if (sceDmacMemcpy(s_bounce, s_avcOutBase, lumaBytes * 3 / 2) < 0)
         memcpy(s_bounce, s_avcOutBase, lumaBytes * 3 / 2);
 
-    for (uint32_t row = 0; row < height; ++row)
-        memcpy(s_stage[0] + row * width, s_bounce + row * s_avcPitch, width);
-
-    // raster output carries planar chroma: a cb plane then a cr plane at half pitch
-    const uint8_t *cbPlane = s_bounce + lumaBytes;
-    const uint32_t chromaPitch = s_avcPitch / 2;
-    const uint8_t *crPlane = cbPlane + chromaPitch * (s_avcRows / 2);
-    const uint32_t chromaW = width / 2, chromaH = height / 2;
-    for (uint32_t row = 0; row < chromaH; ++row)
-    {
-        memcpy(s_stage[1] + row * chromaW, cbPlane + row * chromaPitch, chromaW);
-        memcpy(s_stage[2] + row * chromaW, crPlane + row * chromaPitch, chromaW);
-    }
+    s_stageW = width;
+    s_stageH = height;
     ++s_stageSerial;
 }
 
@@ -2036,11 +2008,6 @@ void __cdecl R_Cinematic_StopPlayback()
     free(s_aud.samples);
     memset(&s_vid, 0, sizeof(s_vid));
     memset(&s_aud, 0, sizeof(s_aud));
-    for (int i = 0; i < 3; ++i)
-    {
-        free(s_stage[i]);
-        s_stage[i] = NULL;
-    }
     free(s_bounce);
     s_bounce = NULL;
     s_stageW = s_stageH = 0;
@@ -2146,7 +2113,7 @@ void __cdecl R_Cinematic_UpdateFrame()
         return;
 
     const uint32_t serial = s_stageSerial;
-    if (serial != s_shownSerial && s_stage[0])
+    if (serial != s_shownSerial && s_bounce)
     {
         s_shownSerial = serial;
         if ((s_stageW != s_planeW || s_stageH != s_planeH)
@@ -2155,23 +2122,26 @@ void __cdecl R_Cinematic_UpdateFrame()
             if (!s_frameSeen++)
                 VitaSys_LogPrintf("cinematic: first frame %ux%u\n", s_stageW, s_stageH);
 
+            const uint32_t lumaBytes = s_avcPitch * s_avcRows;
+            const uint32_t chromaPitch = s_avcPitch / 2;
+            const uint8_t *cb = s_bounce + lumaBytes;
+            const uint8_t *cr = cb + chromaPitch * (s_avcRows / 2);
+            const uint32_t chromaW = s_stageW / 2, chromaH = s_stageH / 2;
+            const uint8_t *src[3] = { s_bounce, cb, cr };
+            const uint32_t srcPitch[3] = { s_avcPitch, chromaPitch, chromaPitch };
+            const uint32_t runW[3] = { s_stageW, chromaW, chromaW };
+            const uint32_t runH[3] = { s_stageH, chromaH, chromaH };
+
             void *bits;
             uint32_t pitch, slice;
-            if (GxmImage_MapLevelWrite(s_plane[0], 0, 0, &bits, &pitch, &slice))
+            for (int p = 0; p < 3; ++p)
             {
-                for (uint32_t row = 0; row < s_stageH; ++row)
-                    memcpy((uint8_t *)bits + row * pitch, s_stage[0] + row * s_stageW, s_stageW);
-                GxmImage_UnmapLevelWrite(s_plane[0], 0, 0, bits);
-            }
-            const uint32_t chromaW = s_stageW / 2, chromaH = s_stageH / 2;
-            for (int p = 1; p <= 2; ++p)
-            {
-                if (GxmImage_MapLevelWrite(s_plane[p], 0, 0, &bits, &pitch, &slice))
-                {
-                    for (uint32_t row = 0; row < chromaH; ++row)
-                        memcpy((uint8_t *)bits + row * pitch, s_stage[p] + row * chromaW, chromaW);
-                    GxmImage_UnmapLevelWrite(s_plane[p], 0, 0, bits);
-                }
+                if (!GxmImage_MapLevelWrite(s_plane[p], 0, 0, &bits, &pitch, &slice))
+                    continue;
+                for (uint32_t row = 0; row < runH[p]; ++row)
+                    memcpy((uint8_t *)bits + row * pitch,
+                           src[p] + row * srcPitch[p], runW[p]);
+                GxmImage_UnmapLevelWrite(s_plane[p], 0, 0, bits);
             }
         }
     }
