@@ -48,6 +48,9 @@ void __cdecl CL_UpdateSound();
 #endif
 #include "r_state.h"
 #include "r_draw_sunshadow.h"
+#ifdef KISAK_VITA
+#include <vita/gxm/gxm_fence.h>
+#endif
 
 //struct GfxScene scene      859c8280     gfx_d3d : r_scene.obj
 GfxViewParms lockPvsViewParms;
@@ -1013,9 +1016,9 @@ GfxDrawSurf *__cdecl R_AddDObjSurfaces(
 bool __cdecl R_EndFencePending()
 {
 #ifdef KISAK_VITA
-    // GXM has no per-scene event query; R_HW_InsertFence leaves endFence null
-    iassert(!frontEndDataOut->endFence);
-    return false;
+    // the fence is the scene counter R_HW_InsertFence stored; unreached means the GPU
+    // still reads the FX, mark and skin buffers the front end wants to overwrite
+    return !GxmFence_Reached((uint32_t)(uintptr_t)frontEndDataOut->endFence);
 #else
     _BYTE v2[4]; // [esp+Ch] [ebp-4h] BYREF
 
