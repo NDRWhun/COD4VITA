@@ -553,7 +553,12 @@
      mina.value.max = 15.99f;
      mina.value.min = -16.0f;
      r_texFilterMipBias = Dvar_RegisterFloat("r_texFilterMipBias", 0.0f, mina, DVAR_CHEAT, "Change the mipmap bias");
+#ifdef KISAK_VITA
+     // no console on the device, so the render switches come from the exec'd config
+     r_fullbright = Dvar_RegisterBool("r_fullbright", 0, DVAR_NOFLAG, "Toggles rendering without lighting");
+#else
      r_fullbright = Dvar_RegisterBool("r_fullbright", 0, DVAR_CHEAT, "Toggles rendering without lighting");
+#endif
      r_debugShader = Dvar_RegisterEnum("r_debugShader", debugShaderNames, 0, DVAR_CHEAT, "Enable shader debugging information");
      r_gpuSync = Dvar_RegisterEnum(
          "r_gpuSync",
@@ -671,7 +676,11 @@
          "r_lightMap",
          colorMapNames,
          1,
+#ifdef KISAK_VITA
+         DVAR_NOFLAG,
+#else
          DVAR_CHEAT,
+#endif
          "Replace all lightmaps with pure black or pure white");
      r_colorMap = Dvar_RegisterEnum(
          "r_colorMap",
