@@ -1826,9 +1826,9 @@ static int Cin_WorkerThread(SceSize args, void *argp)
         const uint32_t vidBefore = s_vid.next;
         const uint32_t audBefore = s_aud.next;
 
-        // audio first: its blocking output paces the loop; video still runs each pass
-        while (s_aacLive && s_aud.next < s_aud.count &&
-               s_aud.samples[s_aud.next].ptsMs <= VitaSys_Milliseconds() - begin + 30)
+        // one block per pass: its output blocks in real time, so draining it starves video
+        if (s_aacLive && s_aud.next < s_aud.count &&
+            s_aud.samples[s_aud.next].ptsMs <= VitaSys_Milliseconds() - begin + 30)
         {
             const CinSample *sample = &s_aud.samples[s_aud.next++];
             if (sample->size <= s_esBufSize &&
