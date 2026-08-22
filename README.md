@@ -10,11 +10,11 @@ no emulation, no wrapper.
 
 ## Status
 
-**In development — it runs, it is not yet beatable.** Levels reach gameplay; crashes and freezes still end most sessions before an objective does.
+**In development — currently unplayable.** It boots and loads, but crashes and freezes stop it before or shortly after gameplay begins.
 
 | Part | State |
 | --- | --- |
-| Engine | boots, menus work, levels load into gameplay; scripts, AI and autosaves run |
+| Engine | boots, menus work, level loads run; reaching stable gameplay is the current fight |
 | Renderer | native sceGxm; the game's 609 shaders translated offline and registered on device |
 | Movies | hardware AVC decode (sceVideodec) with AAC audio |
 | Sound | full mixer, load-time IMA-ADPCM; music and streams play |
