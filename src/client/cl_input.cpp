@@ -1088,7 +1088,13 @@ void __cdecl CL_GamepadMove(usercmd_s *cmd)
         yawRate *= 0.55f;
     }
 
-    clients[0].viewangles[0] += shapedPitch * pitchRate * dt;
+    static const dvar_s *lookInvert;
+    if (!lookInvert)
+        lookInvert = Dvar_RegisterBool("vita_lookInvert", false, DVAR_ARCHIVE,
+                                       "Invert right stick pitch");
+    const float pitchSign = lookInvert->current.enabled ? 1.0f : -1.0f;
+
+    clients[0].viewangles[0] += shapedPitch * pitchRate * dt * pitchSign;
     clients[0].viewangles[1] += shapedYaw * yawRate * dt;
 }
 #else

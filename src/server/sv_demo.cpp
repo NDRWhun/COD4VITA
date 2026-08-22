@@ -377,11 +377,17 @@ int __cdecl SV_WaitForSaveHistoryDone()
         g_savingHistory = 0;
         return 1;
     }
+#ifdef KISAK_VITA
+    // the writer thread still owns these buffers and frees them itself when it lands
+    Com_Printf(16, "save history write outlived the wait; leaking its buffers\n");
+    g_history = 0;
+#else
     if (g_history)
     {
         SV_FreeHistoryData(g_history);
         g_history = 0;
     }
+#endif
     return 0;
 }
 

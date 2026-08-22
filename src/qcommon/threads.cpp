@@ -936,7 +936,17 @@ void Sys_SetServerTimeout(int timeout)
 
 bool Sys_WaitForSaveHistoryDone()
 {
+#ifdef KISAK_VITA
+    // the card takes far longer than the pc timeout, and the writer still holds the buffers
+    for (unsigned waited = 0; waited < 60000; waited += 2000)
+    {
+        if (WaitForSingleObject(g_saveHistoryDoneEvent, 0x7D0u) == 0)
+            return true;
+    }
+    return false;
+#else
     return WaitForSingleObject(g_saveHistoryDoneEvent, 0x7D0u) == 0;
+#endif
 }
 
 int Sys_SpawnServerDemoThread(void(*function)(uint32_t))
