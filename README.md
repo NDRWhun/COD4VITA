@@ -24,6 +24,8 @@ directly.
 | Known issues | NPC animation bugs under investigation, lighting artifacts on some maps, memory pressure on the biggest levels |
 
 
+Full build and asset-prep detail: [docs/BUILDING.md](docs/BUILDING.md).
+
 ## Setup (for players)
 
 You need your own copy of Call of Duty 4 (PC). Assets are prepared once on a PC:
