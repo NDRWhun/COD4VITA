@@ -1770,6 +1770,12 @@ void __cdecl XAnimProcessServerNotify(const DObj_s* obj, XAnimInfo* info, float 
     {
         if (info->state.currentAnimTime == 1.0)
         {
+#ifdef KISAK_VITA
+            static uint32_t s_endLog;
+            if (s_endLog++ < 10)
+                Com_Printf(14, "anim end ent %i '%s'\n",
+                           obj->entnum - 1, SL_ConvertToString(info->notifyName));
+#endif
             Scr_AddConstString(g_endNotetrackName);
             Scr_NotifyNum(obj->entnum - 1, 0, info->notifyName, 1u);
         }
@@ -1926,6 +1932,14 @@ XAnimParts* __cdecl XAnimGetParts(const XAnimTree_s* tree, XAnimInfo* info)
 
 void __cdecl NotifyServerNotetrack(const DObj_s* obj, uint32_t notifyName, uint32_t notetrackName)
 {
+#ifdef KISAK_VITA
+    // the tutorial hangs on animation notifies, so the first few name themselves
+    static uint32_t s_noteLog;
+    if (s_noteLog++ < 10)
+        Com_Printf(14, "anim notify ent %i '%s' -> '%s'\n",
+                   obj->entnum - 1, SL_ConvertToString(notifyName),
+                   SL_ConvertToString(notetrackName));
+#endif
     Scr_AddConstString(notetrackName);
     Scr_NotifyNum(obj->entnum - 1, 0, notifyName, 1u);
 }
