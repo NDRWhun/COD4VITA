@@ -975,10 +975,10 @@ void __cdecl CL_KeyMove(usercmd_s *cmd)
     {
         static uint32_t s_moveLog;
         if (s_moveLog++ < 20)
-            Com_Printf(14, "move: fwd %i side %i | ps speed %i pm_type %i pm_flags %#x vel %i\n",
+            Com_Printf(14, "move: fwd %i side %i | ps speed %i g_speed %i pm_type %i pm_flags %#x\n",
                        forward, side, clients[0].snap.ps.speed,
-                       (int)clients[0].snap.ps.pm_type, clients[0].snap.ps.pm_flags,
-                       (int)clients[0].snap.ps.velocity[0]);
+                       Dvar_GetInt("g_speed"),
+                       (int)clients[0].snap.ps.pm_type, clients[0].snap.ps.pm_flags);
     }
 #endif
 }
