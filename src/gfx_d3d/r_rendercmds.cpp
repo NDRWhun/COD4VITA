@@ -367,8 +367,22 @@ void __cdecl R_ToggleSmpFrameCmd(char type)
     R_ReleaseThreadOwnership();
     {
         PROF_SCOPED("WaitRenderer");
+#ifdef KISAK_VITA
+        static uint32_t s_waitAccum, s_waitFrames;
+        const int waitBegin = Sys_Milliseconds();
+        R_ProcessWorkerCmdsWithTimeout(Sys_IsRendererReady, 1);
+        s_waitAccum += Sys_Milliseconds() - waitBegin;
+        if (++s_waitFrames >= 128)
+        {
+            Com_Printf(16, "backend wait %.1f ms/f over %u\n",
+                       s_waitAccum / (float)s_waitFrames, s_waitFrames);
+            s_waitAccum = 0;
+            s_waitFrames = 0;
+        }
+#else
         //KISAK_NULLSUB();
         R_ProcessWorkerCmdsWithTimeout(Sys_IsRendererReady, 1);
+#endif
     }
     if ((type & 2) != 0)
         R_PerformanceCounters();

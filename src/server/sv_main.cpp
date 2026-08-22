@@ -233,8 +233,9 @@ int __cdecl SV_ProcessPendingSaves()
 		return 0;
 
 #ifdef KISAK_VITA
-	// serialization walks live script state, so only the thread that owns it may run saves
-	if (!Sys_IsMainThread() && !Sys_IsDatabaseThread())
+	// serialization walks live script state, so only the main thread may run saves;
+	// a request from any other thread stays queued for the next server frame
+	if (!Sys_IsMainThread())
 		return 0;
 #endif
 

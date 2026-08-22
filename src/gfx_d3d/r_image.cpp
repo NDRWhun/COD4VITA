@@ -24,7 +24,7 @@
 
 #include <algorithm>
 
-static const char *g_imageProgNames[14] =
+static const char *g_imageProgNames[15] =
 {
   "$shadow_cookie",
   "$shadow_cookie_blur",
@@ -39,7 +39,8 @@ static const char *g_imageProgNames[14] =
   "$savedscreen",
   "$raw",
   "$model_lighting",
-  "$model_lighting1"
+  "$model_lighting1",
+  "$model_lighting2"
 }; // idb
 
 static const char *imageTypeName[10] =
@@ -63,7 +64,7 @@ static const char *g_platform_name[2] =
 };
 
 //ImgGlobals imageGlobals; // LWSS: moved to db_registry for DEDICATED
-GfxImage g_imageProgs[14];
+GfxImage g_imageProgs[15];
 
 struct BuiltinImageConstructorTable // sizeof=0x8
 {                                       // ...

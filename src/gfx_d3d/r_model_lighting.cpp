@@ -27,7 +27,7 @@ struct $616C0C4E0125F5DAA7F70C1AB2F0F42D // sizeof=0x6C
     uint32_t imageHeight;           // ...
     const GfxEntity *entities;
     uint32_t modFrameCount;         // ...
-    GfxImage *lightImages[2];           // ...
+    GfxImage *lightImages[3];           // ...
     GfxImage *image;                    // ...
     uint32_t xmodelEntryLimit;      // ...
     GfxLightingInfo *lightingInfo;      // ...
@@ -632,11 +632,13 @@ void __cdecl R_InitModelLightingImage()
 #ifdef KISAK_VITA
     iassert(modelLightGlob.totalEntryLimit);
 
-    // two images: the GPU samples one while the patches land in the other
+    // three images to match the display queue depth; patches land in the oldest
     modelLightGlob.lightImages[0] = Image_AllocProg(12, 4u, 1u);
     Image_SetupAndLoad(modelLightGlob.lightImages[0], 256, modelLightGlob.imageHeight, 4, 0xA, D3DFMT_A8R8G8B8);
     modelLightGlob.lightImages[1] = Image_AllocProg(13, 4u, 1u);
     Image_SetupAndLoad(modelLightGlob.lightImages[1], 256, modelLightGlob.imageHeight, 4, 0xA, D3DFMT_A8R8G8B8);
+    modelLightGlob.lightImages[2] = Image_AllocProg(14, 4u, 1u);
+    Image_SetupAndLoad(modelLightGlob.lightImages[2], 256, modelLightGlob.imageHeight, 4, 0xA, D3DFMT_A8R8G8B8);
     modelLightGlob.image = modelLightGlob.lightImages[0];
 #else
     bool useAltUpdate; // [esp+1h] [ebp-1h]
@@ -711,10 +713,15 @@ void __cdecl RB_PatchModelLighting(const GfxModelLightingPatch *patchList, uint3
 
     iassert(modelLightGlob.lockedBox.pBits == NULL);
 
-    // patches land in the image the GPU is not sampling, seeded from the one it is
+    // patches land in the oldest image of three, seeded from the one the GPU samples
     GfxImage *front = modelLightGlob.image ? modelLightGlob.image : modelLightGlob.lightImages[0];
-    GfxImage *lightImage = (front == modelLightGlob.lightImages[0] && modelLightGlob.lightImages[1])
-                               ? modelLightGlob.lightImages[1] : modelLightGlob.lightImages[0];
+    int frontIndex = 0;
+    for (int imageIter = 0; imageIter < 3; ++imageIter)
+        if (modelLightGlob.lightImages[imageIter] == front)
+            frontIndex = imageIter;
+    GfxImage *lightImage = modelLightGlob.lightImages[(frontIndex + 1) % 3];
+    if (!lightImage)
+        lightImage = modelLightGlob.lightImages[0];
     iassert(lightImage);
 
     const GxmTexture *volume = (const GxmTexture *)lightImage->texture.volmap;

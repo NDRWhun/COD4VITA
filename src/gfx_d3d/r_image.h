@@ -392,7 +392,7 @@ void __cdecl Image_DecodeWavelet(
 
 
 extern ImgGlobals imageGlobals;
-extern GfxImage g_imageProgs[14];
+extern GfxImage g_imageProgs[15];
 
 
 
