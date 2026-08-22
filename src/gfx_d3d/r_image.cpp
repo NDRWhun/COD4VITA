@@ -314,8 +314,31 @@ void __cdecl Load_Texture(GfxTexture *remoteLoadDef, GfxImage *image)
         if (loadDef->resourceSize)
         {
             image->delayLoadPixels = 0;
+#ifdef KISAK_VITA
+            // fastfile images carry the whole chain, so picmip is a skip at upload
+            int mipSkip = 0;
+            if (image->mapType == MAPTYPE_2D && loadDef->levelCount > 1)
+            {
+                Image_GetPicmip(image, &image->picmip);
+                mipSkip = image->picmip.platform[0];
+                while (mipSkip
+                       && (loadDef->levelCount <= mipSkip
+                           || loadDef->dimensions[0] >> mipSkip < 32
+                           || loadDef->dimensions[1] >> mipSkip < 32))
+                    --mipSkip;
+            }
+#endif
             if (image->mapType == MAPTYPE_2D)
             {
+#ifdef KISAK_VITA
+                Image_Create2DTexture_PC(
+                    image,
+                    loadDef->dimensions[0] >> mipSkip,
+                    loadDef->dimensions[1] >> mipSkip,
+                    loadDef->levelCount - mipSkip,
+                    0,
+                    imageFormat);
+#else
                 Image_Create2DTexture_PC(
                     image,
                     loadDef->dimensions[0],
@@ -323,6 +346,7 @@ void __cdecl Load_Texture(GfxTexture *remoteLoadDef, GfxImage *image)
                     loadDef->levelCount,
                     0,
                     imageFormat);
+#endif
                 faceCount = 1;
             }
             else if (image->mapType == MAPTYPE_3D)
@@ -344,6 +368,14 @@ void __cdecl Load_Texture(GfxTexture *remoteLoadDef, GfxImage *image)
                 faceCount = 6;
             }
             data = &loadDef->data[0];
+#ifdef KISAK_VITA
+            for (mipLevel = 0; mipLevel < mipSkip; ++mipLevel)
+            {
+                mipWidth = loadDef->dimensions[0] >> mipLevel > 1 ? loadDef->dimensions[0] >> mipLevel : 1;
+                mipHeight = loadDef->dimensions[1] >> mipLevel > 1 ? loadDef->dimensions[1] >> mipLevel : 1;
+                data += Image_GetCardMemoryAmountForMipLevel(imageFormat, mipWidth, mipHeight, 1);
+            }
+#endif
             mipCount = Image_CountMipmaps(loadDef->flags, image->width, image->height, image->depth);
             for (faceIndex = 0; faceIndex < faceCount; ++faceIndex)
             {
