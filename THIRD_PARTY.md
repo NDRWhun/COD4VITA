@@ -2,7 +2,8 @@
 
 This port is GPLv3, inherited from [KisakCOD](https://github.com/SwagSoftware/KisakCOD). The list
 below covers what the tree carries and what the build reaches for but does not ship. All of it is
-inherited from upstream unless noted; nothing here was added by the Vita port.
+inherited from upstream unless noted; nothing here was added by the Vita port. Upstream's
+vendored proprietary SDKs (Bink, Miles, Steamworks) are not carried in this repository.
 
 ## Vendored in `deps/`
 
@@ -12,9 +13,6 @@ inherited from upstream unless noted; nothing here was added by the Vita port.
 | ODE | [BSD-3 or LGPL-2.1](https://bitbucket.org/odedevs/ode/src/master/LICENSE.TXT) | `deps/ode/` | physics headers; the implementation is under `src/physics/ode/` |
 | Speex | [BSD-3 (Xiph)](https://gitlab.xiph.org/xiph/speex/-/blob/master/COPYING) | `deps/speex/` | voice codec headers; the implementation is under `src/groupvoice/speex/` |
 | dr_libs | public domain or MIT-0 | `deps/dr_libs/` | WAV and MP3 decoders |
-| Bink | proprietary (RAD Game Tools) | `deps/binklib/` | video playback on Windows; replaced on Vita |
-| Miles Sound System | proprietary (RAD Game Tools) | `deps/msslib/` | audio on Windows; excluded from the Vita target |
-| Steamworks SDK | proprietary (Valve) | `deps/steamsdk/` | Steam integration; unused on Vita |
 
 ## Vendored under `src/`
 

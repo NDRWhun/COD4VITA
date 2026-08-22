@@ -21,7 +21,6 @@ directly — no emulation, no wrapper.
 | Performance | CPU-bound; NPC-heavy scenes run well below 30 fps |
 | Known issues | NPC animation bugs under investigation, lighting artifacts on some maps, memory pressure on the biggest levels |
 
-Current state: [PORT_STATE.md](PORT_STATE.md). Engineering log: [PORTING_NOTES.md](PORTING_NOTES.md).
 
 ## Setup (for players)
 

@@ -119,3 +119,8 @@ vita_create_vpk(COD4VITA.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
     ${LIVEAREA_FILES}
     ${SHADER_FILES}
 )
+
+# the vpk belongs at the build root, not three directories down
+add_custom_command(TARGET COD4VITA.vpk-vpk POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_CURRENT_BINARY_DIR}/COD4VITA.vpk ${CMAKE_BINARY_DIR}/COD4VITA.vpk)

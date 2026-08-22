@@ -441,8 +441,6 @@ sce_sys/icon0.png
 sce_sys/livearea/contents/bg.png
 sce_sys/livearea/contents/startup.png
 
-# generated from the DirectX SDK headers by scripts/vita/gen_d3d9_shim.py
-src/gfx_d3d/d3d9_shim.h
 
 # out-of-source vita build trees
 build-vita/
@@ -459,3 +457,9 @@ shaders.kgxp
 # out-of-source build trees
 build-smoke/
 *.psp2dmp
+
+# local engineering notes, not repo content
+PORTING_NOTES.md
+PORT_STATE.md
+RENDERER_DEBT.md
+README.upstream.md
