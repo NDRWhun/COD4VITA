@@ -539,7 +539,7 @@ void __cdecl R_AddWorkerCmd(WorkerCmdType type, uint8_t *data)
             Destination = (LONG*)&workerCmds->syncedEndPos;
             do
             {
-                while (*Destination != endPos)
+                while (*(volatile LONG *)Destination != endPos)
                     ;
             } while (InterlockedCompareExchange(Destination, (dataSize + endPos) % bufSize, endPos) != endPos);
             InterlockedExchangeAdd((LONG*)&workerCmds->outSize, 1);
