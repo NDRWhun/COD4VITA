@@ -107,8 +107,9 @@ static SceGxmDepthFunc GxmState_DepthFunc(uint32_t stateBits1)
     }
 }
 
-// the four offset levels the engine exposes; units are depth buffer steps
-static const int s_depthBiasUnits[4] = { 0, 1, 2, 16 };
+// the four offset levels the engine exposes; decals pull toward the viewer or they z-fight
+static const int s_depthBiasFactor[4] = { 0, -2, -4, -6 };
+static const int s_depthBiasUnits[4] = { 0, -16, -32, -64 };
 
 static void GxmState_DecodeStencil(uint32_t stateBits1, GxmRenderState *render)
 {
@@ -154,7 +155,7 @@ void GxmState_Decode(uint32_t stateBits0, uint32_t stateBits1,
         ? SCE_GXM_DEPTH_WRITE_ENABLED : SCE_GXM_DEPTH_WRITE_DISABLED;
 
     const uint32_t offset = (stateBits1 & GFXS1_POLYGON_OFFSET_MASK) >> GFXS1_POLYGON_OFFSET_SHIFT;
-    render->depthBiasFactor = offset ? 1 : 0;
+    render->depthBiasFactor = s_depthBiasFactor[offset];
     render->depthBiasUnits = s_depthBiasUnits[offset];
 
     GxmState_DecodeStencil(stateBits1, render);
