@@ -968,6 +968,18 @@ void __cdecl CL_KeyMove(usercmd_s *cmd)
     cmd->forwardmove = ClampChar(forward);
     cmd->rightmove   = ClampChar(side);
     cmd->upmove      = ClampChar(up);
+#ifdef KISAK_VITA
+    // buttons work while movement does not, so the key-time fraction is what to look at
+    if (kb[KEY_FORWARD].active || kb[KEY_BACK].active ||
+        kb[KEY_MOVELEFT].active || kb[KEY_MOVERIGHT].active)
+    {
+        static uint32_t s_moveLog;
+        if (s_moveLog++ < 12)
+            Com_Printf(14, "move: fwd %i side %i, frame_msec %u, ml act %i msec %u down %u now %u\n",
+                       forward, side, frame_msec, (int)kb[KEY_MOVELEFT].active,
+                       kb[KEY_MOVELEFT].msec, kb[KEY_MOVELEFT].downtime, com_frameTime);
+    }
+#endif
 }
 #endif
 

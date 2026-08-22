@@ -1977,6 +1977,11 @@ static bool Cin_CreatePlanes(uint32_t width, uint32_t height)
 
 void __cdecl R_Cinematic_Init()
 {
+    // textures spill into phycont during a load, so the decoder takes its share first
+    if (!Cin_HoldPhycont(&s_avcFrameUid, &s_avcFrameBase, &s_avcFrameSize, 7u * 1024u * 1024u) ||
+        !Cin_HoldPhycont(&s_avcOutUid, &s_avcOutBase, &s_avcOutSize, 960u * 544u * 3u / 2u))
+        VitaSys_LogPrintf("cinematic: could not reserve decoder memory at boot\n");
+
     if (!s_alphaPlane)
     {
         s_alphaPlane = GxmImage_Create2D(GXM_D3DFMT_L8, 1, 1, 1);
