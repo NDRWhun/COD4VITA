@@ -500,17 +500,12 @@ int __cdecl MemFile_WriteDataInternal(
     }
     else
     {
+        if (!memFile->buffer || memFile->bytesUsed + bytes + 65 > memFile->bufferSize)
+            return 0;
         memFile->buffer[memFile->bytesUsed] = cacheBufferLen + (nonZeroCount << 6);
         memFile->bytesUsed += bytes;
-        if (memFile->bytesUsed + 65 > memFile->bufferSize)
-        {
-            return 0;
-        }
-        else
-        {
-            memFile->buffer[memFile->bytesUsed + 1] = nextByte;
-            return 1;
-        }
+        memFile->buffer[memFile->bytesUsed + 1] = nextByte;
+        return 1;
     }
 }
 
@@ -711,9 +706,12 @@ void __cdecl MemFile_WriteData(MemoryFile* memFile, int byteCount, const void* d
         
         if (memFile->compress)
             g_cacheBuffer[cacheSize] = nextByte;
+        else if (!memFile->buffer
+                 || (uint32_t)(cacheSize + memFile->bytesUsed) >= (uint32_t)memFile->bufferSize)
+            goto LABEL_56;
         else
             memFile->buffer[cacheSize + memFile->bytesUsed] = nextByte;
-        
+
         ++cacheSize;
         ++i;
     LABEL_79:
