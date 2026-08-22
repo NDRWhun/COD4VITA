@@ -2,7 +2,7 @@
 
 **Call of Duty 4: Modern Warfare — single-player, on the PS Vita**
 
-[![platform](https://img.shields.io/badge/platform-PS%20Vita-4b6cb7)](https://vitasdk.org)&nbsp;[![renderer](https://img.shields.io/badge/renderer-native%20sceGxm-8a4fff)](src/vita/gxm)&nbsp;[![engine](https://img.shields.io/badge/engine-IW-3.0-555)](https://github.com/SwagSoftware/KisakCOD)&nbsp;[![license](https://img.shields.io/badge/license-GPLv3-blue)](LICENSE)
+[![platform](https://img.shields.io/badge/platform-PS%20Vita-4b6cb7)](https://vitasdk.org)&nbsp;[![renderer](https://img.shields.io/badge/renderer-native%20sceGxm-8a4fff)](src/vita/gxm)&nbsp;[![engine](https://img.shields.io/badge/engine-IW%203.0-5f3dc4)](https://en.wikipedia.org/wiki/IW_3.0)
 
 A native port of Call of Duty 4's single-player campaign (IW 3.0 engine) to the PS Vita,
 built on [KisakCOD](https://github.com/SwagSoftware/KisakCOD). The renderer targets sceGxm
