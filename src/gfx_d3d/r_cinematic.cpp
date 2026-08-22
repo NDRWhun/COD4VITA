@@ -1840,46 +1840,6 @@ static int Cin_WorkerThread(SceSize args, void *argp)
         const uint32_t vidBefore = s_vid.next;
         const uint32_t audBefore = s_aud.next;
 
-        // one block per pass: its output blocks in real time, so draining it starves video
-        if (s_aacLive && s_aud.next < s_aud.count &&
-            s_aud.samples[s_aud.next].ptsMs <= VitaSys_Milliseconds() - begin + 30)
-        {
-            const CinSample *sample = &s_aud.samples[s_aud.next++];
-            if (sample->size <= s_esBufSize &&
-                fseek(s_mp4, (long)sample->offset, SEEK_SET) == 0 &&
-                fread(s_esBuf, 1, sample->size, s_mp4) == sample->size)
-            {
-                s_aacCtrl.pEs = s_esBuf;
-                s_aacCtrl.maxEsSize = sample->size;
-                s_aacCtrl.inputEsSize = sample->size;
-                if (sceAudiodecDecode(&s_aacCtrl) >= 0 &&
-                    s_aacCtrl.outputPcmSize)
-                {
-                    const uint32_t frames = s_aacCtrl.outputPcmSize / (2 * s_aacCh);
-                    if (s_audioPort < 0 && frames)
-                    {
-                        s_audioPort = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_BGM,
-                                                          (int)frames, (int)s_aacRate,
-                                                          s_aacCh == 1 ? SCE_AUDIO_OUT_MODE_MONO
-                                                                       : SCE_AUDIO_OUT_MODE_STEREO);
-                        audioGrain = frames;
-                        if (s_audioPort >= 0)
-                        {
-                            int volume[2];
-                            volume[0] = volume[1] = (int)(s_volume * SCE_AUDIO_VOLUME_0DB);
-                            sceAudioOutSetVolume(s_audioPort,
-                                                 (SceAudioOutChannelFlag)(SCE_AUDIO_VOLUME_FLAG_L_CH |
-                                                                          SCE_AUDIO_VOLUME_FLAG_R_CH),
-                                                 volume);
-                        }
-                    }
-                    if (s_audioPort >= 0 && frames == audioGrain)
-                        sceAudioOutOutput(s_audioPort, s_aacPcm);
-                }
-            }
-            /* fall through to video */;
-        }
-
         for (int burst = 0; burst < 2 && s_avcLive && s_vid.next < s_vid.count &&
              s_vid.samples[s_vid.next].ptsMs <= VitaSys_Milliseconds() - begin; ++burst)
         {
@@ -1926,6 +1886,46 @@ static int Cin_WorkerThread(SceSize args, void *argp)
                 }
             }
             /* next burst */;
+        }
+
+        // last: its output blocks in real time, which absorbs the decode above
+        if (s_aacLive && s_aud.next < s_aud.count &&
+            s_aud.samples[s_aud.next].ptsMs <= VitaSys_Milliseconds() - begin + 30)
+        {
+            const CinSample *sample = &s_aud.samples[s_aud.next++];
+            if (sample->size <= s_esBufSize &&
+                fseek(s_mp4, (long)sample->offset, SEEK_SET) == 0 &&
+                fread(s_esBuf, 1, sample->size, s_mp4) == sample->size)
+            {
+                s_aacCtrl.pEs = s_esBuf;
+                s_aacCtrl.maxEsSize = sample->size;
+                s_aacCtrl.inputEsSize = sample->size;
+                if (sceAudiodecDecode(&s_aacCtrl) >= 0 &&
+                    s_aacCtrl.outputPcmSize)
+                {
+                    const uint32_t frames = s_aacCtrl.outputPcmSize / (2 * s_aacCh);
+                    if (s_audioPort < 0 && frames)
+                    {
+                        s_audioPort = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_BGM,
+                                                          (int)frames, (int)s_aacRate,
+                                                          s_aacCh == 1 ? SCE_AUDIO_OUT_MODE_MONO
+                                                                       : SCE_AUDIO_OUT_MODE_STEREO);
+                        audioGrain = frames;
+                        if (s_audioPort >= 0)
+                        {
+                            int volume[2];
+                            volume[0] = volume[1] = (int)(s_volume * SCE_AUDIO_VOLUME_0DB);
+                            sceAudioOutSetVolume(s_audioPort,
+                                                 (SceAudioOutChannelFlag)(SCE_AUDIO_VOLUME_FLAG_L_CH |
+                                                                          SCE_AUDIO_VOLUME_FLAG_R_CH),
+                                                 volume);
+                        }
+                    }
+                    if (s_audioPort >= 0 && frames == audioGrain)
+                        sceAudioOutOutput(s_audioPort, s_aacPcm);
+                }
+            }
+            /* fall through to video */;
         }
 
         if (s_vid.next == vidBefore && s_aud.next == audBefore)
