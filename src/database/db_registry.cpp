@@ -3207,6 +3207,8 @@ void DB_FreeUnusedResources()
     char *name; // [esp+10h] [ebp-8h]
     XAssetEntryPoolEntry *assetEntry; // [esp+14h] [ebp-4h]
 
+    SL_DebugProbe("footstep_right_large", "pre-transfer");
+    SL_DebugProbe("sounddone", "pre-transfer");
     SL_TransferSystem(4u, 8u);
     for (hash = 0; hash < 0x8000; ++hash)
     {
@@ -3221,6 +3223,8 @@ void DB_FreeUnusedResources()
             }
         }
     }
+    SL_DebugProbe("footstep_right_large", "post-mark");
+    SL_DebugProbe("sounddone", "post-mark");
     for (hasha = 0; hasha < 0x8000; ++hasha)
     {
         //pAssetEntryIndex = (uint16_t *)(2 * hasha + 17442712);
@@ -3252,6 +3256,8 @@ void DB_FreeUnusedResources()
         }
     }
     SL_ShutdownSystem(8);
+    SL_DebugProbe("footstep_right_large", "post-shutdown");
+    SL_DebugProbe("sounddone", "post-shutdown");
 }
 
 void DB_ExternalInitAssets()

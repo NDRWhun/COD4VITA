@@ -14,6 +14,7 @@
 #include <universal/timing.h>
 
 #include <psp2/kernel/sysmem.h>
+#include <psp2/kernel/threadmgr.h>
 
 #include "vita_memory.h"
 #include "vita_selftest.h"
@@ -59,6 +60,41 @@ static void VitaMain_RunSelfTests(void)
     VitaSys_LogPrintf("clocks:  %s", report);
 }
 
+extern int com_frameTime;
+
+// a hang tells the log whether the main thread is spinning or blocked
+static int VitaMain_Watchdog(SceSize args, void *argp)
+{
+    (void)args; (void)argp;
+    const SceUID mainUid = *(SceUID *)argp;
+    int last = 0;
+    unsigned stalled = 0;
+    SceUInt64 lastClocks = 0;
+    while (1)
+    {
+        sceKernelDelayThread(2 * 1000 * 1000);
+        if (com_frameTime != last)
+        {
+            last = com_frameTime;
+            stalled = 0;
+            continue;
+        }
+        if (!last)
+            continue;
+        ++stalled;
+        SceKernelThreadInfo ti;
+        memset(&ti, 0, sizeof(ti));
+        ti.size = sizeof(ti);
+        sceKernelGetThreadInfo(mainUid, &ti);
+        VitaSys_LogPrintf("watchdog: main stalled %us at frame time %i, status %i, "
+                          "ranClocks +%llu\n",
+                          stalled * 2, last, ti.status,
+                          (unsigned long long)(ti.runClocks - lastClocks));
+        lastClocks = ti.runClocks;
+    }
+    return 0;
+}
+
 int main(void)
 {
     VitaSys_LogOpen(VITA_LOG_PATH);
@@ -79,6 +115,12 @@ int main(void)
 
     Sys_InitializeCriticalSections();
     Sys_InitMainThread();
+
+    SceUID watchdogMain = sceKernelGetThreadId();
+    SceUID watchdog = sceKernelCreateThread("kcod_watchdog", VitaMain_Watchdog, 191,
+                                            16 * 1024, 0, SCE_KERNEL_CPU_MASK_USER_ALL, NULL);
+    if (watchdog >= 0)
+        sceKernelStartThread(watchdog, sizeof(watchdogMain), &watchdogMain);
     track_init();
     Win_InitLocalization();
 

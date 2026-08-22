@@ -119,6 +119,7 @@ const char* SL_DebugConvertToString(uint32_t stringValue);
 uint32_t SL_ConvertFromString(const char* str);
 
 uint32_t SL_FindString(const char* str);
+void SL_DebugProbe(const char *str, const char *tag);
 void SL_RemoveRefToString(uint32_t stringValue);
 void SL_RemoveRefToStringOfSize(uint32_t stringValue, uint32_t len);
 

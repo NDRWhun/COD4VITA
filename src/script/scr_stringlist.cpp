@@ -503,6 +503,19 @@ uint32_t SL_FindString(const char* str)
 	return FindStringOfSize(str, strlen(str) + 1);
 }
 
+void SL_DebugProbe(const char *str, const char *tag)
+{
+    uint32_t h = SL_FindString(str);
+    if (!h)
+    {
+        Com_Printf(16, "slprobe %s '%s': not present\n", tag, str);
+        return;
+    }
+    RefString *r = GetRefString(h);
+    Com_Printf(16, "slprobe %s '%s': h=%u refs=%u user=%#x\n",
+               tag, str, h, (unsigned)r->refCount, (unsigned)r->user);
+}
+
 void __cdecl SL_TransferRefToUser(uint32_t stringValue, uint32_t user)
 {
 	volatile LONG Comperand; // [esp+20h] [ebp-28h]
