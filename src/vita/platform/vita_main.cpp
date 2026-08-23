@@ -62,6 +62,7 @@ static void VitaMain_RunSelfTests(void)
 }
 
 extern int com_frameTime;
+extern "C" const char *RB_CurrentMaterialName();
 
 // a hang tells the log whether the main thread is spinning or blocked
 static int VitaMain_Watchdog(SceSize args, void *argp)
@@ -93,8 +94,9 @@ static int VitaMain_Watchdog(SceSize args, void *argp)
         SceUInt64 wall = sceKernelGetProcessTimeWide();
         SceUInt64 ran = ti.runClocks - lastClocks;
         VitaSys_LogPrintf("watchdog: main stalled %us at frame time %i, status %i, "
-                          "ranClocks +%llu\n",
-                          stalled * 2, last, ti.status, (unsigned long long)ran);
+                          "ranClocks +%llu, material '%s'\n",
+                          stalled * 2, last, ti.status, (unsigned long long)ran,
+                          RB_CurrentMaterialName());
         // a sustained hot spin with a frozen frame counter is an infinite loop; abort into a core dump
         hot = (ran > (wall - lastWall) * 3 / 4) ? hot + 1 : 0;
         lastClocks = ti.runClocks;

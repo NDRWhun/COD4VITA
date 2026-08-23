@@ -13,6 +13,15 @@ const GfxCmdBufContext gfxCmdBufContext = {
     .state = &gfxCmdBufState
 };
 
+#ifdef KISAK_VITA
+// hang diagnostics; racy read is fine, the name string is fastfile-resident
+extern "C" const char *RB_CurrentMaterialName()
+{
+    const Material *material = gfxCmdBufState.material;
+    return material ? material->info.name : "<none>";
+}
+#endif
+
 const uint32_t s_cullTable_21[4] = { 0u, 1u, 3u, 2u }; // idb
 const uint32_t s_blendTable_21[11] = { 0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u }; // idb
 const uint32_t s_stencilOpTable_21[8] = { 1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u }; // idb
