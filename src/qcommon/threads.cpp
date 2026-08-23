@@ -3,6 +3,7 @@
 
 #ifdef KISAK_VITA
 #include <vita/platform/vita_system.h>
+#include <vita/platform/vita_threads.h>
 #endif
 
 #ifndef KISAK_VITA
@@ -183,6 +184,9 @@ void __cdecl Sys_CreateThread(void(__cdecl* function)(uint32_t), ThreadContext_t
     iassert( threadFunc[threadContext] == NULL );
     iassert(threadContext < THREAD_CONTEXT_COUNT);
     threadFunc[threadContext] = function;
+#ifdef KISAK_VITA
+    VitaThreads_SetNextName(s_threadNames[threadContext]);
+#endif
     threadHandle[threadContext] = CreateThread(
         0,
         0,

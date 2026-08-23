@@ -33,6 +33,7 @@ BOOL ResetEvent(HANDLE event);
 DWORD WaitForSingleObject(HANDLE object, DWORD milliseconds);
 BOOL CloseHandle(HANDLE object);
 
+void VitaThreads_SetNextName(const char *name);
 HANDLE CreateThread(void *attributes, SIZE_T stackSize, DWORD (*start)(void *),
                     void *parameter, DWORD flags, DWORD *threadId);
 DWORD SuspendThread(HANDLE thread);

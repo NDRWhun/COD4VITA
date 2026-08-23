@@ -212,6 +212,13 @@ static int VitaThreads_Entry(SceSize argSize, void *argBlock)
     return 0;
 }
 
+static char s_nextThreadName[32];
+
+void VitaThreads_SetNextName(const char *name)
+{
+    snprintf(s_nextThreadName, sizeof(s_nextThreadName), "kcod_%s", name ? name : "thread");
+}
+
 HANDLE CreateThread(void *attributes, SIZE_T stackSize, DWORD (*start)(void *),
                     void *parameter, DWORD flags, DWORD *threadId)
 {
@@ -230,10 +237,12 @@ HANDLE CreateThread(void *attributes, SIZE_T stackSize, DWORD (*start)(void *),
 
         thread->resumeFlag = sceKernelCreateEventFlag("kcod_resume", SCE_EVENT_WAITMULTIPLE,
                                                       0, NULL);
-        thread->uid = sceKernelCreateThread("kcod_thread", VitaThreads_Entry,
+        thread->uid = sceKernelCreateThread(s_nextThreadName[0] ? s_nextThreadName : "kcod_thread",
+                                            VitaThreads_Entry,
                                             VITA_PRIORITY_NORMAL,
                                             stackSize ? (SceSize)stackSize : VITA_THREAD_STACK,
                                             0, SCE_KERNEL_CPU_MASK_USER_ALL, NULL);
+        s_nextThreadName[0] = 0;
         if (thread->uid < 0 || thread->resumeFlag < 0)
         {
             if (thread->resumeFlag >= 0)
