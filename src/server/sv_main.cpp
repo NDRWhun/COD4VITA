@@ -211,10 +211,6 @@ int __cdecl SV_ProcessPendingSave(PendingSave *pendingSave)
 
     if (!pendingSave)
         MyAssertHandler("c:\\trees\\cod3\\cod3src\\src\\server\\sv_main.cpp", 292, 0, "%s", "pendingSave");
-#ifdef KISAK_VITA
-    Com_Printf(15, "save '%s' on %s thread\n", pendingSave->filename,
-               Sys_IsMainThread() ? "main" : Sys_IsDatabaseThread() ? "database" : "other");
-#endif
     checksum = SV_GetCheckSum();
     result = G_SaveGame(pendingSave, checksum);
     if (!pendingSave)
@@ -231,13 +227,6 @@ int __cdecl SV_ProcessPendingSaves()
 
 	if (!pendingSaveGlob.count)
 		return 0;
-
-#ifdef KISAK_VITA
-	// serialization walks live script state, so only the main thread may run saves;
-	// a request from any other thread stays queued for the next server frame
-	if (!Sys_IsMainThread())
-		return 0;
-#endif
 
 	if (Dvar_GetInt("g_reloading"))
 	{
