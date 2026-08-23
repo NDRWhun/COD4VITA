@@ -3212,6 +3212,32 @@ int __cdecl RB_BackendTimeout()
     {
 #ifdef KISAK_VITA
         v1 = !GxmFence_Reached((uint32_t)(uintptr_t)dx.swapFence);
+        if (v1)
+        {
+            // a fence no future scene can land would park the swap forever; log and present
+            static uint32_t s_stuckFence;
+            static int s_stuckStart;
+            static int s_stuckLogs;
+            const uint32_t fence = (uint32_t)(uintptr_t)dx.swapFence;
+            const int now = Sys_Milliseconds();
+            if (s_stuckFence != fence)
+            {
+                s_stuckFence = fence;
+                s_stuckStart = now;
+            }
+            else if (now - s_stuckStart > 500)
+            {
+                if (s_stuckLogs < 20)
+                {
+                    ++s_stuckLogs;
+                    VitaSys_LogPrintf("swap fence %u stuck: submitted %u retired %u scene %s\n",
+                                      fence, GxmDevice_ScenesSubmitted(), GxmDevice_ScenesRetired(),
+                                      GxmRenderTarget_SceneOpen() ? "open" : "closed");
+                }
+                s_stuckFence = 0;
+                v1 = 0;
+            }
+        }
 #else
         //v1 = dx.swapFence->GetData(dx.swapFence, v2, 4u, 1u) == 1;
         v1 = dx.swapFence->GetData(v2, 4, 1) == 1;
