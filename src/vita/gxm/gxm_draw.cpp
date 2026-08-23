@@ -149,7 +149,8 @@ uint32_t GxmDraw_DroppedConstants(void)
 
 void GxmDraw_SetStream(uint32_t streamIndex, const void *data)
 {
-    if (streamIndex >= GXM_MAX_VERTEX_STREAMS)
+    // a NULL stream would send the GPU to address 0 and hang it mid-scene
+    if (streamIndex >= GXM_MAX_VERTEX_STREAMS || !data)
         return;
     sceGxmSetVertexStream(GxmDevice_Context(), streamIndex, data);
 }
