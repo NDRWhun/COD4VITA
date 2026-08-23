@@ -179,6 +179,13 @@ void __cdecl Sys_CreateEvent(bool manualReset, bool initialState, void** event)
     *event = CreateEventA(0, manualReset, initialState, 0);
 }
 
+#ifdef KISAK_VITA
+extern "C" uint32_t Sys_ThreadUidForContext(int threadContext)
+{
+    return threadId[threadContext];
+}
+#endif
+
 void __cdecl Sys_CreateThread(void(__cdecl* function)(uint32_t), ThreadContext_t threadContext)
 {
     iassert( threadFunc[threadContext] == NULL );

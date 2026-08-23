@@ -14,11 +14,22 @@ const GfxCmdBufContext gfxCmdBufContext = {
 };
 
 #ifdef KISAK_VITA
+#include <database/database.h>
+
 // hang diagnostics; racy read is fine, the name string is fastfile-resident
 extern "C" const char *RB_CurrentMaterialName()
 {
     const Material *material = gfxCmdBufState.material;
     return material ? material->info.name : "<none>";
+}
+
+// remote-screen-update handshake state, for the watchdog's stall log
+extern "C" void RB_HangState(int *nesting, int *notify, int *remote, int *dbBlocked)
+{
+    *nesting = r_glob.remoteScreenUpdateNesting;
+    *notify = r_glob.screenUpdateNotify;
+    *remote = r_glob.isRenderingRemoteUpdate;
+    *dbBlocked = (int)g_mainThreadBlocked;
 }
 #endif
 

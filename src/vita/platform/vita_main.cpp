@@ -63,6 +63,8 @@ static void VitaMain_RunSelfTests(void)
 
 extern int com_frameTime;
 extern "C" const char *RB_CurrentMaterialName();
+extern "C" void RB_HangState(int *nesting, int *notify, int *remote, int *dbBlocked);
+extern "C" uint32_t Sys_ThreadUidForContext(int threadContext);
 
 // a hang tells the log whether the main thread is spinning or blocked
 static int VitaMain_Watchdog(SceSize args, void *argp)
@@ -93,18 +95,28 @@ static int VitaMain_Watchdog(SceSize args, void *argp)
         sceKernelGetThreadInfo(mainUid, &ti);
         SceUInt64 wall = sceKernelGetProcessTimeWide();
         SceUInt64 ran = ti.runClocks - lastClocks;
+        int rsuNesting, rsuNotify, rsuRemote, dbBlocked;
+        RB_HangState(&rsuNesting, &rsuNotify, &rsuRemote, &dbBlocked);
+        SceKernelThreadInfo backendInfo;
+        memset(&backendInfo, 0, sizeof(backendInfo));
+        backendInfo.size = sizeof(backendInfo);
+        sceKernelGetThreadInfo((SceUID)Sys_ThreadUidForContext(1), &backendInfo);
         VitaSys_LogPrintf("watchdog: main stalled %us at frame time %i, status %i, "
-                          "ranClocks +%llu, material '%s'\n",
+                          "ranClocks +%llu, material '%s', rsu %i/%i/%i dbblk %i, "
+                          "backend status %i clocks %llu\n",
                           stalled * 2, last, ti.status, (unsigned long long)ran,
-                          RB_CurrentMaterialName());
+                          RB_CurrentMaterialName(), rsuNesting, rsuNotify, rsuRemote,
+                          dbBlocked, backendInfo.status,
+                          (unsigned long long)backendInfo.runClocks);
         // a sustained hot spin with a frozen frame counter is an infinite loop; abort into a core dump
         hot = (ran > (wall - lastWall) * 3 / 4) ? hot + 1 : 0;
         lastClocks = ti.runClocks;
         lastWall = wall;
-        if (hot >= 12)
+        // a cold stall this long is a lost wakeup, not a slow load; dump it too
+        if (hot >= 12 || stalled >= 60)
         {
-            VitaSys_LogPrintf("watchdog: main spun hot for %us, aborting for a core dump\n",
-                              hot * 2);
+            VitaSys_LogPrintf("watchdog: main %s for %us, aborting for a core dump\n",
+                              hot >= 12 ? "spun hot" : "stalled cold", (hot >= 12 ? hot : stalled) * 2);
             sceKernelDelayThread(200 * 1000);
             abort();
         }
